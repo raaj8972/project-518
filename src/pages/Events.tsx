@@ -95,11 +95,12 @@ export const Events: React.FC = () => {
 
     const { data } = await supabase
       .from('registrations')
-      .select('event_id')
-      .eq('user_id', uid);
+      .select('event_id, status')
+      .eq('user_id', uid)
+      .neq('status', 'rejected');
     
     if (data) {
-      setUserRegistrations(data.map((r: any) => String(r.event_id)));
+      setUserRegistrations(data.map((r: any) => ({ event_id: String(r.event_id), status: r.status })));
     }
   }, [isAnyAuthenticated]);
 
@@ -168,6 +169,7 @@ export const Events: React.FC = () => {
         .select(`
           id,
           full_name,
+          username,
           avatar_url,
           aura_color,
           background_url,
@@ -181,19 +183,104 @@ export const Events: React.FC = () => {
       if (p) {
         const xpRecord = Array.isArray(p.student_xp) ? p.student_xp[0] : p.student_xp;
         
+        // Fetch all profiles, registrations, and rounds to calculate correct rank
         const { data: allProfiles } = await supabase
           .from('profiles')
-          .select('id, likes_count, student_xp(xp_total)');
+          .select('id, username, likes_count, student_xp(xp_total)');
+
+        const [regsResponse, roundsResponse, eventRoundsResponse] = await Promise.all([
+          supabase.from('registrations').select('id, user_id, status, is_active, event_id, event:events(id, title)'),
+          supabase.from('registration_rounds').select('id, registration_id, status, round_id, prize_rank'),
+          supabase.from('event_rounds').select('id, name')
+        ]);
+
+        const regsList = regsResponse.data || [];
+        const roundsList = roundsResponse.data || [];
+        const eventRounds = eventRoundsResponse.data || [];
+
+        const roundNameMap: Record<string, string> = {};
+        eventRounds.forEach(er => {
+          roundNameMap[er.id] = er.name;
+        });
+
+        // Count approved registrations per event to dynamically find the top 2 Major Events
+        const eventCounts: Record<string, number> = {};
+        regsList.forEach(r => {
+          if (r.status === 'approved' && r.event_id) {
+            eventCounts[r.event_id] = (eventCounts[r.event_id] || 0) + 1;
+          }
+        });
+
+        const computedMajorEventIds = Object.entries(eventCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 2)
+          .map(entry => entry[0]);
+
+        // Map rounds by registration_id (O(N))
+        const roundsByRegMap: Record<string, any[]> = {};
+        roundsList.forEach(rd => {
+          if (!roundsByRegMap[rd.registration_id]) {
+            roundsByRegMap[rd.registration_id] = [];
+          }
+          roundsByRegMap[rd.registration_id].push(rd);
+        });
+
+        // Map registrations by user_id (O(N))
+        const userRegsMap: Record<string, any[]> = {};
+        regsList.forEach(r => {
+          if (!userRegsMap[r.user_id]) {
+            userRegsMap[r.user_id] = [];
+          }
+          const rRounds = roundsByRegMap[r.id] || [];
+          userRegsMap[r.user_id].push({
+            ...r,
+            registration_rounds: rRounds
+          });
+        });
           
         let calculatedRank = 100;
         if (allProfiles) {
           const sorted = allProfiles
             .map((prof: any) => {
-              const xpRec = Array.isArray(prof.student_xp) ? prof.student_xp[0] : prof.student_xp;
-              const xpTotal = xpRec?.xp_total || 0;
+              const likes = prof.likes_count || 0;
+              const pRegs = userRegsMap[prof.id] || [];
+              
+              let score = likes * 10;
+              pRegs.forEach((r: any) => {
+                const isMajor = computedMajorEventIds.includes(r.event_id || '');
+                
+                if (r.status === 'approved') {
+                  score += isMajor ? 30 : 15;
+                }
+                
+                const rr = r.registration_rounds || [];
+                rr.forEach((roundObj: any) => {
+                  if (roundObj.status === 'qualified') {
+                    // Base round qualified points
+                    score += isMajor ? 40 : 20;
+                    
+                    // Final round bonus
+                    const roundName = roundNameMap[roundObj.round_id] || '';
+                    const isFinalRound = roundName.toLowerCase().includes('final');
+                    if (isFinalRound) {
+                      score += isMajor ? 60 : 30;
+                    }
+                    
+                    // Winner position points
+                    if (roundObj.prize_rank === '1st') {
+                      score += isMajor ? 100 : 50;
+                    } else if (roundObj.prize_rank === '2nd') {
+                      score += isMajor ? 60 : 30;
+                    } else if (roundObj.prize_rank === '3rd') {
+                      score += isMajor ? 40 : 20;
+                    }
+                  }
+                });
+              });
+
               return {
                 id: prof.id,
-                hype_score: ((prof.likes_count || 0) * 500) + xpTotal
+                hype_score: score
               };
             })
             .sort((a, b) => b.hype_score - a.hype_score);
@@ -204,9 +291,49 @@ export const Events: React.FC = () => {
           }
         }
 
+        const pRegs = userRegsMap[p.id] || [];
+        let pScore = (p.likes_count || 0) * 10;
+        let pRoundsCleared = 0;
+        pRegs.forEach((r: any) => {
+          const isMajor = computedMajorEventIds.includes(r.event_id || '');
+          
+          if (r.status === 'approved') {
+            pScore += isMajor ? 30 : 15;
+          }
+          
+          const rr = r.registration_rounds || [];
+          rr.forEach((roundObj: any) => {
+            if (roundObj.status === 'qualified') {
+              pRoundsCleared++;
+              pScore += isMajor ? 40 : 20;
+              
+              const roundName = roundNameMap[roundObj.round_id] || '';
+              const isFinalRound = roundName.toLowerCase().includes('final');
+              if (isFinalRound) {
+                pScore += isMajor ? 60 : 30;
+              }
+              
+              if (roundObj.prize_rank === '1st') {
+                pScore += isMajor ? 100 : 50;
+              } else if (roundObj.prize_rank === '2nd') {
+                pScore += isMajor ? 60 : 30;
+              } else if (roundObj.prize_rank === '3rd') {
+                pScore += isMajor ? 40 : 20;
+              }
+            }
+          });
+        });
+
+        const participatedEvents = Array.from(new Set(
+          pRegs
+            .filter((r: any) => r.status === 'approved' && r.event)
+            .map((r: any) => r.event.title)
+        )) as string[];
+
         setSelectedWinnerProfile({
           id: p.id,
           full_name: p.full_name,
+          username: p.username,
           avatar_url: p.avatar_url,
           aura_color: p.aura_color,
           background_url: p.background_url,
@@ -214,8 +341,10 @@ export const Events: React.FC = () => {
           tier: xpRecord?.tier || 'bronze',
           xp: xpRecord?.xp_total || 0,
           likes_count: p.likes_count || 0,
-          hype_score: ((p.likes_count || 0) * 500) + (xpRecord?.xp_total || 0),
-          rank: calculatedRank
+          hype_score: pScore,
+          rank: calculatedRank,
+          participated_events: participatedEvents,
+          rounds_cleared: pRoundsCleared
         });
       }
     } catch (err) {
@@ -528,7 +657,8 @@ export const Events: React.FC = () => {
                 updateEvent={updateEvent}
                 onOpenProfile={handleOpenWinnerProfile}
                 isInCart={isInCart(event.id.toString())}
-                isRegistered={userRegistrations.includes(event.id.toString())}
+                isRegistered={userRegistrations.some(r => r.event_id === event.id.toString() && r.status !== 'payment_pending')}
+                isPaymentPending={userRegistrations.some(r => r.event_id === event.id.toString() && r.status === 'payment_pending')}
               />
             ))}
           </div>

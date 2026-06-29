@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Phone, GraduationCap, Loader2, Sparkles, LogOut, CheckCircle2 } from 'lucide-react';
+import { User, Phone, GraduationCap, Loader2, Sparkles, LogOut, CheckCircle2, AtSign } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import { useCoreData } from '../context/CoreDataContext';
@@ -29,6 +30,7 @@ const StudentLogin: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [college, setCollege] = useState('');
   const [batch, setBatch] = useState('');
+  const [username, setUsername] = useState('');
 
   const { 
     isAuthenticated, 
@@ -50,8 +52,8 @@ const StudentLogin: React.FC = () => {
     : (Array.isArray(rawBo) && rawBo.length > 0)
     ? rawBo
     : ['Batch 2024', 'Batch 2025', 'Batch 2026', 'Batch 2027'];
-    
-  const showCollege = siteSettings?.registration_institution_visible ?? false;
+     
+  const showCollege = false;
 
   // Sync profile data when authenticated but incomplete
   useEffect(() => {
@@ -60,6 +62,7 @@ const StudentLogin: React.FC = () => {
       setPhone(profile.phone || '');
       setCollege(profile.college || '');
       setBatch(profile.batch || '');
+      setUsername(profile.username || '');
     }
   }, [isAuthenticated, profile]);
 
@@ -85,19 +88,40 @@ const StudentLogin: React.FC = () => {
 
   const handleCompleteProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !phone || !batch || (showCollege && !college)) {
+    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (!fullName || !phone || !batch || !cleanUsername || (showCollege && !college)) {
       toast.error('Please fill all required fields');
+      return;
+    }
+    if (cleanUsername.length < 3) {
+      toast.error('Username must be at least 3 characters long');
       return;
     }
 
     setLoading(true);
     try {
+      // Validate uniqueness
+      const { data: existingUser, error: checkErr } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', cleanUsername)
+        .neq('id', profile?.id)
+        .maybeSingle();
+
+      if (checkErr) throw checkErr;
+      if (existingUser) {
+        toast.error('This username is already taken!');
+        setLoading(false);
+        return;
+      }
+
       const { error } = await updateProfile({
         full_name: fullName,
         phone,
         college: showCollege ? college : 'N/A',
         batch,
-        participant_type: batch
+        participant_type: batch,
+        username: cleanUsername
       });
 
       if (error) throw error;
@@ -150,6 +174,17 @@ const StudentLogin: React.FC = () => {
           <form onSubmit={handleCompleteProfile} className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
             <div className="md:col-span-2">
               <InputField icon={User} type="text" placeholder="Full Name" required value={fullName} onChange={(e:any) => setFullName(e.target.value)} />
+            </div>
+
+            <div className="md:col-span-2">
+              <InputField 
+                icon={AtSign} 
+                type="text" 
+                placeholder="Unique Username Handle (e.g. raja_22)" 
+                required 
+                value={username} 
+                onChange={(e:any) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} 
+              />
             </div>
             
             <InputField icon={Phone} type="tel" placeholder="Phone Number" required value={phone} onChange={(e:any) => setPhone(e.target.value)} />

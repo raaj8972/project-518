@@ -9,7 +9,7 @@ const Messages: React.FC = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="h-[calc(100vh-16rem)] min-h-[500px]"
+      className="h-[calc(100vh-22rem)] min-h-[380px] md:h-[calc(100vh-16rem)] md:min-h-[500px] mb-24 md:mb-0"
     >
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-white mb-2">Coordinator Chat</h1>

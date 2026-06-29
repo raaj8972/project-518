@@ -174,6 +174,27 @@ const ShoutOutBoard: React.FC = () => {
       return;
     }
 
+    // 2. Profanity, Abuse, and Threat Filter (Hindi, English, Hinglish)
+    const ABUSE_KEYWORDS = [
+      'fuck', 'shit', 'bitch', 'asshole', 'bastard', 'cunt', 'dick', 'pussy', 'kill you', 'kill u', 'murder', 'beat you', 'beat u', 'slap', 'threat', 'abuse',
+      'mc', 'bc', 'madarchod', 'behenchod', 'bhenchod', 'bhosdike', 'chutiya', 'saala', 'saale', 'harami', 'gandu', 'lawda', 'gaand', 'randi', 'lauda', 'chut', 'lode', 'laund',
+      'maar dunga', 'maardunga', 'jaan se', 'dekh lungi', 'dekh lunga', 'pitega'
+    ];
+
+    const cleanText = newMessage.toLowerCase().trim();
+    const hasAbuse = ABUSE_KEYWORDS.some(word => {
+      if (word.length <= 3) {
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        return regex.test(cleanText);
+      }
+      return cleanText.includes(word);
+    });
+
+    if (hasAbuse) {
+      toast.error('Abusive language or threats are not allowed!');
+      return;
+    }
+
     setSubmitting(true);
     try {
       // 2. Enforce Daily Limit (last 24h rolling)
@@ -247,10 +268,10 @@ const ShoutOutBoard: React.FC = () => {
               <MessageSquareHeart className="w-7 h-7 text-red-500" />
             </div>
             <div>
-              <h3 className="text-2xl font-black text-white tracking-tight uppercase">Vibe Feed</h3>
+              <h3 className="text-2xl font-black text-white tracking-tight uppercase">Shoutout Board</h3>
               <div className="flex items-center gap-2">
                 <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em]">{totalVibes} Cosmic Vibrations</p>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em]">{totalVibes} Shoutouts</p>
               </div>
             </div>
           </div>

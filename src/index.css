@@ -1300,11 +1300,22 @@ body.theme-vaporwave {
 }
 
 .neu-bottom-bar {
-  background: rgba(19, 23, 32, 0.8) !important;
+  background: rgba(12, 13, 16, 0.85) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8) !important;
+  border-radius: 28px;
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  height: 64px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 8px;
 }
 
 .neu-accent-indigo::before {

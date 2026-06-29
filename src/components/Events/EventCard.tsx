@@ -1,5 +1,6 @@
 import React from 'react';
-import { Calendar, MapPin, Clock, Users, UserPlus, FileText, AlertCircle, Phone, ChevronDown, ChevronUp, CheckCircle, ShoppingCart, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, MapPin, Clock, Users, FileText, AlertCircle, Phone, ChevronDown, ChevronUp, CheckCircle, ShoppingCart, Trash2, Lock, IndianRupee } from 'lucide-react';
 import { SpotlightCard } from '../ui/SpotlightCard';
 import WatchLiveButton from '../WatchLiveButton';
 import PreserveNewlines from '../PreserveNewlines';
@@ -19,7 +20,8 @@ import {
   getClosesAtTooltip,
   isLastTenSeconds,
   getCountdownStylesForSecs,
-  yearLabelFor
+  yearLabelFor,
+  isBeforeOpen
 } from '../../utils/eventUtils';
 
 interface EventCardProps {
@@ -39,6 +41,7 @@ interface EventCardProps {
   onOpenProfile?: (userId: string) => void;
   isInCart?: boolean;
   isRegistered?: boolean;
+  isPaymentPending?: boolean;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
@@ -57,8 +60,10 @@ export const EventCard: React.FC<EventCardProps> = ({
   updateEvent,
   onOpenProfile,
   isInCart = false,
-  isRegistered = false
+  isRegistered = false,
+  isPaymentPending = false
 }) => {
+  const navigate = useNavigate();
   const toggleFlip = () => onFlip(event.id);
   const handleRegister = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -114,6 +119,49 @@ export const EventCard: React.FC<EventCardProps> = ({
               } catch (err) {}
             }}
           >
+            {/* Floating Registration Timer Badge */}
+            {(() => {
+              const beforeOpen = isBeforeOpen(event);
+              const openCountdown = getCountdown(event);
+              const closesCountdown = getClosingCountdown(event);
+              const canReg = canRegisterNow(event);
+              const secsToClose = getSecondsToClose(event);
+              const isUrgent = secsToClose !== null && secsToClose <= 86400;
+
+              if (beforeOpen && openCountdown && openCountdown !== 'now') {
+                return (
+                  <div className="absolute top-3 right-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black text-indigo-300 uppercase tracking-widest border bg-indigo-950/80 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.25)] backdrop-blur-md">
+                    <Clock size={12} className="animate-pulse text-indigo-400" />
+                    <span>Opens in {openCountdown}</span>
+                  </div>
+                );
+              }
+
+              if (canReg && closesCountdown && closesCountdown !== 'closed') {
+                return (
+                  <div className={`absolute top-3 right-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border backdrop-blur-md ${
+                    isUrgent 
+                      ? 'bg-rose-950/80 border-rose-500/30 text-rose-300 shadow-[0_0_15px_rgba(239,68,68,0.25)]' 
+                      : 'bg-emerald-950/80 border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
+                  }`}>
+                    <Clock size={12} className={`animate-pulse ${isUrgent ? 'text-rose-400' : 'text-emerald-400'}`} />
+                    <span>Closes in {closesCountdown}</span>
+                  </div>
+                );
+              }
+
+              if (closesCountdown === 'closed') {
+                return (
+                  <div className="absolute top-3 right-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black text-rose-400 uppercase tracking-widest border bg-black/85 border-rose-500/20 backdrop-blur-md">
+                    <Lock size={12} className="text-rose-500" />
+                    <span>Registration Closed</span>
+                  </div>
+                );
+              }
+
+              return null;
+            })()}
+
             <div className="flip-front-media">
               <div className="poster-fill" style={{ backgroundImage: `url(${event.image})` }} />
               <div className="poster-main">
@@ -430,25 +478,31 @@ export const EventCard: React.FC<EventCardProps> = ({
                 {canRegisterNow(event) ? (
                   <>
                     <button
-                      onClick={handleRegister}
-                      disabled={isRegistered || (Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0) && !isRegistered)}
+                      onClick={isPaymentPending ? (e) => { e.stopPropagation(); navigate('/dashboard'); } : handleRegister}
+                      disabled={(isRegistered && !isPaymentPending) || (Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0) && !isRegistered && !isPaymentPending)}
                       className={`w-full font-semibold flex items-center justify-center glow-text-btn ${
                         isRegistered 
                           ? '!bg-green-500/15 !border-green-500/30 !text-green-400 cursor-not-allowed !pointer-events-auto' 
-                          : isInCart 
-                            ? '!bg-rose-500/15 !border-rose-500/30 !text-rose-400' 
-                            : event.max_participants && (event.current_registrations || 0) >= (event.max_participants ?? 0) 
-                              ? 'opacity-60 cursor-not-allowed !pointer-events-none' 
-                              : ''
+                          : isPaymentPending
+                            ? '!bg-orange-500/15 !border-orange-500/30 !text-orange-400 !pointer-events-auto shadow-[0_0_15px_rgba(249,115,22,0.15)] hover:bg-orange-500/25 transition-all'
+                            : isInCart 
+                              ? '!bg-rose-500/15 !border-rose-500/30 !text-rose-400' 
+                              : event.max_participants && (event.current_registrations || 0) >= (event.max_participants ?? 0) 
+                                ? 'opacity-60 cursor-not-allowed !pointer-events-none' 
+                                : ''
                       }`}
                     >
-                      {event.max_participants && (event.current_registrations || 0) >= event.max_participants && !isRegistered ? (
+                      {event.max_participants && (event.current_registrations || 0) >= event.max_participants && !isRegistered && !isPaymentPending ? (
                         <>
                           <AlertCircle size={16} className="mr-2" /> EVENT FULL
                         </>
                       ) : isRegistered ? (
                         <span className="flex items-center gap-2 py-2">
                           <CheckCircle size={16} className="text-green-400" /> <span>REGISTERED</span>
+                        </span>
+                      ) : isPaymentPending ? (
+                        <span className="flex items-center gap-2 py-2">
+                          <IndianRupee size={16} className="text-orange-400 animate-pulse" /> <span>PAYMENT REQUIRED</span>
                         </span>
                       ) : isInCart ? (
                         <span className="flex items-center gap-2 py-2">

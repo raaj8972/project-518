@@ -130,41 +130,6 @@ const Overview: React.FC = () => {
       variants={containerVariants}
       className="space-y-6"
     >
-      {/* ── Welcome & Interactive Dashboard Bar ────────────────────────────── */}
-      <motion.div variants={itemVariants}>
-        <div className="neu-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-1">Student Dashboard</p>
-            <h1 className="text-2xl font-black text-white tracking-tight">
-              {firstName}'s <span style={{ color: tierColor }}>Space</span>
-            </h1>
-          </div>
-          <div className="flex items-center gap-2.5">
-            {rankInfo && (
-              <div className="neu-inset px-4 py-2 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-indigo-400" />
-                <span className="text-sm font-black text-white">#{rankInfo.rank}</span>
-                <span className="text-[9px] text-gray-600 uppercase tracking-widest font-black">rank</span>
-              </div>
-            )}
-            <button
-              onClick={handleShowPass}
-              className="neu-nav-item px-4 py-2 flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
-            >
-              <QrCode className="w-4 h-4" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Entry Pass</span>
-            </button>
-            <button
-              onClick={() => navigate('/dashboard/settings')}
-              className="neu-nav-item px-4 py-2 flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Settings</span>
-            </button>
-          </div>
-        </div>
-      </motion.div>
-
       {/* ── Stat Cards Grid ────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {dataLoading

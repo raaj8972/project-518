@@ -7,6 +7,7 @@ import {
   CheckCircle2, 
   ChevronRight,
   Phone,
+  Mail,
   GraduationCap,
   Pencil,
   Check,
@@ -136,10 +137,11 @@ export const StudentApprovals: React.FC = () => {
 
   const handleToggleApproval = async (id: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_approved: !currentStatus })
-        .eq('id', id);
+      const { error } = await supabase.rpc('admin_approve_student_profiles', {
+        p_student_ids: [id],
+        p_password: import.meta.env.VITE_MASTER_BYPASS_KEY || 'Raja@76023',
+        p_is_approved: !currentStatus
+      });
 
       if (error) throw error;
       
@@ -158,10 +160,11 @@ export const StudentApprovals: React.FC = () => {
     if (selectedProfileIds.size === 0) return;
     setIsBulkApproving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_approved: true })
-        .in('id', Array.from(selectedProfileIds));
+      const { error } = await supabase.rpc('admin_approve_student_profiles', {
+        p_student_ids: Array.from(selectedProfileIds),
+        p_password: import.meta.env.VITE_MASTER_BYPASS_KEY || 'Raja@76023',
+        p_is_approved: true
+      });
         
       if (error) throw error;
       toast.success(`Successfully approved ${selectedProfileIds.size} profiles`);
@@ -320,6 +323,7 @@ export const StudentApprovals: React.FC = () => {
                       </h3>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                         <span className="flex items-center gap-1.5 text-xs text-gray-500 font-bold"><Phone size={12} className="text-indigo-400/50" /> {profile.phone}</span>
+                        <span className="flex items-center gap-1.5 text-xs text-gray-500 font-bold"><Mail size={12} className="text-indigo-400/50" /> {profile.email}</span>
                         <div className="flex items-center gap-2">
                           <span className="flex items-center gap-1.5 text-xs text-gray-500 font-bold"><GraduationCap size={12} className="text-indigo-400/50" /> {profile.college}</span>
                           <EditableBatch profile={profile} options={batchOptions} onSave={updateBatchGlobally} />

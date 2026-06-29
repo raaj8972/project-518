@@ -44,7 +44,17 @@ export const GenericAIGenerator: React.FC<GenericAIGeneratorProps> = ({
         }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error("Non-JSON response received:", text);
+        if (!response.ok) {
+          throw new Error(`Server returned error ${response.status}: Please make sure Netlify Dev is running.`);
+        }
+        throw new Error("Invalid response format from server.");
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to generate content');

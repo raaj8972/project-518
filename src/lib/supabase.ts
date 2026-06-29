@@ -81,9 +81,13 @@ const getStorageKey = () => {
   const path = window.location.pathname;
   if (
     path.startsWith('/coordinator') ||
+    path.startsWith('/cr') ||
     path.startsWith('/admin') ||
     path.startsWith('/security') ||
-    path.startsWith('/council')
+    path.startsWith('/council') ||
+    path === '/login' ||
+    path === '/sports-admin' ||
+    path === '/security-login'
   ) {
     return `${BRAND_NAME.toLowerCase()}_${BRAND_YEAR}_staff_auth`;
   }

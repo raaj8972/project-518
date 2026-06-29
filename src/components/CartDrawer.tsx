@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingCart, Trash2, CheckCircle, Loader2, Calendar, Users, User, Sparkles, AlertCircle } from 'lucide-react';
+import { X, ShoppingCart, Trash2, CheckCircle, Loader2, Calendar, Users, User, Sparkles, AlertCircle, IndianRupee } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 import { useEventCart } from '../context/EventCartContext';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import { supabase } from '../lib/supabase';
@@ -20,6 +21,49 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onRegisterSuccess }) => 
   const [myGroups, setMyGroups] = useState<any[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<Record<string, string>>({}); // event.id -> group.id
+  
+  // Payment step states
+  const [checkoutStep, setCheckoutStep] = useState<'cart' | 'payment'>('cart');
+  const [utrs, setUtrs] = useState<Record<string, string>>({}); // event.id -> UTR number
+  const [localEventOverrides, setLocalEventOverrides] = useState<Record<string, any>>({});
+
+  // Reset steps on close
+  useEffect(() => {
+    if (!isDrawerOpen) {
+      setCheckoutStep('cart');
+      setUtrs({});
+      setLocalEventOverrides({});
+    }
+  }, [isDrawerOpen]);
+
+  // Load latest event details for paid events when step becomes 'payment'
+  useEffect(() => {
+    if (checkoutStep !== 'payment') return;
+    
+    const refreshCartEvents = async () => {
+      const paidIds = cartItems.filter(e => e.payment_enabled && e.coordinator_upi_id).map(e => e.id.toString());
+      if (paidIds.length === 0) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('id, title, payment_enabled, payment_amount, coordinator_upi_id, coordinator_upi_name')
+          .in('id', paidIds);
+        
+        if (!error && data) {
+          const overrideMap: Record<string, any> = {};
+          data.forEach(item => {
+            overrideMap[item.id] = item;
+          });
+          setLocalEventOverrides(overrideMap);
+        }
+      } catch (err) {
+        console.error('Failed to refresh cart events:', err);
+      }
+    };
+
+    refreshCartEvents();
+  }, [checkoutStep, cartItems]);
 
   const fetchMyGroups = async () => {
     if (!user) return;
@@ -69,62 +113,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onRegisterSuccess }) => 
     }
   };
 
-  const [creatingDemo, setCreatingDemo] = useState(false);
-
-  const handleCreateDemoGroup = async () => {
-    if (!user) return;
-    setCreatingDemo(true);
-    try {
-      // 1. Get 3 other profiles
-      const { data: profiles, error: pErr } = await supabase
-        .from('profiles')
-        .select('id')
-        .neq('id', user.id)
-        .limit(3);
-
-      if (pErr) throw pErr;
-      if (!profiles || profiles.length === 0) {
-        toast.error('No other users found in database to invite!');
-        return;
-      }
-
-      // 2. Create the group
-      const { data: newGroup, error: gErr } = await supabase
-        .from('student_groups')
-        .insert({
-          name: 'Demo Team Alpha',
-          owner_id: user.id
-        })
-        .select()
-        .single();
-
-      if (gErr) throw gErr;
-      if (!newGroup) throw new Error('Failed to create group');
-
-      // 3. Add members as accepted
-      const membersToInsert = profiles.map((p: any) => ({
-        group_id: newGroup.id,
-        user_id: p.id,
-        status: 'accepted'
-      }));
-
-      const { error: mErr } = await supabase
-        .from('student_group_members')
-        .insert(membersToInsert);
-
-      if (mErr) throw mErr;
-
-      toast.success('⚡ Demo Group "Demo Team Alpha" created!');
-      // 4. Refresh groups
-      await fetchMyGroups();
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || 'Failed to create demo group');
-    } finally {
-      setCreatingDemo(false);
-    }
-  };
-
   useEffect(() => {
     if (isDrawerOpen) {
       fetchMyGroups();
@@ -134,6 +122,25 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onRegisterSuccess }) => 
   const handleRegisterAll = async () => {
     if (!user || !profile) { toast.error('Profile incomplete!'); return; }
     if (cartItems.length === 0) return;
+
+    // Check if there are paid items that need payment verification
+    const paidItems = cartItems.filter(event => event.payment_enabled && event.coordinator_upi_id && (event.payment_amount || 0) > 0);
+    
+    if (checkoutStep === 'cart' && paidItems.length > 0) {
+      setCheckoutStep('payment');
+      return;
+    }
+
+    // Validate that all paid events in the cart have a valid UTR number entered (minimum 6 characters)
+    if (checkoutStep === 'payment') {
+      for (const event of paidItems) {
+        const utr = utrs[event.id]?.trim();
+        if (!utr || utr.length < 6) {
+          toast.error(`Please enter a valid UTR / Transaction ID (min 6 characters) for ${event.title}`);
+          return;
+        }
+      }
+    }
 
     // First validate all group size limits before starting any registrations!
     for (const event of cartItems) {
@@ -171,6 +178,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onRegisterSuccess }) => 
 
     for (const event of cartItems) {
       try {
+        const isPaidEvent = event.payment_enabled && event.coordinator_upi_id && (event.payment_amount || 0) > 0;
+        
         if (event.isTeam) {
           const groupId = selectedGroups[event.id];
           const group = myGroups.find(g => g.id === groupId);
@@ -207,6 +216,32 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onRegisterSuccess }) => 
             failed.push(event.id);
           } else {
             registered.push(event.id);
+
+            // Handle payment submission insert if paid
+            if (isPaidEvent) {
+              const utr = utrs[event.id]?.trim().toUpperCase();
+              await new Promise(r => setTimeout(r, 400)); // stabilization gap
+              
+              const { data: latestReg } = await supabase
+                .from('registrations')
+                .select('id')
+                .eq('event_id', event.id.toString())
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              
+              if (latestReg) {
+                await supabase.from('payment_submissions').insert({
+                  registration_id: latestReg.id,
+                  event_id: event.id.toString(),
+                  user_id: user.id,
+                  utr_number: utr,
+                  amount: event.payment_amount,
+                  submitted_at: new Date().toISOString()
+                });
+              }
+            }
           }
         } else {
           // Individual Registration using the same RPC (concurrency-safe!)
@@ -228,6 +263,32 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onRegisterSuccess }) => 
             failed.push(event.id);
           } else {
             registered.push(event.id);
+
+            // Handle payment submission insert if paid
+            if (isPaidEvent) {
+              const utr = utrs[event.id]?.trim().toUpperCase();
+              await new Promise(r => setTimeout(r, 400)); // stabilization gap
+              
+              const { data: latestReg } = await supabase
+                .from('registrations')
+                .select('id')
+                .eq('event_id', event.id.toString())
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              
+              if (latestReg) {
+                await supabase.from('payment_submissions').insert({
+                  registration_id: latestReg.id,
+                  event_id: event.id.toString(),
+                  user_id: user.id,
+                  utr_number: utr,
+                  amount: event.payment_amount,
+                  submitted_at: new Date().toISOString()
+                });
+              }
+            }
           }
         }
       } catch (e: any) {
@@ -308,9 +369,71 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onRegisterSuccess }) => 
               </div>
             )}
 
-            {/* Events List */}
+            {/* Events List / Payment view */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar">
-              {cartItems.length === 0 ? (
+              {checkoutStep === 'payment' ? (
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="text-sm font-black text-white flex items-center gap-1.5 text-orange-400">
+                        <IndianRupee size={15} /> Payment Required
+                      </h3>
+                      <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">
+                        Please transfer the exact amount via UPI to each coordinator, then enter the UTR Number below to complete your registration.
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5 text-[9px] text-yellow-300 font-medium space-y-1">
+                      <p className="font-bold flex items-center gap-1">
+                        <AlertCircle size={10} className="text-yellow-400" /> IMPORTANT NOTICE
+                      </p>
+                      <p className="leading-relaxed">
+                        Please submit the correct UTR number. Submitting incorrect/fake UTRs will result in immediate registration rejection.
+                      </p>
+                      <p className="leading-relaxed font-bold">
+                        In case of rejection, please contact the coordinator within 24 hours.
+                      </p>
+                    </div>
+                  </div>
+
+                  {cartItems.filter(e => e.payment_enabled && e.coordinator_upi_id && (e.payment_amount || 0) > 0).map(eventItem => {
+                    const event = localEventOverrides[eventItem.id] || eventItem;
+                    const upiLink = `upi://pay?pa=${encodeURIComponent(event.coordinator_upi_id)}&pn=${encodeURIComponent(event.coordinator_upi_name || 'Coordinator')}&am=${event.payment_amount}&cu=INR&tn=${encodeURIComponent(`${event.title} Registration`)}`;
+                    return (
+                      <div key={event.id} className="p-4 rounded-2xl border border-orange-500/20 bg-orange-500/[0.02] space-y-4">
+                        {/* Event Title */}
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                          <p className="text-xs font-black text-white truncate max-w-[150px]">{event.title}</p>
+                          <p className="text-xs font-black text-orange-400">₹{event.payment_amount}</p>
+                        </div>
+
+                        {/* UPI QR Code */}
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <div className="p-2.5 bg-white rounded-2xl w-fit">
+                            <QRCodeSVG value={upiLink} size={110} />
+                          </div>
+                          <p className="text-[9px] text-gray-400 font-mono text-center truncate max-w-xs">{event.coordinator_upi_id}</p>
+                          <p className="text-[9px] font-bold text-white text-center">{event.coordinator_upi_name}</p>
+                        </div>
+
+                        {/* UTR Input */}
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-wider text-gray-400">
+                            UTR / Transaction Reference (12 digits)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 407812345678"
+                            required
+                            value={utrs[event.id] || ''}
+                            onChange={(e) => setUtrs(prev => ({ ...prev, [event.id]: e.target.value.trim().toUpperCase() }))}
+                            className="w-full px-3 py-2 bg-black/40 border border-white/10 focus:border-orange-500/50 rounded-xl text-xs text-white focus:outline-none placeholder:text-gray-600 font-mono"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : cartItems.length === 0 ? (
                 <div className="text-center py-16">
                   <ShoppingCart size={40} className="text-gray-700 mx-auto mb-3" />
                   <p className="text-gray-500 text-sm font-bold">Cart is empty</p>
@@ -348,18 +471,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onRegisterSuccess }) => 
                             <div className="h-9 bg-white/5 rounded-xl animate-pulse" />
                           ) : myGroups.length === 0 ? (
                             <div className="space-y-2">
-                              <div className="p-2.5 rounded-xl border border-yellow-500/20 bg-yellow-500/5 text-[10px] text-yellow-500 font-bold flex items-center gap-1.5">
-                                <AlertCircle size={12} />
-                                <span>No groups created.</span>
+                              <div className="p-2.5 rounded-xl border border-yellow-500/20 bg-yellow-500/5 text-[10px] text-yellow-500 font-bold flex flex-col gap-1.5">
+                                <span className="flex items-center gap-1.5"><AlertCircle size={12} /> No groups created.</span>
+                                <span className="text-[9px] text-gray-400 font-normal leading-relaxed">Please go to the "My Teams" tab to create your team and invite your team members.</span>
                               </div>
-                              <button
-                                type="button"
-                                onClick={handleCreateDemoGroup}
-                                disabled={creatingDemo}
-                                className="w-full py-2 bg-indigo-500/15 hover:bg-indigo-500/25 disabled:opacity-50 text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border border-indigo-500/25 flex items-center justify-center gap-1.5 cursor-pointer"
-                              >
-                                {creatingDemo ? <Loader2 size={10} className="animate-spin" /> : '⚡ Create Demo Group (For Testing)'}
-                              </button>
                             </div>
                           ) : (
                             <>
@@ -411,29 +526,53 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onRegisterSuccess }) => 
               )}
             </div>
 
-            {/* Footer Actions */}
-            {cartItems.length > 0 && (
-              <div className="px-4 pb-6 pt-3 border-t border-white/[0.08] space-y-2">
-                <button
-                  onClick={handleRegisterAll}
-                  disabled={registering || done.length === cartItems.length}
-                  className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
-                >
-                  {registering ? (
-                    <><Loader2 size={16} className="animate-spin" /> Registering...</>
-                  ) : done.length === cartItems.length && done.length > 0 ? (
-                    <><CheckCircle size={16} /> All Registered! 🎉</>
-                  ) : (
-                    <><CheckCircle size={16} /> Register for All {cartCount} Events</>
-                  )}
-                </button>
-                {!registering && done.length < cartItems.length && (
-                  <button onClick={() => { clearCart(); }} className="w-full py-2 text-gray-600 hover:text-gray-400 text-xs font-bold transition-all">
-                    Clear Cart
-                  </button>
-                )}
-              </div>
-            )}
+             {cartItems.length > 0 && (
+               <div className="px-4 pb-6 pt-3 border-t border-white/[0.08] space-y-2">
+                 {checkoutStep === 'payment' ? (
+                   <>
+                     <button
+                       onClick={handleRegisterAll}
+                       disabled={registering || cartItems.filter(e => e.payment_enabled && e.coordinator_upi_id && (e.payment_amount || 0) > 0).some(e => !(utrs[e.id]?.trim() && utrs[e.id].trim().length >= 6))}
+                       className="w-full py-4 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 disabled:opacity-50 text-white rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-600/20"
+                     >
+                       {registering ? (
+                         <><Loader2 size={16} className="animate-spin" /> Completing Checkout...</>
+                       ) : (
+                         <><CheckCircle size={16} /> Complete Checkout & Pay</>
+                       )}
+                     </button>
+                     <button
+                       onClick={() => setCheckoutStep('cart')}
+                       disabled={registering}
+                       className="w-full py-2 bg-white/5 hover:bg-white/10 disabled:opacity-50 text-gray-300 rounded-xl text-xs font-bold transition-all"
+                     >
+                       Back to Cart
+                     </button>
+                   </>
+                 ) : (
+                   <>
+                     <button
+                       onClick={handleRegisterAll}
+                       disabled={registering || done.length === cartItems.length}
+                       className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
+                     >
+                       {registering ? (
+                         <><Loader2 size={16} className="animate-spin" /> Registering...</>
+                       ) : done.length === cartItems.length && done.length > 0 ? (
+                         <><CheckCircle size={16} /> All Registered! 🎉</>
+                       ) : (
+                         <><CheckCircle size={16} /> Register for All {cartCount} Events</>
+                       )}
+                     </button>
+                     {!registering && done.length < cartItems.length && (
+                       <button onClick={() => { clearCart(); }} className="w-full py-2 text-gray-600 hover:text-gray-400 text-xs font-bold transition-all">
+                         Clear Cart
+                       </button>
+                     )}
+                   </>
+                 )}
+               </div>
+             )}
           </motion.div>
         </>
       )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2, Bell, Upload, FileImage } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2, Bell, Upload, FileImage, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import type { EventCoordinator } from '../../types/data';
@@ -78,6 +78,7 @@ export const EventsManagement: React.FC = () => {
     lastEventReorderError,
     adminUsers,
     sanitizeUrl,
+    addNotification,
   } = (useData() || {}) as any;
   
   // Determine if current user is the OWNER
@@ -251,6 +252,7 @@ export const EventsManagement: React.FC = () => {
 
 
   const [isAddingEvent, setIsAddingEvent] = useState(false);
+  const [formStep, setFormStep] = useState(1);
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
   const [activeWinnersFor, setActiveWinnersFor] = useState<number | null>(null);
   const [newCoordinator, setNewCoordinator] = useState<{ name: string; phone: string }>({ name: '', phone: '' });
@@ -569,6 +571,7 @@ export const EventsManagement: React.FC = () => {
           setIsAddingEvent(false);
           resetEventForm();
           setDraftCoordinators([]);
+          setFormStep(1);
           try { localStorage.removeItem('admin_events_form_draft'); } catch {}
         } else {
           throw new Error(result.error || 'Failed to submit for approval');
@@ -581,6 +584,7 @@ export const EventsManagement: React.FC = () => {
         setIsAddingEvent(false);
         resetEventForm();
         setDraftCoordinators([]);
+        setFormStep(1);
         try { localStorage.removeItem('admin_events_form_draft'); } catch {}
       }
     } catch (error: any) {
@@ -782,6 +786,47 @@ export const EventsManagement: React.FC = () => {
            }
         } else {
             push({ message: 'Event updated successfully!', type: 'success' });
+        }
+
+        // Real-time student dashboard popup notification trigger
+        if (hasScheduleChanges) {
+          const formatDetails = () => {
+            const parts = [];
+            if (eventData.date) {
+              try {
+                parts.push(`Date: ${new Date(eventData.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}`);
+              } catch (e) {
+                parts.push('Date: Yet to be decided');
+              }
+            } else {
+              parts.push('Date: Yet to be decided');
+            }
+            
+            if (eventData.time) {
+              parts.push(`Time: ${eventData.time}`);
+            } else {
+              parts.push('Time: Yet to be decided');
+            }
+
+            if (eventData.venue) {
+              parts.push(`Venue: ${eventData.venue}`);
+            } else {
+              parts.push('Venue: Yet to be decided');
+            }
+
+            return parts.join(' | ');
+          };
+
+          addNotification?.({
+            title: `📅 Schedule Updated: ${eventData.title}`,
+            message: `The schedule for "${eventData.title}" has been updated. ${formatDetails()}. Please verify the new details.`,
+            type: 'urgent',
+            visible: true,
+            starts_at: new Date().toISOString(),
+            ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+            priority: 10,
+            link_url: '/events',
+          }).catch((err: any) => console.error('Failed to create student dashboard notification:', err));
         }
 
         setEditingEvent(null);
@@ -1205,6 +1250,16 @@ export const EventsManagement: React.FC = () => {
     }
   };
 
+  const handleNextStep = () => {
+    if (formStep === 1) {
+      if (!eventForm.title.trim()) {
+        push({ message: 'Please enter the Event Title first.', type: 'warning' });
+        return;
+      }
+    }
+    setFormStep(prev => Math.min(prev + 1, 4));
+  };
+
   return (
     <div className="space-y-6">
       {/* AI Event Scanner Modal */}
@@ -1336,6 +1391,8 @@ export const EventsManagement: React.FC = () => {
       {isAddingEvent && (
         <div className="rico-glass-card rounded-[2.5rem] p-8 md:p-10 border-indigo-500/20 animate-in slide-in-from-top-4 duration-500 shadow-[0_0_50px_rgba(99,102,241,0.1)] relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[100px]"></div>
+          
+          {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center border border-purple-500/20">
@@ -1343,28 +1400,71 @@ export const EventsManagement: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-xl font-bold text-white tracking-tight">Add New Festival Event</h3>
-                <p className="text-sm text-gray-400 mt-1">Configure all parameters for your new event</p>
+                <p className="text-sm text-gray-400 mt-1">Configure all parameters for your new event (Step {formStep} of 4)</p>
               </div>
             </div>
-            
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-            {/* Left Column: Basic Info & Content */}
-            <div className="space-y-8">
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Event Title *</label>
-                  <input
-                    type="text"
-                    value={eventForm.title}
-                    onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="e.g., Battle of Bands, Hackathon"
-                    className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all"
-                  />
-                </div>
+          {/* Step Progress Tracker */}
+          <div className="mb-10 max-w-3xl mx-auto">
+            <div className="flex items-center justify-between relative">
+              {/* Background connecting line */}
+              <div className="absolute top-1/2 left-0 right-0 h-[2px] bg-white/5 -translate-y-1/2 z-0" />
+              <div className="absolute top-1/2 left-0 h-[2px] bg-gradient-to-r from-purple-500 to-indigo-500 -translate-y-1/2 z-0 transition-all duration-300" style={{ width: `${((formStep - 1) / 3) * 100}%` }} />
 
-                <div className="grid sm:grid-cols-2 gap-6">
+              {[
+                { step: 1, label: 'Basics' },
+                { step: 2, label: 'Schedule' },
+                { step: 3, label: 'Rules & Format' },
+                { step: 4, label: 'Media & Staff' }
+              ].map((s) => {
+                const isActive = formStep >= s.step;
+                const isCurrent = formStep === s.step;
+                return (
+                  <button
+                    key={s.step}
+                    type="button"
+                    onClick={() => {
+                      if (eventForm.title.trim() || s.step < formStep) {
+                        setFormStep(s.step);
+                      } else {
+                        push({ message: 'Please fill in the Event Title first.', type: 'warning' });
+                      }
+                    }}
+                    className="flex flex-col items-center gap-2 relative z-10 group focus:outline-none"
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border font-bold text-xs transition-all duration-300 ${
+                      isCurrent 
+                        ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)] scale-110' 
+                        : isActive 
+                          ? 'bg-indigo-950 border-indigo-500 text-purple-300' 
+                          : 'bg-black border-white/10 text-gray-500 group-hover:border-white/20'
+                    }`}>
+                      {s.step}
+                    </div>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 ${isCurrent ? 'text-purple-400' : isActive ? 'text-gray-300' : 'text-gray-600'}`}>{s.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="max-w-4xl mx-auto space-y-8">
+            {/* STEP 1: BASICS */}
+            {formStep === 1 && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
+                <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Event Title *</label>
+                    <input
+                      type="text"
+                      value={eventForm.title}
+                      onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="e.g., Battle of Bands, Hackathon"
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Category</label>
                     <select
@@ -1378,443 +1478,227 @@ export const EventsManagement: React.FC = () => {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Watch Live URL (Optional)</label>
-                    <input
-                      type="url"
-                      value={eventForm.watch_live_url || ''}
-                      onChange={(e) => setEventForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
-                      placeholder="https://youtube.com/live/..."
-                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all font-mono text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-1 h-4 bg-purple-500 rounded-full" />
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Main Coordinator & Group</h4>
-                </div>
-                
-                <div className="grid sm:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tighter mb-1.5">Full Name</label>
-                      <input
-                        type="text"
-                        value={eventForm.coordinator_name || ''}
-                        onChange={(e) => setEventForm(prev => ({ ...prev, coordinator_name: e.target.value }))}
-                        className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-white text-sm"
-                        placeholder="John Doe"
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Event Description *</label>
+                      <InlineDescriptionAI
+                        contextName={eventForm.title}
+                        contextType="event"
+                        onDescriptionGenerated={(desc) => setEventForm(prev => ({ ...prev, description: desc }))}
                       />
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tighter mb-1.5">Phone / WhatsApp</label>
-                      <input
-                        type="text"
-                        value={eventForm.coordinator_phone || ''}
-                        onChange={(e) => setEventForm(prev => ({ ...prev, coordinator_phone: e.target.value }))}
-                        className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-white text-sm font-mono"
-                        placeholder="+91..."
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tighter mb-1.5">Login Password</label>
-                      <input
-                        type="text"
-                        value={eventForm.coordinator_password || ''}
-                        onChange={(e) => setEventForm(prev => ({ ...prev, coordinator_password: e.target.value }))}
-                        disabled={!isOwner}
-                        className={`w-full px-3 py-2 border rounded-lg text-sm font-mono transition-all ${ 
-                          !isOwner 
-                            ? 'bg-black/40 border-white/5 text-gray-600 cursor-not-allowed' 
-                            : 'bg-black/20 border-white/10 text-white focus:ring-1 focus:ring-purple-500 focus:outline-none' 
-                        }`}
-                        placeholder="Coordinator login"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tighter mb-1.5">Official WhatsApp Link</label>
-                      <input
-                        type="url"
-                        value={eventForm.whatsapp_group_link || ''}
-                        onChange={(e) => setEventForm(prev => ({ ...prev, whatsapp_group_link: e.target.value }))}
-                        className="w-full px-3 py-2 bg-emerald-500/5 border border-emerald-500/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 text-emerald-400 text-sm placeholder-emerald-900"
-                        placeholder="chat.whatsapp.com/..."
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Event Description *</label>
-                    <InlineDescriptionAI
-                      contextName={eventForm.title}
-                      contextType="event"
-                      onDescriptionGenerated={(desc) => setEventForm(prev => ({ ...prev, description: desc }))}
-                    />
-                  </div>
-                  <textarea
-                    value={eventForm.description}
-                    onChange={(e) => setEventForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Describe the magic of this event..."
-                    rows={5}
-                    className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all leading-relaxed"
-                  />
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Scheduled Date</label>
-                    <input
-                      type="date"
-                      value={eventForm.date}
-                      onChange={(e) => setEventForm(prev => ({ ...prev, date: e.target.value }))}
-                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white transition-all font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Start/End Time</label>
-                    <input
-                      type="text"
-                      value={eventForm.time}
-                      onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
-                      placeholder="e.g., 10:00 AM - 2:00 PM"
-                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all font-mono"
+                    <textarea
+                      value={eventForm.description}
+                      onChange={(e) => setEventForm(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Describe the magic of this event..."
+                      rows={5}
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all leading-relaxed"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Event Venue</label>
-                  <div className="relative">
-                    <MapPin size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-400" />
-                    <input
-                      type="text"
-                      value={eventForm.venue}
-                      onChange={(e) => setEventForm(prev => ({ ...prev, venue: e.target.value }))}
-                      placeholder="Main Auditorium, Ground Floor"
-                      className="w-full pl-12 pr-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all"
-                    />
+                <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Event Highlights</label>
+                    <button
+                      type="button"
+                      onClick={addHighlight}
+                      className="text-[10px] font-bold text-purple-500 hover:text-purple-400 uppercase tracking-widest transition-colors flex items-center gap-1.5"
+                    >
+                      <Plus size={14} /> Add Highlight
+                    </button>
                   </div>
-                </div>
-              </div>
-
-              {/* Sub-Coordinators management */}
-              <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 bg-purple-500 rounded-full" />
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Event Support Staff</h4>
-                  </div>
-                  <span className="text-[10px] font-bold text-purple-500 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-                    {draftCoordinators.length} Staff
-                  </span>
-                </div>
-
-                <div className="space-y-3 max-h-52 overflow-y-auto pr-2 custom-scrollbar">
-                  {draftCoordinators.map((c, idx) => (
-                    <div key={idx} className="flex items-center gap-2 p-2 bg-black/40 border border-white/5 rounded-xl group/staff animate-in fade-in slide-in-from-right-2 duration-300">
-                      <div className="flex-1 grid grid-cols-2 gap-3">
-                        <input
-                          className="bg-transparent border-none p-0 text-sm text-white font-bold focus:ring-0 placeholder-gray-700"
-                          value={c.name}
-                          onChange={(e)=>setDraftCoordinators(prev=>prev.map((row,i)=> i===idx? { ...row, name: e.target.value }: row))}
-                          placeholder="Staff Name"
-                        />
-                        <input
-                          className="bg-transparent border-none p-0 text-sm text-gray-400 font-mono focus:ring-0 placeholder-gray-700"
-                          value={c.phone || ''}
-                          onChange={(e)=>setDraftCoordinators(prev=>prev.map((row,i)=> i===idx? { ...row, phone: e.target.value }: row))}
-                          placeholder="Phone"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover/staff:opacity-100 transition-opacity">
-                        <button type="button" onClick={()=>moveDraftCoordinator(idx,-1)} className="p-1.5 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all"><ArrowUp size={14} /></button>
-                        <button type="button" onClick={()=>moveDraftCoordinator(idx,1)} className="p-1.5 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all"><ArrowDown size={14} /></button>
-                        <button type="button" onClick={()=>setDraftCoordinators(prev=>prev.filter((_,i)=>i!==idx))} className="p-1.5 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={14} /></button>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {draftCoordinators.length === 0 && (
-                    <div className="text-center py-6 border-2 border-dashed border-white/5 rounded-xl">
-                      <p className="text-xs text-gray-600 italic">No additional staff added yet</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-4 border-t border-white/5 grid grid-cols-12 gap-3">
-                  <div className="col-span-5 relative">
-                    <UserPlus size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                    <input className="w-full pl-9 pr-3 py-2 bg-black/40 border border-white/10 rounded-lg text-sm text-white focus:ring-1 focus:ring-purple-500 focus:outline-none" value={newCoordinator.name} onChange={(e)=>setNewCoordinator(prev=>({...prev,name:e.target.value}))} placeholder="Staff Name" />
-                  </div>
-                  <input className="col-span-5 px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-sm text-white font-mono focus:ring-1 focus:ring-purple-500 focus:outline-none" value={newCoordinator.phone} onChange={(e)=>setNewCoordinator(prev=>({...prev,phone:e.target.value}))} placeholder="Phone" />
-                  <button
-                    type="button"
-                    onClick={()=>{
-                      const nameT = newCoordinator.name.trim();
-                      const phoneT = newCoordinator.phone.trim();
-                      const isPlaceholder = (v: string) => v === '' || v === '0' || v === '-' || v === '—';
-                      if (isPlaceholder(nameT) && !phoneT) return;
-                      setDraftCoordinators(prev=>[...prev, { name: isPlaceholder(nameT) ? '—' : nameT, phone: phoneT || null }]);
-                      setNewCoordinator({ name: '', phone: '' });
-                    }}
-                    className="col-span-2 bg-purple-600 text-white rounded-lg text-[10px] font-bold hover:bg-purple-500 transition-all uppercase tracking-tighter"
-                  >Add</button>
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-6">
-                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Audience Count (Optional)</label>
-                  <input
-                    type="text"
-                    value={eventForm.participants}
-                    onChange={(e) => setEventForm(prev => ({ ...prev, participants: e.target.value }))}
-                    placeholder="e.g., 200+ delegates"
-                    className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Seat Capacity (Optional)</label>
-                  <input
-                    type="number"
-                    value={eventForm.max_participants || ''}
-                    onChange={(e) => setEventForm(prev => ({ 
-                      ...prev, 
-                      max_participants: e.target.value ? parseInt(e.target.value) : undefined 
-                    }))}
-                    placeholder="Physical seat limit"
-                    className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all font-mono"
-                  />
-                  <div className="mt-4 flex items-center justify-between">
-                    <label className="flex items-center group cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={(eventForm as any).show_max_participants !== false}
-                        onChange={(e) => setEventForm(prev => ({ ...prev, show_max_participants: e.target.checked } as any))}
-                        className="w-4 h-4 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 transition-colors"
-                      />
-                      <span className="ml-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest group-hover:text-white transition-colors">Show Counter</span>
-                    </label>
-                    <p className="text-[10px] text-gray-600 italic">Visible on public card</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Event Highlights */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Event Highlights</label>
-                  <button
-                    type="button"
-                    onClick={addHighlight}
-                    className="text-[10px] font-bold text-purple-500 hover:text-purple-400 uppercase tracking-widest transition-colors flex items-center gap-1.5"
-                  >
-                    <Plus size={14} /> Add Highlight
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {eventForm.highlights.map((highlight, index) => (
-                    <div key={index} className="flex items-center gap-2 group animate-in slide-in-from-right-2 duration-300">
-                      <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
-                      <input
-                        type="text"
-                        value={highlight}
-                        onChange={(e) => updateHighlight(index, e.target.value)}
-                        placeholder="Bullet point highlight..."
-                        className="flex-1 bg-transparent border-none p-0 text-white text-sm focus:ring-0 placeholder-gray-700 font-medium"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeHighlight(index)}
-                        className="text-red-400/60 hover:text-red-400 p-1.5 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ))}
-                  {eventForm.highlights.length === 0 && (
-                    <div className="text-center py-4 border border-dashed border-white/5 rounded-xl">
-                       <p className="text-[10px] text-gray-600 italic uppercase tracking-widest">No highlights listed</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div> {/* END LEFT COLUMN */}
-
-            {/* Right Column: Rules & Logistics */}
-            <div className="space-y-8">
-              <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 bg-purple-500 rounded-full" />
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Event Rules & Guidelines</h4>
-                  </div>
-                  <label className="text-[10px] font-bold text-gray-500 hover:text-white flex items-center gap-2 cursor-pointer transition-colors uppercase tracking-widest select-none">
-                    <input 
-                      type="checkbox" 
-                      className="w-3 h-3 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0" 
-                      checked={rulesModeStructured} 
-                      onChange={(e)=>{
-                        const enabled = e.target.checked;
-                        if (enabled) {
-                          setRulesModeStructured(true);
-                          if (rulesSections.length === 0) setRulesSections([{ heading: '', blocks: [{ kind: 'points', style: 'number', title: '', items: eventForm.rules.length ? [...eventForm.rules] : [''] }] }]);
-                        } else {
-                          const flat = rulesSections.flatMap(s => (s.blocks || []).flatMap(b => (b.items || [])).filter(p=>p && p.trim()));
-                          if (flat.length) setEventForm(prev => ({ ...prev, rules: flat }));
-                          setRulesModeStructured(false);
-                        }
-                      }} 
-                    />
-                    Structured Mode
-                  </label>
-                </div>
-
-                {!rulesModeStructured ? (
                   <div className="space-y-3">
-                    {eventForm.rules.map((rule, index) => (
-                      <div key={index} className="flex items-center gap-3 animate-in slide-in-from-right-2 duration-300">
-                        <span className="text-xs font-bold text-purple-500 w-4">{index + 1}.</span>
+                    {eventForm.highlights.map((highlight, index) => (
+                      <div key={index} className="flex items-center gap-2 group animate-in slide-in-from-right-2 duration-300">
+                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full" />
                         <input
                           type="text"
-                          value={rule}
-                          onChange={(e) => updateRule(index, e.target.value)}
-                          placeholder="Event rule..."
-                          className="flex-1 bg-transparent border-none p-0 text-white text-sm focus:ring-0 placeholder-gray-700"
+                          value={highlight}
+                          onChange={(e) => updateHighlight(index, e.target.value)}
+                          placeholder="Bullet point highlight..."
+                          className="flex-1 bg-transparent border-none p-0 text-white text-sm focus:ring-0 placeholder-gray-700 font-medium"
                         />
-                        <button type="button" onClick={() => removeRule(index)} className="text-red-400/60 hover:text-red-400 p-1.5 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"><X size={14} /></button>
+                        <button
+                          type="button"
+                          onClick={() => removeHighlight(index)}
+                          className="text-red-400/60 hover:text-red-400 p-1.5 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
                     ))}
-                    <button type="button" onClick={addRule} className="text-[10px] font-bold text-purple-500 hover:text-purple-400 uppercase tracking-widest transition-colors flex items-center gap-1.5 mt-2"><Plus size={14} /> Add Manual Rule</button>
+                    {eventForm.highlights.length === 0 && (
+                      <div className="text-center py-4 border border-dashed border-white/5 rounded-xl">
+                         <p className="text-[10px] text-gray-600 italic uppercase tracking-widest">No highlights listed</p>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="space-y-6">
-                    {rulesSections.map((sec, idx) => (
-                      <div key={idx} className="bg-black/40 border border-white/5 rounded-xl p-4 relative group/section animate-in fade-in duration-300">
-                        <div className="flex items-center justify-between mb-4">
-                          <input 
-                            className="bg-transparent border-none p-0 text-sm font-bold text-purple-400 placeholder-purple-900 focus:ring-0 w-2/3" 
-                            placeholder="Section Title (e.g. Gameplay)" 
-                            value={sec.heading || ''} 
-                            onChange={(e)=>updateSectionField(idx,'heading',e.target.value)} 
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: SCHEDULE */}
+            {formStep === 2 && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
+                <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Scheduled Date</label>
+                      <input
+                        type="date"
+                        value={eventForm.date}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, date: e.target.value }))}
+                        className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white transition-all font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Start/End Time</label>
+                      <input
+                        type="text"
+                        value={eventForm.time}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
+                        placeholder="e.g., 10:00 AM - 2:00 PM"
+                        className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Event Venue</label>
+                    <div className="relative">
+                      <MapPin size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-400" />
+                      <input
+                        type="text"
+                        value={eventForm.venue}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, venue: e.target.value }))}
+                        placeholder="Main Auditorium, Ground Floor"
+                        className="w-full pl-12 pr-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: RULES & FORMAT */}
+            {formStep === 3 && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
+                {/* Event Rules & Guidelines */}
+                <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-4 bg-purple-500 rounded-full" />
+                      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Event Rules & Guidelines</h4>
+                    </div>
+                    <label className="text-[10px] font-bold text-gray-500 hover:text-white flex items-center gap-2 cursor-pointer transition-colors uppercase tracking-widest select-none">
+                      <input 
+                        type="checkbox" 
+                        className="w-3 h-3 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0" 
+                        checked={rulesModeStructured} 
+                        onChange={(e)=>{
+                          const enabled = e.target.checked;
+                          if (enabled) {
+                            setRulesModeStructured(true);
+                            if (rulesSections.length === 0) setRulesSections([{ heading: '', blocks: [{ kind: 'points', style: 'number', title: '', items: eventForm.rules.length ? [...eventForm.rules] : [''] }] }]);
+                          } else {
+                            const flat = rulesSections.flatMap(s => (s.blocks || []).flatMap(b => (b.items || [])).filter(p=>p && p.trim()));
+                            if (flat.length) setEventForm(prev => ({ ...prev, rules: flat }));
+                            setRulesModeStructured(false);
+                          }
+                        }} 
+                      />
+                      Structured Mode
+                    </label>
+                  </div>
+
+                  {!rulesModeStructured ? (
+                    <div className="space-y-3">
+                      {eventForm.rules.map((rule, index) => (
+                        <div key={index} className="flex items-center gap-3 animate-in slide-in-from-right-2 duration-300">
+                          <span className="text-xs font-bold text-purple-500 w-4">{index + 1}.</span>
+                          <input
+                            type="text"
+                            value={rule}
+                            onChange={(e) => updateRule(index, e.target.value)}
+                            placeholder="Event rule..."
+                            className="flex-1 bg-transparent border-none p-0 text-white text-sm focus:ring-0 placeholder-gray-700"
                           />
-                          <button type="button" onClick={()=>removeSection(idx)} className="text-[10px] font-bold text-red-400/60 hover:text-red-400 uppercase tracking-widest">Delete Section</button>
+                          <button type="button" onClick={() => removeRule(index)} className="text-red-400/60 hover:text-red-400 p-1.5 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"><X size={14} /></button>
                         </div>
-                        
-                        <div className="space-y-4">
-                          {(sec.blocks || []).map((b, bIdx) => (
-                            <div key={bIdx} className="bg-white/5 border border-white/5 rounded-lg p-3 space-y-3">
-                              <div className="flex items-center justify-between">
-                                <input 
-                                  className="bg-transparent border-none p-0 text-xs font-bold text-white placeholder-gray-700 focus:ring-0 w-1/2" 
-                                  placeholder="Block Title (optional)" 
-                                  value={b.title || ''} 
-                                  onChange={(e)=>updateBlockField(idx,bIdx,{ title: e.target.value })} 
-                                />
-                                <div className="flex items-center gap-3">
-                                  <select 
-                                    className="bg-black/40 border-none text-[10px] font-bold text-gray-500 uppercase tracking-widest rounded-md focus:ring-0 cursor-pointer" 
-                                    value={b.style || 'number'} 
-                                    onChange={(e)=>updateBlockField(idx,bIdx,{ style: (e.target.value as 'bullet'|'number') })}
-                                  >
-                                    <option value="number">Numeric</option>
-                                    <option value="bullet">Bullets</option>
-                                  </select>
-                                  <button type="button" onClick={()=>removeBlock(idx,bIdx)} className="text-red-400/60 hover:text-red-400"><Trash2 size={12} /></button>
+                      ))}
+                      <button type="button" onClick={addRule} className="text-[10px] font-bold text-purple-500 hover:text-purple-400 uppercase tracking-widest transition-colors flex items-center gap-1.5 mt-2"><Plus size={14} /> Add Manual Rule</button>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {rulesSections.map((sec, idx) => (
+                        <div key={idx} className="bg-black/40 border border-white/5 rounded-xl p-4 relative group/section animate-in fade-in duration-300">
+                          <div className="flex items-center justify-between mb-4">
+                            <input 
+                              className="bg-transparent border-none p-0 text-sm font-bold text-purple-400 placeholder-purple-900 focus:ring-0 w-2/3" 
+                              placeholder="Section Title (e.g. Gameplay)" 
+                              value={sec.heading || ''} 
+                              onChange={(e)=>updateSectionField(idx,'heading',e.target.value)} 
+                            />
+                            <button type="button" onClick={()=>removeSection(idx)} className="text-[10px] font-bold text-red-400/60 hover:text-red-400 uppercase tracking-widest">Delete Section</button>
+                          </div>
+                          
+                          <div className="space-y-4">
+                            {(sec.blocks || []).map((b, bIdx) => (
+                              <div key={bIdx} className="bg-white/5 border border-white/5 rounded-lg p-3 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <input 
+                                    className="bg-transparent border-none p-0 text-xs font-bold text-white placeholder-gray-700 focus:ring-0 w-1/2" 
+                                    placeholder="Block Title (optional)" 
+                                    value={b.title || ''} 
+                                    onChange={(e)=>updateBlockField(idx,bIdx,{ title: e.target.value })} 
+                                  />
+                                  <div className="flex items-center gap-3">
+                                    <select 
+                                      className="bg-black/40 border-none text-[10px] font-bold text-gray-500 uppercase tracking-widest rounded-md focus:ring-0 cursor-pointer" 
+                                      value={b.style || 'number'} 
+                                      onChange={(e)=>updateBlockField(idx,bIdx,{ style: (e.target.value as 'bullet'|'number') })}
+                                    >
+                                      <option value="number">Numeric</option>
+                                      <option value="bullet">Bullets</option>
+                                    </select>
+                                    <button type="button" onClick={()=>removeBlock(idx,bIdx)} className="text-red-400/60 hover:text-red-400"><Trash2 size={12} /></button>
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  {(b.items || []).map((p, pIdx) => (
+                                    <div key={pIdx} className="flex items-center gap-2 group/point">
+                                      <div className="w-1 h-1 bg-purple-500 rounded-full" />
+                                      <input className="flex-1 bg-transparent border-none p-0 text-xs text-gray-300 placeholder-gray-700 focus:ring-0" placeholder={`Point ${pIdx+1}`} value={p} onChange={(e)=>updateItem(idx,bIdx,pIdx,e.target.value)} />
+                                      <button type="button" onClick={()=>removeItem(idx,bIdx,pIdx)} className="text-gray-600 hover:text-red-400 opacity-0 group-hover/point:opacity-100 transition-opacity"><X size={12} /></button>
+                                    </div>
+                                  ))}
+                                  <button type="button" onClick={()=>addItem(idx,bIdx)} className="text-[10px] font-bold text-purple-500/60 hover:text-purple-500 uppercase tracking-widest flex items-center gap-1"><Plus size={10} /> Add Point</button>
                                 </div>
                               </div>
-                              
-                              <div className="space-y-2">
-                                {(b.items || []).map((p, pIdx) => (
-                                  <div key={pIdx} className="flex items-center gap-2 group/point">
-                                    <div className="w-1 h-1 bg-purple-500 rounded-full" />
-                                    <input className="flex-1 bg-transparent border-none p-0 text-xs text-gray-300 placeholder-gray-700 focus:ring-0" placeholder={`Point ${pIdx+1}`} value={p} onChange={(e)=>updateItem(idx,bIdx,pIdx,e.target.value)} />
-                                    <button type="button" onClick={()=>removeItem(idx,bIdx,pIdx)} className="text-gray-600 hover:text-red-400 opacity-0 group-hover/point:opacity-100 transition-opacity"><X size={12} /></button>
-                                  </div>
-                                ))}
-                                <button type="button" onClick={()=>addItem(idx,bIdx)} className="text-[10px] font-bold text-purple-500/60 hover:text-purple-500 uppercase tracking-widest flex items-center gap-1"><Plus size={10} /> Add Point</button>
-                              </div>
-                            </div>
-                          ))}
-                          <button type="button" onClick={()=>addBlock(idx,'number')} className="w-full py-2 bg-purple-500/5 border border-dashed border-purple-500/20 rounded-lg text-[10px] font-bold text-purple-400 hover:bg-purple-500/10 transition-all uppercase tracking-widest flex items-center justify-center gap-2"><Plus size={12} /> Add Points Block</button>
+                            ))}
+                            <button type="button" onClick={()=>addBlock(idx,'number')} className="w-full py-2 bg-purple-500/5 border border-dashed border-purple-500/20 rounded-lg text-[10px] font-bold text-purple-400 hover:bg-purple-500/10 transition-all uppercase tracking-widest flex items-center justify-center gap-2"><Plus size={12} /> Add Points Block</button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                    <button type="button" onClick={addSection} className="w-full py-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs font-bold text-purple-400 hover:bg-purple-500/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2"><Plus size={16} /> Add Rules Section</button>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-4 bg-purple-500 rounded-full" />
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Registration Logistics</h4>
+                      ))}
+                      <button type="button" onClick={addSection} className="w-full py-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs font-bold text-purple-400 hover:bg-purple-500/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2"><Plus size={16} /> Add Rules Section</button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <label className="flex items-center group cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={eventForm.registration_open}
-                        onChange={(e) => setEventForm(prev => ({ ...prev, registration_open: e.target.checked }))}
-                        className="w-4 h-4 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 transition-colors"
-                      />
-                      <span className="ml-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-white transition-colors">Registration Open</span>
-                    </label>
-                    <label className="flex items-center group cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={!!eventForm.registration_timer_enabled}
-                        onChange={(e) => setEventForm(prev => ({ ...prev, registration_timer_enabled: e.target.checked }))}
-                        className="w-4 h-4 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 transition-colors"
-                      />
-                      <span className="ml-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-white transition-colors">Auto-Timer Mode</span>
-                    </label>
+                {/* Entry Format */}
+                <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-4 bg-purple-500 rounded-full" />
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Entry Format</h4>
                   </div>
-                  <div className="space-y-4">
-                    <label className="flex items-center group cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={!!(eventForm as any).registration_photo_required}
-                        onChange={(e) => setEventForm(prev => ({ ...prev, registration_photo_required: e.target.checked } as any))}
-                        className="w-4 h-4 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 transition-colors"
-                      />
-                      <span className="ml-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-white transition-colors">Require Photo</span>
-                    </label>
-                    <label className="flex items-center group cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={eventForm.featured}
-                        onChange={(e) => setEventForm(prev => ({ ...prev, featured: e.target.checked }))}
-                        className="w-4 h-4 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 transition-colors"
-                      />
-                      <span className="ml-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-white transition-colors">Featured Event</span>
-                    </label>
-                    <label className="flex items-center group cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={eventForm.visible}
-                        onChange={(e) => setEventForm(prev => ({ ...prev, visible: e.target.checked }))}
-                        className="w-4 h-4 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 transition-colors"
-                      />
-                      <span className="ml-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-white transition-colors">Publicly Visible</span>
-                    </label>
-                  </div>
-                </div>
 
-                <div className="pt-6 border-t border-white/5 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Entry Format</h5>
+                    <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Entry Mode</h5>
                     <div className="flex items-center gap-4">
                       <label className="flex items-center gap-2 cursor-pointer group">
                         <input 
@@ -1841,314 +1725,420 @@ export const EventsManagement: React.FC = () => {
                     </div>
                   </div>
                   
-                  <label className="flex items-center group cursor-pointer select-none w-fit">
-                    <input 
-                      type="checkbox" 
-                      className="w-3 h-3 rounded border-white/10 bg-black/20 text-amber-500 focus:ring-0" 
-                      checked={(eventForm as any).registration_mode_locked ?? false} 
-                      onChange={(e) => setEventForm(prev => ({ ...prev, registration_mode_locked: e.target.checked } as any))} 
-                    />
-                    <span className="ml-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest group-hover:text-amber-400 transition-colors">Lock selection mode</span>
-                  </label>
-                </div>
-                <p className="text-xs text-gray-600 mt-1">When locked, users cannot switch between individual and team modes.</p>
-                <p className="sm:hidden text-xs text-gray-600 mt-1">Tip: Swipe sideways on the row above to see all controls.</p>
-                
-                {/* Team Size Configuration */}
-                {(eventForm as any).registration_default_mode === 'team' && (
-                  <div className="mt-6 pt-6 border-t border-white/5 space-y-6 animate-in slide-in-from-bottom-2 duration-300">
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center group cursor-pointer select-none">
-                        <input 
-                          type="checkbox" 
-                          className="w-4 h-4 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 transition-colors" 
-                          checked={!!((eventForm as any).team_required_size)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setEventForm(prev => ({ ...prev, team_required_size: 2, team_max_members: undefined } as any));
-                            } else {
-                              setEventForm(prev => ({ ...prev, team_required_size: undefined } as any));
-                            }
-                          }}
-                        />
-                        <span className="ml-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-white transition-colors">Fixed Team Size</span>
-                      </label>
-                      <p className="text-[10px] text-gray-600 italic">Forces exact participant count</p>
-                    </div>
-                    
-                    {(eventForm as any).team_required_size ? (
-                      <div>
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-tighter mb-1.5">Required Members Count</label>
-                        <input
-                          type="number"
-                          min={2}
-                          max={50}
-                          value={(eventForm as any).team_required_size ?? ''}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
-                            setEventForm(prev => ({ ...prev, team_required_size: Number.isNaN(Number(v)) ? undefined : n } as any));
-                          }}
-                          placeholder="e.g., 5"
-                          className="w-24 px-3 py-2 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-white text-sm font-mono"
-                        />
+                  <div className="pt-4 border-t border-white/5 space-y-2">
+                    <label className="flex items-center group cursor-pointer select-none w-fit">
+                      <input 
+                        type="checkbox" 
+                        className="w-3 h-3 rounded border-white/10 bg-black/20 text-amber-500 focus:ring-0" 
+                        checked={(eventForm as any).registration_mode_locked ?? false} 
+                        onChange={(e) => setEventForm(prev => ({ ...prev, registration_mode_locked: e.target.checked } as any))} 
+                      />
+                      <span className="ml-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest group-hover:text-amber-400 transition-colors">Lock selection mode</span>
+                    </label>
+                    <p className="text-xs text-gray-600">When locked, users cannot switch between individual and team modes.</p>
+                  </div>
+                  
+                  {/* Team Size Configuration */}
+                  {(eventForm as any).registration_default_mode === 'team' && (
+                    <div className="pt-6 border-t border-white/5 space-y-6 animate-in slide-in-from-bottom-2 duration-300">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center group cursor-pointer select-none">
+                          <input 
+                            type="checkbox" 
+                            className="w-4 h-4 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 transition-colors" 
+                            checked={!!((eventForm as any).team_required_size)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEventForm(prev => ({ ...prev, team_required_size: 2, team_max_members: undefined } as any));
+                              } else {
+                                setEventForm(prev => ({ ...prev, team_required_size: undefined } as any));
+                              }
+                            }}
+                          />
+                          <span className="ml-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-white transition-colors">Fixed Team Size</span>
+                        </label>
+                        <p className="text-[10px] text-gray-600 italic">Forces exact participant count</p>
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-6">
+                      
+                      {(eventForm as any).team_required_size ? (
                         <div>
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-tighter mb-1.5">Min Team Size</label>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-tighter mb-1.5">Required Members Count</label>
                           <input
                             type="number"
                             min={2}
-                            max={(eventForm as any).team_max_members || 50}
-                            value={(eventForm as any).team_min_members ?? ''}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
-                              setEventForm(prev => ({ ...prev, team_min_members: Number.isNaN(Number(v)) ? undefined : n } as any));
-                            }}
-                            placeholder="Min (2)"
-                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-white text-sm font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-tighter mb-1.5">Max Team Size</label>
-                          <input
-                            type="number"
-                            min={(eventForm as any).team_min_members || 2}
                             max={50}
-                            value={(eventForm as any).team_max_members ?? ''}
+                            value={(eventForm as any).team_required_size ?? ''}
                             onChange={(e) => {
                               const v = e.target.value;
                               const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
-                              setEventForm(prev => ({ ...prev, team_max_members: Number.isNaN(Number(v)) ? undefined : n } as any));
+                              setEventForm(prev => ({ ...prev, team_required_size: Number.isNaN(Number(v)) ? undefined : n } as any));
                             }}
-                            placeholder="Max (50)"
-                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-white text-sm font-mono"
+                            placeholder="e.g., 5"
+                            className="w-24 px-3 py-2 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-white text-sm font-mono"
                           />
                         </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-tighter mb-1.5">Min Team Size</label>
+                            <input
+                              type="number"
+                              min={2}
+                              max={(eventForm as any).team_max_members || 50}
+                              value={(eventForm as any).team_min_members ?? ''}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
+                                setEventForm(prev => ({ ...prev, team_min_members: Number.isNaN(Number(v)) ? undefined : n } as any));
+                              }}
+                              placeholder="Min (2)"
+                              className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-white text-sm font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-tighter mb-1.5">Max Team Size</label>
+                            <input
+                              type="number"
+                              min={(eventForm as any).team_min_members || 2}
+                              max={50}
+                              value={(eventForm as any).team_max_members ?? ''}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
+                                setEventForm(prev => ({ ...prev, team_max_members: Number.isNaN(Number(v)) ? undefined : n } as any));
+                              }}
+                              placeholder="Max (50)"
+                              className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-white text-sm font-mono"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Participant Access */}
+                <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-4 bg-purple-500 rounded-full" />
+                      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Participant Access</h4>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const list = ((siteSettings as any)?.registration_participant_types as string[] || [])
+                            .filter(t => t && !t.toLowerCase().includes('select') && !t.trim().startsWith('.'));
+                          setEventForm(prev => ({ ...prev, registration_participant_types: list } as any));
+                        }}
+                        className="text-[10px] font-bold text-purple-500 hover:text-purple-400 uppercase tracking-widest transition-colors"
+                      >All</button>
+                      <span className="text-white/10">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setEventForm(prev => ({ ...prev, registration_participant_types: [], registration_participant_quotas: {} } as any))}
+                        className="text-[10px] font-bold text-gray-500 hover:text-white uppercase tracking-widest transition-colors"
+                      >None</button>
+                    </div>
+                  </div>
+
+                  {Array.isArray((siteSettings as any)?.registration_participant_types) && (siteSettings as any).registration_participant_types.length > 0 ? (
+                    <div className="space-y-3 max-h-62 overflow-y-auto pr-2 custom-scrollbar">
+                      {((siteSettings as any).registration_participant_types as string[]).map((t: string) => {
+                        const isPlaceholder = t.toLowerCase().includes('select') || t.trim().startsWith('.');
+                        const selected = (eventForm.registration_participant_types || []).includes(t);
+                        const limitVal = ((eventForm as any).registration_participant_quotas?.[t] ?? '') as any;
+                        if (isPlaceholder) return null;
+                        return (
+                          <div key={t} className={`p-3 rounded-xl border transition-all ${
+                            selected 
+                              ? 'bg-purple-500/10 border-purple-500/20 shadow-[0_0_15px_-5px_rgba(168,85,247,0.2)]' 
+                              : 'bg-black/20 border-white/5 opacity-60'
+                          }`}>
+                            <div className="flex items-center justify-between gap-4">
+                              <label className="flex items-center gap-3 cursor-pointer group flex-1">
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setEventForm(prev => {
+                                      const cur = new Set(prev.registration_participant_types || []);
+                                      const quotas = { ...(((prev as any).registration_participant_quotas || {}) as Record<string, number>) };
+                                      if (checked) cur.add(t); else { cur.delete(t); delete quotas[t]; }
+                                      return { ...prev, registration_participant_types: Array.from(cur), registration_participant_quotas: quotas } as any;
+                                    });
+                                  }}
+                                  className="w-3.5 h-3.5 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-0 appearance-none flex items-center justify-center checked:after:content-['✓'] checked:after:text-[10px] checked:after:text-white"
+                                />
+                                <span className={`text-xs font-bold uppercase tracking-tight ${selected ? 'text-white' : 'text-gray-500'}`}>{t}</span>
+                              </label>
+                              
+                              {selected && (
+                                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-1 duration-200">
+                                  <span className="text-[10px] font-bold text-gray-600 uppercase tracking-tighter">Quota:</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={limitVal}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      setEventForm(prev => {
+                                        const base = ((prev as any).registration_participant_quotas || {}) as Record<string, number>;
+                                        const quotas = { ...base };
+                                        if (raw === '') delete quotas[t]; else quotas[t] = Math.max(0, parseInt(raw || '0')) || 0;
+                                        return { ...prev, registration_participant_quotas: quotas } as any;
+                                      });
+                                    }}
+                                    placeholder="∞"
+                                    className="w-16 px-2 py-1 bg-black/40 border border-white/10 rounded focus:ring-1 focus:ring-purple-500 focus:outline-none text-[10px] font-mono text-white text-center"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 bg-black/20 border border-dashed border-white/5 rounded-xl">
+                      <p className="text-[10px] text-gray-600 italic uppercase tracking-widest">No types defined in site settings</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4: MEDIA & SUPPORT STAFF */}
+            {formStep === 4 && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-300">
+                {/* Registration Logistics */}
+                <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-4 bg-purple-500 rounded-full" />
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Registration Logistics</h4>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-4">
+                      <label className="flex items-center group cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={!!(eventForm as any).registration_photo_required}
+                          onChange={(e) => setEventForm(prev => ({ ...prev, registration_photo_required: e.target.checked } as any))}
+                          className="w-4 h-4 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 transition-colors"
+                        />
+                        <span className="ml-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-white transition-colors">Require Photo</span>
+                      </label>
+                      <label className="flex items-center group cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={eventForm.featured}
+                          onChange={(e) => setEventForm(prev => ({ ...prev, featured: e.target.checked }))}
+                          className="w-4 h-4 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 transition-colors"
+                        />
+                        <span className="ml-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-white transition-colors">Featured Event</span>
+                      </label>
+                    </div>
+                    <div className="space-y-4">
+                      <label className="flex items-center group cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={eventForm.visible}
+                          onChange={(e) => setEventForm(prev => ({ ...prev, visible: e.target.checked }))}
+                          className="w-4 h-4 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 transition-colors"
+                        />
+                        <span className="ml-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-white transition-colors">Publicly Visible</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Media & Identification */}
+                <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-4 bg-purple-500 rounded-full" />
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Media & Identification</h4>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="pt-4 border-t border-white/5">
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2 mb-6">
+                        <Upload size={14} className="text-purple-400" /> Banner & Motion Assets
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                        {/* Main Image */}
+                        <div className="group relative">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Event Image *</label>
+                          <ImageUpload
+                            onImageSelect={(url: string) => setEventForm(prev => ({ ...prev, image: url }))}
+                            currentImage={eventForm.image}
+                            bucket="event-images"
+                            folder="events"
+                            cropAspect={49/59.4}
+                            enableCropper={true}
+                            maxImageBytes={20 * 1024 * 1024}
+                            fileTypeLabel="Poster (49:59.4)"
+                            className="w-full aspect-[49/59.4] rounded-2xl overflow-hidden border border-white/5 group-hover:border-purple-500/30 transition-all"
+                          />
+                          <p className="text-[9px] text-gray-600 mt-2 uppercase tracking-tighter">Primary card image (49:59.4 ratio)</p>
+                        </div>
+
+                        {/* Motion Poster */}
+                        <div className="group relative">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Motion Poster (Video)</label>
+                          <div className="rounded-2xl overflow-hidden border border-white/5 group-hover:border-purple-500/30 transition-all bg-black/20 aspect-[49/59.4]">
+                            <VideoUpload
+                              onVideoSelect={(url) => setEventForm(prev => ({ ...prev, motion_poster_url: url }))}
+                              currentVideo={eventForm.motion_poster_url || ''}
+                              bucket="event-images"
+                              folder="events/motion-posters"
+                              maxSizeMB={50}
+                            />
+                          </div>
+                          <div className="mt-4 flex items-center gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer group/check">
+                              <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${ (eventForm as any).motion_poster_autoplay ? 'bg-emerald-500' : 'bg-white/10 group-hover/check:bg-white/20'}`}>
+                                <div className={`w-3 h-3 rounded-full bg-white shadow-md transform transition-transform ${ (eventForm as any).motion_poster_autoplay ? 'translate-x-4' : ''}`} />
+                              </div>
+                              <input
+                                type="checkbox"
+                                className="hidden"
+                                checked={(eventForm as any).motion_poster_autoplay || false}
+                                onChange={(e) => setEventForm(prev => ({ ...prev, motion_poster_autoplay: e.target.checked }))}
+                              />
+                              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Auto-play</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Contact Staff */}
+                <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-4">
+                  <div className="flex flex-col gap-1 mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-4 bg-purple-500 rounded-full" />
+                      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Additional Contact Staff (Visible to Students)</h4>
+                    </div>
+                    <p className="text-[10px] text-gray-500">These staff details will be displayed on the event card so students can contact them for queries.</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="w-1" />
+                    <span className="text-[10px] font-bold text-purple-500 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                      {draftCoordinators.length} Staff
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 max-h-52 overflow-y-auto pr-2 custom-scrollbar">
+                    {draftCoordinators.map((c, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-2 bg-black/40 border border-white/5 rounded-xl group/staff animate-in fade-in slide-in-from-right-2 duration-300">
+                        <div className="flex-1 grid grid-cols-2 gap-3">
+                          <input
+                            className="bg-transparent border-none p-0 text-sm text-white font-bold focus:ring-0 placeholder-gray-700"
+                            value={c.name}
+                            onChange={(e)=>setDraftCoordinators(prev=>prev.map((row,i)=> i===idx? { ...row, name: e.target.value }: row))}
+                            placeholder="Staff Name"
+                          />
+                          <input
+                            className="bg-transparent border-none p-0 text-sm text-gray-400 font-mono focus:ring-0 placeholder-gray-700"
+                            value={c.phone || ''}
+                            onChange={(e)=>setDraftCoordinators(prev=>prev.map((row,i)=> i===idx? { ...row, phone: e.target.value }: row))}
+                            placeholder="Phone"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover/staff:opacity-100 transition-opacity">
+                          <button type="button" onClick={()=>moveDraftCoordinator(idx,-1)} className="p-1.5 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all"><ArrowUp size={14} /></button>
+                          <button type="button" onClick={()=>moveDraftCoordinator(idx,1)} className="p-1.5 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-all"><ArrowDown size={14} /></button>
+                          <button type="button" onClick={()=>setDraftCoordinators(prev=>prev.filter((_,i)=>i!==idx))} className="p-1.5 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {draftCoordinators.length === 0 && (
+                      <div className="text-center py-6 border-2 border-dashed border-white/5 rounded-xl">
+                        <p className="text-xs text-gray-600 italic">No additional staff added yet</p>
                       </div>
                     )}
                   </div>
-                )}
-              </div>
 
-              {/* Batches / Quotas */}
-              <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 bg-purple-500 rounded-full" />
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Participant Access</h4>
-                  </div>
-                  <div className="flex items-center gap-2">
+                  <div className="pt-4 border-t border-white/5 grid grid-cols-12 gap-3">
+                    <div className="col-span-5 relative">
+                      <UserPlus size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                      <input className="w-full pl-9 pr-3 py-2 bg-black/40 border border-white/10 rounded-lg text-sm text-white focus:ring-1 focus:ring-purple-500 focus:outline-none" value={newCoordinator.name} onChange={(e)=>setNewCoordinator(prev=>({...prev,name:e.target.value}))} placeholder="Staff Name" />
+                    </div>
+                    <input className="col-span-5 px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-sm text-white font-mono focus:ring-1 focus:ring-purple-500 focus:outline-none" value={newCoordinator.phone} onChange={(e)=>setNewCoordinator(prev=>({...prev,phone:e.target.value}))} placeholder="Phone" />
                     <button
                       type="button"
-                      onClick={() => {
-                        const list = ((siteSettings as any)?.registration_participant_types as string[] || [])
-                          .filter(t => t && !t.toLowerCase().includes('select') && !t.trim().startsWith('.'));
-                        setEventForm(prev => ({ ...prev, registration_participant_types: list } as any));
+                      onClick={()=>{
+                        const nameT = newCoordinator.name.trim();
+                        const phoneT = newCoordinator.phone.trim();
+                        const isPlaceholder = (v: string) => v === '' || v === '0' || v === '-' || v === '—';
+                        if (isPlaceholder(nameT) && !phoneT) return;
+                        setDraftCoordinators(prev=>[...prev, { name: isPlaceholder(nameT) ? '—' : nameT, phone: phoneT || null }]);
+                        setNewCoordinator({ name: '', phone: '' });
                       }}
-                      className="text-[10px] font-bold text-purple-500 hover:text-purple-400 uppercase tracking-widest transition-colors"
-                    >All</button>
-                    <span className="text-white/10">|</span>
-                    <button
-                      type="button"
-                      onClick={() => setEventForm(prev => ({ ...prev, registration_participant_types: [], registration_participant_quotas: {} } as any))}
-                      className="text-[10px] font-bold text-gray-500 hover:text-white uppercase tracking-widest transition-colors"
-                    >None</button>
-                  </div>
-                </div>
-
-                {Array.isArray((siteSettings as any)?.registration_participant_types) && (siteSettings as any).registration_participant_types.length > 0 ? (
-                  <div className="space-y-3 max-h-62 overflow-y-auto pr-2 custom-scrollbar">
-                    {((siteSettings as any).registration_participant_types as string[]).map((t: string) => {
-                      const isPlaceholder = t.toLowerCase().includes('select') || t.trim().startsWith('.');
-                      const selected = (eventForm.registration_participant_types || []).includes(t);
-                      const limitVal = ((eventForm as any).registration_participant_quotas?.[t] ?? '') as any;
-                      if (isPlaceholder) return null;
-                      return (
-                        <div key={t} className={`p-3 rounded-xl border transition-all ${
-                          selected 
-                            ? 'bg-purple-500/10 border-purple-500/20 shadow-[0_0_15px_-5px_rgba(168,85,247,0.2)]' 
-                            : 'bg-black/20 border-white/5 opacity-60'
-                        }`}>
-                          <div className="flex items-center justify-between gap-4">
-                            <label className="flex items-center gap-3 cursor-pointer group flex-1">
-                              <input
-                                type="checkbox"
-                                checked={selected}
-                                onChange={(e) => {
-                                  const checked = e.target.checked;
-                                  setEventForm(prev => {
-                                    const cur = new Set(prev.registration_participant_types || []);
-                                    const quotas = { ...(((prev as any).registration_participant_quotas || {}) as Record<string, number>) };
-                                    if (checked) cur.add(t); else { cur.delete(t); delete quotas[t]; }
-                                    return { ...prev, registration_participant_types: Array.from(cur), registration_participant_quotas: quotas } as any;
-                                  });
-                                }}
-                                className="w-3.5 h-3.5 rounded border-white/10 bg-black/20 text-purple-500 focus:ring-0 appearance-none flex items-center justify-center checked:after:content-['✓'] checked:after:text-[10px] checked:after:text-white"
-                              />
-                              <span className={`text-xs font-bold uppercase tracking-tight ${selected ? 'text-white' : 'text-gray-500'}`}>{t}</span>
-                            </label>
-                            
-                            {selected && (
-                              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-1 duration-200">
-                                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-tighter">Quota:</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={limitVal}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    setEventForm(prev => {
-                                      const base = ((prev as any).registration_participant_quotas || {}) as Record<string, number>;
-                                      const quotas = { ...base };
-                                      if (raw === '') delete quotas[t]; else quotas[t] = Math.max(0, parseInt(raw || '0')) || 0;
-                                      return { ...prev, registration_participant_quotas: quotas } as any;
-                                    });
-                                  }}
-                                  placeholder="∞"
-                                  className="w-16 px-2 py-1 bg-black/40 border border-white/10 rounded focus:ring-1 focus:ring-purple-500 focus:outline-none text-[10px] font-mono text-white text-center"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 bg-black/20 border border-dashed border-white/5 rounded-xl">
-                    <p className="text-[10px] text-gray-600 italic uppercase tracking-widest">No types defined in site settings</p>
-                  </div>
-                )}
-              </div>
-              {/* Media & Identification */}
-              <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-4 bg-purple-500 rounded-full" />
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Media & Identification</h4>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tighter mb-1.5">Custom Photo Upload Prompt (Optional)</label>
-                    <input
-                      type="text"
-                      value={(eventForm as any).registration_photo_label || ''}
-                      onChange={(e) => setEventForm(prev => ({ ...prev, registration_photo_label: e.target.value } as any))}
-                      placeholder="e.g., Upload Hackathon Team Logo"
-                      className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-purple-500 text-white text-sm"
-                    />
-                  </div>
-
-                  <div className="pt-4 border-t border-white/5">
-                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2 mb-6">
-                    <Upload size={14} className="text-purple-400" /> Banner & Motion Assets
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                      {/* Main Image */}
-                      <div className="group relative">
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Event Image *</label>
-                        <ImageUpload
-                          onImageSelect={(url: string) => setEventForm(prev => ({ ...prev, image: url }))}
-                          currentImage={eventForm.image}
-                          bucket="event-images"
-                          folder="events"
-                          cropAspect={49/59.4}
-                          enableCropper={true}
-                          maxImageBytes={20 * 1024 * 1024}
-                          fileTypeLabel="Poster (49:59.4)"
-                          className="w-full aspect-[49/59.4] rounded-2xl overflow-hidden border border-white/5 group-hover:border-purple-500/30 transition-all"
-                        />
-                        <p className="text-[9px] text-gray-600 mt-2 uppercase tracking-tighter">Primary card image (49:59.4 ratio)</p>
-                      </div>
-
-                      {/* Motion Poster */}
-                      <div className="group relative">
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Motion Poster (Video)</label>
-                        <div className="rounded-2xl overflow-hidden border border-white/5 group-hover:border-purple-500/30 transition-all bg-black/20 aspect-[49/59.4]">
-                          <VideoUpload
-                            onVideoSelect={(url) => setEventForm(prev => ({ ...prev, motion_poster_url: url }))}
-                            currentVideo={eventForm.motion_poster_url || ''}
-                            bucket="event-images"
-                            folder="events/motion-posters"
-                            maxSizeMB={50}
-                          />
-                        </div>
-                        <div className="mt-4 flex items-center gap-3">
-                          <label className="flex items-center gap-2 cursor-pointer group/check">
-                            <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${ (eventForm as any).motion_poster_autoplay ? 'bg-emerald-500' : 'bg-white/10 group-hover/check:bg-white/20'}`}>
-                              <div className={`w-3 h-3 rounded-full bg-white shadow-md transform transition-transform ${ (eventForm as any).motion_poster_autoplay ? 'translate-x-4' : ''}`} />
-                            </div>
-                            <input
-                              type="checkbox"
-                              className="hidden"
-                              checked={(eventForm as any).motion_poster_autoplay || false}
-                              onChange={(e) => setEventForm(prev => ({ ...prev, motion_poster_autoplay: e.target.checked }))}
-                            />
-                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Auto-play</span>
-                          </label>
-                        </div>
-                      </div>
+                      className="col-span-2 bg-purple-600 text-white rounded-lg text-[10px] font-bold hover:bg-purple-500 transition-all uppercase tracking-tighter"
+                    >Add</button>
                   </div>
                 </div>
               </div>
-              {/* End Media & Identification */}
-
-              </div>
-
-              {/* Enrollment Window */}
-              <div className="bg-emerald-500/5 rounded-2xl p-6 border border-emerald-500/20 space-y-6">
-                 <div className="flex items-center gap-2">
-                  <div className="w-1 h-4 bg-emerald-500 rounded-full" />
-                  <h4 className="text-xs font-bold text-emerald-400/60 uppercase tracking-widest">Enrollment Window</h4>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tighter mb-1.5">Opening At</label>
-                    <input
-                      type="datetime-local"
-                      value={eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString().slice(0, 16) : ''}
-                      onChange={(e) => setEventForm(prev => ({ ...prev, registration_opens_at: e.target.value ? new Date(e.target.value).toISOString() : '' }))}
-                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 text-white text-xs font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-tighter mb-1.5">Closing At</label>
-                    <input
-                      type="datetime-local"
-                      value={eventForm.registration_closes_at ? new Date(eventForm.registration_closes_at).toISOString().slice(0, 16) : ''}
-                      onChange={(e) => setEventForm(prev => ({ ...prev, registration_closes_at: e.target.value ? new Date(e.target.value).toISOString() : '' }))}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
-            <div className="mt-12 flex flex-col sm:flex-row items-center justify-end gap-4 border-t border-white/5 pt-8">
+          {/* Footer Controls */}
+          <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/5 pt-8 max-w-4xl mx-auto">
+            <div>
               <button
+                type="button"
                 onClick={() => {
                   setIsAddingEvent(false);
                   resetEventForm();
+                  setFormStep(1);
                 }}
-                className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all text-sm uppercase tracking-widest"
+                className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-gray-500 hover:text-white hover:bg-white/5 transition-all text-sm uppercase tracking-widest"
               >
                 Cancel
               </button>
-              <button
-                onClick={() => handleAddEvent()}
-                disabled={savingAdd}
-                className="w-full sm:w-auto px-10 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-purple-900/20 transform active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2"
-              >
-                {savingAdd ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                {savingAdd ? 'Launching…' : 'Launch Event'}
-              </button>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+              {formStep > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setFormStep(prev => Math.max(prev - 1, 1))}
+                  className="w-full sm:w-auto px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-bold transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft size={16} /> Back
+                </button>
+              )}
+
+              {formStep < 4 ? (
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="w-full sm:w-auto px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold shadow-lg shadow-purple-900/20 transform active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2"
+                >
+                  Next <ArrowRight size={16} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleAddEvent()}
+                  disabled={savingAdd}
+                  className="w-full sm:w-auto px-10 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-bold shadow-lg shadow-purple-900/20 transform active:scale-95 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2"
+                >
+                  {savingAdd ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                  {savingAdd ? 'Launching…' : 'Launch Event'}
+                </button>
+              )}
             </div>
           </div>
+        </div>
       )}
 
       {/* Reorder Mode Panel - Enhanced */}

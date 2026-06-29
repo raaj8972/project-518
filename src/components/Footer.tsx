@@ -17,7 +17,8 @@ export const Footer: React.FC = React.memo(() => {
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isSecurityRoute = location.pathname.startsWith('/security-');
   const isCoordinatorRoute = location.pathname.startsWith('/coordinator/dashboard');
-  if (isAdminRoute || isSecurityRoute || isCoordinatorRoute) return null;
+  const isStudentDashboardRoute = location.pathname.startsWith('/dashboard');
+  if (isAdminRoute || isSecurityRoute || isCoordinatorRoute || isStudentDashboardRoute) return null;
 
   // Check if social media links should be shown
   const showInstagram = socialMediaSettings?.instagram_enabled && socialMediaSettings?.instagram_url;

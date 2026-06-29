@@ -71,7 +71,7 @@ const TopLegendsSection: React.FC = () => {
                     {/* Rank Badge */}
                     <div className={`absolute -top-6 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full bg-gradient-to-r ${customAura ? '' : aura} flex items-center justify-center text-white font-black text-sm shadow-[0_0_20px_rgba(34,211,238,0.5)] z-40 transition-transform`}
                          style={customAura ? { backgroundColor: customAura } : {}}>
-                      SCENE #{legend.rank}
+                      RANK #{legend.rank}
                     </div>
 
                     <div className="relative mb-6 mx-auto w-36 h-36 group/avatar-container mt-4">
@@ -114,7 +114,7 @@ const TopLegendsSection: React.FC = () => {
                         <span className="text-sm font-sans italic font-black text-white drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]">{legend.xp}</span>
                       </div>
                       <div className="relative px-5 py-3 rounded-lg bg-black/50 border border-fuchsia-500/30 overflow-hidden group/stat transition-all hover:border-fuchsia-400 shadow-[0_0_15px_rgba(217,70,239,0.1)]">
-                        <span className="block text-[8px] text-fuchsia-400 font-black uppercase tracking-[0.2em] opacity-80 mb-1">Box Office</span>
+                        <span className="block text-[8px] text-fuchsia-400 font-black uppercase tracking-[0.2em] opacity-80 mb-1">Hearts</span>
                         <div className="flex items-center gap-1">
                           <Heart className="w-3 h-3 text-fuchsia-500 fill-current drop-shadow-[0_0_5px_rgba(217,70,239,0.5)]" />
                           <span className="text-sm font-sans italic font-black text-white drop-shadow-[0_0_5px_rgba(217,70,239,0.5)]">{legend.likes_count}</span>

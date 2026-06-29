@@ -33,12 +33,17 @@ const BatchWar: React.FC = () => {
         // Group and count
         const counts: Record<string, number> = {};
         data.forEach(p => {
-          const key = p.participant_type || p.batch || 'General Participant';
+          let key = p.participant_type || p.batch || 'General Participant';
+          key = key.trim().toUpperCase();
+          if (/^\d{4}$/.test(key)) {
+            key = `BATCH ${key}`;
+          }
           counts[key] = (counts[key] || 0) + 1;
         });
 
         const formatted = Object.entries(counts)
           .map(([batch, count]) => ({ batch, count }))
+          .filter(item => item.batch.startsWith('BATCH '))
           .sort((a, b) => b.count - a.count);
 
         setStats(formatted);
@@ -71,6 +76,7 @@ const BatchWar: React.FC = () => {
     };
   }, [fetchStats]);
 
+  const totalRegistrations = stats.reduce((acc, curr) => acc + curr.count, 0);
   const maxCount = Math.max(...stats.map(s => s.count), 1);
 
   return (
@@ -85,14 +91,19 @@ const BatchWar: React.FC = () => {
               <Zap className="w-6 h-6 text-orange-500" />
             </div>
             <div>
-              <h3 className="text-xl font-black text-white tracking-tight uppercase">Batch War</h3>
+              <h3 className="text-xl font-black text-white tracking-tight uppercase flex items-center gap-2">
+                Batch War
+                <span className="px-2 py-0.5 rounded bg-orange-500/10 border border-orange-500/20 text-[9px] font-black uppercase tracking-widest text-orange-400">
+                  {totalRegistrations} Total
+                </span>
+              </h3>
               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] leading-none">Who's leading the registration race?</p>
             </div>
           </div>
           <TrendingUp className="w-5 h-5 text-gray-600 group-hover:text-orange-500 transition-colors duration-500" />
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-5">
           {loading ? (
             [1, 2, 3, 4].map(i => (
               <div key={i} className="h-12 w-full rounded-2xl bg-white/5 animate-pulse" />
@@ -102,15 +113,19 @@ const BatchWar: React.FC = () => {
               <div key={stat.batch} className="space-y-2">
                 <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest">
                   <div className="flex items-center gap-2">
-                    {idx === 0 && <Award className="w-4 h-4 text-yellow-500" />}
+                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                      idx === 0 ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-white/5 text-gray-500 border border-white/5'
+                    }`}>
+                      #{idx + 1}
+                    </span>
                     <span className={idx === 0 ? 'text-white' : 'text-gray-400'}>{stat.batch}</span>
                   </div>
-                  <span className="text-white flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                  <span className="text-white flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5">
                     <Users className="w-3 h-3 text-orange-500" />
-                    {stat.count} <span className="text-[10px] text-gray-500 font-bold">REGS</span>
+                    {stat.count} <span className="text-[9px] text-gray-500 font-bold">REGS</span>
                   </span>
                 </div>
-                <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 p-0.5">
+                <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 p-0.5">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${(stat.count / maxCount) * 100}%` }}
@@ -118,7 +133,7 @@ const BatchWar: React.FC = () => {
                     className={`h-full rounded-full relative ${
                       idx === 0 
                         ? 'bg-gradient-to-r from-orange-600 via-red-500 to-orange-400' 
-                        : 'bg-gradient-to-r from-gray-700 to-gray-500'
+                        : 'bg-gradient-to-r from-indigo-500/40 to-indigo-500/20'
                     }`}
                   >
                     {idx === 0 && (

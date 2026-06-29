@@ -188,16 +188,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (currentInitIdRef.current !== initId) return;
 
-        // EMERGENCY FALLBACK: If DB fails but user is known Owner, synthesize profile
+        // EMERGENCY FALLBACK: If DB fails but user is known Owner, synthesize and upsert profile to DB
         if (!userData && isMasterOwner(email)) {
-          console.log(`[AuthContext] [${initId}] Profile lookup failed for Owner. Using local fallback.`);
+          console.log(`[AuthContext] [${initId}] Profile lookup failed for Owner. Creating DB record.`);
           userData = {
-            id: userId,
             user_id: userId,
             email: email.toLowerCase(),
             role: 'owner',
-            display_name: 'System Owner'
+            display_name: 'System Owner',
+            photo_url: authUser.photoURL || authUser.user_metadata?.avatar_url || '',
+            last_login: new Date().toISOString()
           };
+          
+          // Upsert to DB
+          await supabase.from('admin_users').upsert(userData, { onConflict: 'user_id' }).catch(err => {
+            console.warn('[AuthContext] Owner upsert to admin_users failed:', err);
+          });
+          
+          await supabase.from('admin_permissions').upsert({
+            user_id: userId,
+            email: email.toLowerCase(),
+            can_events: true, can_schedule: true, can_gallery: true, can_sponsors: true, 
+            can_registrations: true, can_faculty: true, can_chief_guests: true, can_security_passes: true,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' }).catch(err => {
+            console.warn('[AuthContext] Owner upsert to admin_permissions failed:', err);
+          });
         }
 
         if (!userData && email) {

@@ -232,7 +232,7 @@ export const AdminDashboard: React.FC = () => {
         // Double-check before redirect in case auth stabilized
         if (!isAuthenticated) navigate('/login');
         setAuthGrace(false);
-    }, 500);
+      }, 2500);
     }
     if (isAuthenticated) {
       setAuthGrace(false);

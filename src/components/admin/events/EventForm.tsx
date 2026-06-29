@@ -276,24 +276,9 @@ export const EventForm: React.FC<EventFormProps> = ({
             <div className="grid lg:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <div className="bg-black/20 border border-white/5 rounded-2xl p-6 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1 h-4 bg-purple-500 rounded-full" />
-                      <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Visibility & Access</h4>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                      <div className="relative">
-                        <input 
-                          type="checkbox" 
-                          checked={formData.registration_open} 
-                          onChange={e => updateField('registration_open', e.target.checked)}
-                          className="sr-only peer" 
-                        />
-                        <div className="w-11 h-6 bg-black/40 border border-white/10 rounded-full peer-checked:bg-emerald-500/20 peer-checked:border-emerald-500/50 transition-all shadow-inner" />
-                        <div className="absolute top-[2px] left-[2px] w-5 h-5 bg-gray-400 rounded-full peer-checked:translate-x-5 peer-checked:bg-emerald-400 transition-all shadow-md" />
-                      </div>
-                      <span className="text-xs text-gray-400 font-bold tracking-wider group-hover:text-gray-300">Registration Open</span>
-                    </label>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-4 bg-purple-500 rounded-full" />
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Logistics & Limits</h4>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-6">
@@ -346,45 +331,6 @@ export const EventForm: React.FC<EventFormProps> = ({
                         className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white transition-all font-mono"
                       />
                     </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-black/20 border border-white/5 rounded-2xl p-6 space-y-6 h-fit">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-purple-400" />
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Registration Timer</h4>
-                  </div>
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <div className="relative">
-                      <input 
-                        type="checkbox" 
-                        checked={formData.registration_timer_enabled} 
-                        onChange={e => updateField('registration_timer_enabled', e.target.checked)}
-                        className="sr-only peer" 
-                      />
-                      <div className="w-9 h-5 bg-black/40 border border-white/10 rounded-full peer-checked:bg-indigo-500/20 peer-checked:border-indigo-500/50 transition-all shadow-inner" />
-                      <div className="absolute top-[2px] left-[2px] w-4 h-4 bg-gray-400 rounded-full peer-checked:translate-x-4 peer-checked:bg-indigo-400 transition-all shadow-md" />
-                    </div>
-                  </label>
-                </div>
-
-                <div className={`space-y-6 transition-all ${formData.registration_timer_enabled ? 'opacity-100 pointer-events-auto' : 'opacity-30 pointer-events-none'}`}>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Starts At (IST)</label>
-                    <input
-                      type="datetime-local"
-                      value={formData.registration_opens_at || ''}
-                      onChange={e => updateField('registration_opens_at', e.target.value)}
-                      className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white transition-all font-mono"
-                    />
-                  </div>
-                  <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-xl">
-                    <p className="text-[10px] text-indigo-300 leading-relaxed font-medium">
-                      <AlertCircle size={10} className="inline mr-1 mb-0.5" />
-                      When enabled, registration will automatically unlock at this time regardless of the "Open" toggle status above.
-                    </p>
                   </div>
                 </div>
               </div>

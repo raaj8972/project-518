@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, User, Users, Mail, Phone, BookOpen, ChevronRight, Check, Loader2, AlertCircle, Building2, Sparkles, PartyPopper, Search } from 'lucide-react';
+import { X, User, Users, Mail, Phone, BookOpen, ChevronRight, Check, Loader2, AlertCircle, Building2, Sparkles, PartyPopper, Search, IndianRupee } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { dualRead } from '../lib/dualDb';
 import { supabase } from '../lib/supabase';
 import confetti from 'canvas-confetti';
-import 'canvas-confetti'; 
+import 'canvas-confetti';
+import { PaymentStep } from './PaymentStep';
 
 interface RegistrationModalProps {
   isOpen: boolean;
@@ -27,7 +28,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
   const { user, profile, isAuthenticated, isProfileComplete, isApproved } = useStudentAuth();
   
   const [mode, setMode, clearMode] = useLocalStorage<'individual' | 'team'>(`registration_draft_mode_${eventId}`, 'individual');
-  const [step, setStep] = useState<'form' | 'success'>('form');
+  const [step, setStep] = useState<'form' | 'payment' | 'success'>('form');
+  const [pendingRegistrationId, setPendingRegistrationId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string>('');
@@ -71,6 +73,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       setStep('form');
       setLoading(false);
       setError(null);
+      setPendingRegistrationId('');
       if (event?.registration_default_mode) {
            setMode(event.registration_default_mode === 'team' ? 'team' : 'individual');
       }
@@ -192,6 +195,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         }
       } catch { newId = `RICO${Math.floor(100000 + Math.random() * 900000)}`; }
 
+      const isPaymentEvent = event?.payment_enabled && event?.coordinator_upi_id && (event?.payment_amount || 0) > 0;
       const payload: any = {
         id: newId,
         event_id: eventId.toString(),
@@ -208,7 +212,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         registration_date: new Date().toISOString(),
         created_at: new Date().toISOString(),
         user_id: user.id,
-        status: 'approved',
+        status: isPaymentEvent ? 'payment_pending' : 'pending',
         is_active: false,
       };
 
@@ -218,10 +222,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         await addRegistration(payload);
       }
 
-      setStep('success');
       setSuccessId(newId);
-      const confetti = (await import('canvas-confetti')).default;
-      confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#6366f1', '#ec4899', '#ffffff'] });
+      // If payment event → show payment step; else direct to success
+      if (isPaymentEvent) {
+        setPendingRegistrationId(newId);
+        setStep('payment');
+      } else {
+        setStep('success');
+        const confetti = (await import('canvas-confetti')).default;
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#6366f1', '#ec4899', '#ffffff'] });
+      }
     } catch (err: any) {
       const msg = err?.message || '';
       if (msg.includes('duplicate key') || msg.includes('unique constraint')) {
@@ -387,6 +397,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       }
 
       try {
+      const isPaymentEvent = event?.payment_enabled && event?.coordinator_upi_id && (event?.payment_amount || 0) > 0;
       const payload: any = {
         event_id: eventId,
         event_title: eventTitle,
@@ -402,7 +413,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         registration_date: new Date().toISOString(),
         created_at: new Date().toISOString(),
         user_id: user?.id,
-        status: 'approved',
+        status: isPaymentEvent ? 'payment_pending' : 'pending',
         is_active: false,
         id: newId,
       };
@@ -427,19 +438,24 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         }
       }
       
-      setStep('success');
       setSuccessId(newId);
-
       // Successfully registered — clean up local storage
       clearFormData();
       clearMode();
 
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#a855f7', '#6366f1', '#ec4899', '#ffffff'] 
-      });
+      // If payment event → show payment step; else direct to success
+      if (isPaymentEvent) {
+        setPendingRegistrationId(newId);
+        setStep('payment');
+      } else {
+        setStep('success');
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#a855f7', '#6366f1', '#ec4899', '#ffffff']
+        });
+      }
 
     } catch (err: any) {
       console.error(err);
@@ -521,6 +537,33 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
              >
                Login Now <ChevronRight size={16} />
              </a>
+          </div>
+        ) : step === 'payment' ? (
+          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+            {/* Payment header bar */}
+            <div className="px-7 pt-7 pb-3 shrink-0">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg">
+                  <IndianRupee size={12} className="text-white" />
+                </div>
+                <span className="text-[10px] font-black text-emerald-400/60 uppercase tracking-[0.2em]">Step 2 of 2 — Payment</span>
+              </div>
+              <h2 className="text-xl font-black text-white tracking-tight pr-10">{eventTitle}</h2>
+            </div>
+            <PaymentStep
+              eventId={eventId}
+              eventTitle={eventTitle}
+              registrationId={pendingRegistrationId}
+              upiId={event?.coordinator_upi_id || ''}
+              upiName={event?.coordinator_upi_name || 'Event Coordinator'}
+              amount={event?.payment_amount || 0}
+              userId={user?.id}
+              onSuccess={async () => {
+                setStep('success');
+                const confetti = (await import('canvas-confetti')).default;
+                confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 }, colors: ['#10b981', '#6366f1', '#a855f7'] });
+              }}
+            />
           </div>
         ) : step === 'form' ? (
            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">

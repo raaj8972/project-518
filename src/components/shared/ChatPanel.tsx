@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SendHorizonal, Trash2, Pencil, Check, X, Search, CheckCheck, Shield, Lock } from 'lucide-react';
+import { SendHorizonal, Trash2, Pencil, Check, X, Search, CheckCheck, Shield, Lock, ChevronLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useCoreData } from '../../context/CoreDataContext';
 
@@ -59,6 +59,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activeConvoId, setActiveConvoId] = useState<string | null>(null);
+  const [showChatWindowOnMobile, setShowChatWindowOnMobile] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [isTyping, setIsTyping] = useState(false);
   const [myTypingTimer, setMyTypingTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
@@ -490,12 +491,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <div 
-      className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-240px)] min-h-[420px] lg:h-[460px]"
-      onWheel={(e) => e.stopPropagation()}
-      onTouchMove={(e) => e.stopPropagation()}
+      className="flex flex-col lg:flex-row gap-4 h-full"
     >
       {/* Contact List */}
-      <div className="flex-shrink-0 lg:h-full lg:w-[200px] xl:w-[240px] flex flex-col gap-2">
+      <div className={`flex-shrink-0 lg:h-full lg:w-[200px] xl:w-[240px] flex flex-col gap-2 ${showChatWindowOnMobile ? 'hidden lg:flex' : 'flex w-full'}`}>
         {conversations.length > 3 && (
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -506,10 +505,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             />
           </div>
         )}
-        <div className="bg-black/30 rounded-2xl border border-white/5 p-2 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto h-auto lg:h-full custom-scrollbar">
-          {/* Search input for mobile */}
+        <div className="bg-black/30 rounded-2xl border border-white/5 p-2 flex flex-col gap-2 overflow-y-auto h-full custom-scrollbar">
           {conversations.length > 3 && (
-            <div className="relative flex-shrink-0 w-[200px] lg:hidden">
+            <div className="relative flex-shrink-0 w-full lg:hidden">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
                 type="text" placeholder="Search..."
@@ -526,8 +524,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           {filteredConversations.map((chat) => (
             <button
               key={chat.id}
-              onClick={() => setActiveConvoId(chat.id)}
-              className={`flex-shrink-0 w-[200px] lg:w-full flex items-center p-2 sm:p-3 lg:px-4 lg:py-3 gap-3 rounded-xl text-left transition-all border ${
+              onClick={() => {
+                setActiveConvoId(chat.id);
+                setShowChatWindowOnMobile(true);
+              }}
+              className={`w-full flex items-center p-3 lg:px-4 lg:py-3 gap-3 rounded-xl text-left transition-all border ${
                 chat.id === activeConvoId ? activeContactBg : 'border-transparent hover:bg-white/5'
               }`}
             >
@@ -544,7 +545,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               <div className="flex-1 min-w-0 pr-2">
                 <div className="flex justify-between items-center mb-0.5">
                   <p className="font-semibold text-white text-sm truncate">{chat.label}</p>
-                  {/* Unread Badge WhatsApp Style (in row with title if space, or trailing) */}
                   {unreadCounts[chat.id] > 0 && chat.id !== activeConvoId && (
                     <div className="flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold text-black bg-[#25D366] shadow-sm ml-2">
                       {unreadCounts[chat.id]}
@@ -559,9 +559,15 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       </div>
 
       {/* Chat Window */}
-      <div className="flex-1 min-h-0 flex flex-col bg-black/30 rounded-2xl border border-white/5 overflow-hidden">
+      <div className={`flex-1 min-h-0 flex flex-col bg-black/30 rounded-2xl border border-white/5 overflow-hidden ${!showChatWindowOnMobile ? 'hidden lg:flex' : 'flex'}`}>
         {/* Header */}
         <div className="p-3 border-b border-white/10 flex items-center gap-3 bg-white/[0.02] flex-shrink-0">
+          <button
+            onClick={() => setShowChatWindowOnMobile(false)}
+            className="lg:hidden p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/5 transition-all mr-1"
+          >
+            <ChevronLeft size={16} />
+          </button>
           <div className="relative">
             <div className={`w-9 h-9 ${!activeConvo?.coordinator_id ? 'bg-indigo-600/40' : accentBg + ' opacity-40'} rounded-full flex items-center justify-center font-bold text-white text-sm`}>
               {!activeConvo?.coordinator_id ? <Shield size={14} /> : (activeConvo?.label || '?').charAt(0)}

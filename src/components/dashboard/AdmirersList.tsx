@@ -32,7 +32,7 @@ const AdmirersList: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <h4 className="text-white font-black uppercase tracking-widest text-[10px] flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          Recent Admirers
+          Recent Likes
         </h4>
         <span className="text-[8px] font-black text-red-500/50 uppercase tracking-[0.2em] animate-pulse">Live Feed</span>
       </div>
@@ -41,8 +41,8 @@ const AdmirersList: React.FC = () => {
         <div className="py-12 text-center space-y-3 opacity-40">
           <Heart className="w-8 h-8 mx-auto text-gray-500" />
           <div className="space-y-1">
-            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">Quiet in the cosmos...</p>
-            <p className="text-[9px] text-gray-600">Your profile is waiting for its first spark!</p>
+            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">No likes yet...</p>
+            <p className="text-[9px] text-gray-600">Your profile is waiting for its first support!</p>
           </div>
         </div>
       ) : (
@@ -92,7 +92,7 @@ const AdmirersList: React.FC = () => {
 
       <div className="mt-8 pt-8 border-t border-white/10">
         <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest text-center">
-          {admirers.length} {admirers.length === 1 ? 'Person' : 'People'} Dig Your Vibe
+          {admirers.length} {admirers.length === 1 ? 'Person' : 'People'} liked your profile
         </p>
       </div>
     </div>

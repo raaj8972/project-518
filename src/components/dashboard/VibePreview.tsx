@@ -61,10 +61,10 @@ const VibePreview: React.FC = () => {
             <MessageSquareHeart className="w-5 h-5 text-red-500" />
           </div>
           <div>
-            <h3 className="text-white font-black uppercase tracking-widest text-sm">Community Vibes</h3>
+            <h3 className="text-white font-black uppercase tracking-widest text-sm">Shoutout Board</h3>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[10px] text-red-400 font-black uppercase tracking-widest">Live Feed</span>
+              <span className="text-[10px] text-red-400 font-black uppercase tracking-widest">Live Shoutouts</span>
             </div>
           </div>
         </div>

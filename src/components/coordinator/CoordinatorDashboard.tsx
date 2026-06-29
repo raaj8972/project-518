@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../ToastProvider';
 import { dualRead, dualUpdate } from '../../lib/dualDb';
-import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone, ToggleLeft, ToggleRight, Lock, Unlock, Filter, ChevronDown, Trophy, Loader2, Sparkles, Plus, Trash2, UserCheck, Image } from 'lucide-react';
+import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone, ToggleLeft, ToggleRight, Lock, Unlock, Filter, ChevronDown, Trophy, Loader2, Sparkles, Plus, Trash2, UserCheck, Image, IndianRupee, QrCode, FileText, Clock, CalendarClock } from 'lucide-react';
 import { exportCoordinatorRegistrationsToPDF } from '../../utils/pdfExport';
 import { AnnouncementsPanel } from '../shared/AnnouncementsPanel';
 import { ChatPanel } from '../shared/ChatPanel';
@@ -57,6 +57,30 @@ export const CoordinatorDashboard: React.FC = () => {
   const [selectedBatch, setSelectedBatch] = useState<string>('all');
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [oldestUnansweredHrs, setOldestUnansweredHrs] = useState<number | null>(null);
+  const [showSlaBreachModal, setShowSlaBreachModal] = useState(false);
+
+  // Payment settings state
+  const [paymentEnabled, setPaymentEnabled] = useState(false);
+  const [coordinatorUpiId, setCoordinatorUpiId] = useState('');
+  const [coordinatorUpiName, setCoordinatorUpiName] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [savingPayment, setSavingPayment] = useState(false);
+
+  // Registration window state
+  const [regOpensAt, setRegOpensAt] = useState('');
+  const [regClosesAt, setRegClosesAt] = useState('');
+  const [savingRegWindow, setSavingRegWindow] = useState(false);
+
+  // Rejection reason modal state
+  const [rejectingRegId, setRejectingRegId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+
+  // Refresh states
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+  const [isSubmittingRejection, setIsSubmittingRejection] = useState(false);
+
+  // Payment submissions for payment_pending tab
+  const [paymentSubmissions, setPaymentSubmissions] = useState<Record<string, any>>({});
 
   // Manual & AI Grouping states
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
@@ -148,6 +172,31 @@ export const CoordinatorDashboard: React.FC = () => {
     }
   }, []);
 
+  const handleManualRefresh = useCallback(async () => {
+    if (!session) return;
+    setIsManualRefreshing(true);
+    try {
+      const mounted = { current: true };
+      await fetchData(session, mounted);
+      
+      const { data: payData } = await supabase
+        .from('payment_submissions')
+        .select('registration_id, utr_number, amount, submitted_at, verified_at')
+        .eq('event_id', String(session.eventId));
+      if (payData) {
+        const map: Record<string, any> = {};
+        payData.forEach((s: any) => { map[s.registration_id] = s; });
+        setPaymentSubmissions(map);
+      }
+      setNewRegsCount(0);
+      push({ message: '🔄 Data refreshed successfully!', type: 'success' });
+    } catch (err: any) {
+      push({ message: err.message || 'Refresh failed', type: 'error' });
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  }, [session, fetchData, push]);
+
   useEffect(() => {
     const mounted = { current: true };
 
@@ -174,6 +223,14 @@ export const CoordinatorDashboard: React.FC = () => {
           setEventDetails(event);
           if (event.whatsapp_group_link) setWhatsappLink(event.whatsapp_group_link);
           if (typeof event.registration_open === 'boolean') setRegistrationOpen(event.registration_open);
+          // Load payment settings
+          setPaymentEnabled(event.payment_enabled || false);
+          setCoordinatorUpiId(event.coordinator_upi_id || '');
+          setCoordinatorUpiName(event.coordinator_upi_name || '');
+          setPaymentAmount(event.payment_amount ? String(event.payment_amount) : '');
+          // Load registration window
+          if (event.registration_opens_at) setRegOpensAt(event.registration_opens_at.slice(0, 16));
+          if (event.registration_closes_at) setRegClosesAt(event.registration_closes_at.slice(0, 16));
         }
 
         await fetchData(data, mounted);
@@ -202,7 +259,7 @@ export const CoordinatorDashboard: React.FC = () => {
     return () => { mounted.current = false; };
   }, [navigate, events, fetchData]);
 
-  // Real-time subscription for new registrations
+  // Real-time subscription for new registrations & payment submissions
   useEffect(() => {
     if (!session) return;
     let sub: any;
@@ -245,6 +302,24 @@ export const CoordinatorDashboard: React.FC = () => {
             }
           }
         )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'payment_submissions', filter: `event_id=eq.${session.eventId}` },
+          (payload) => {
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              setPaymentSubmissions(prev => ({
+                ...prev,
+                [payload.new.registration_id]: payload.new
+              }));
+            } else if (payload.eventType === 'DELETE') {
+              setPaymentSubmissions(prev => {
+                const copy = { ...prev };
+                delete copy[payload.old.registration_id];
+                return copy;
+              });
+            }
+          }
+        )
         .subscribe();
     };
     setupRealtime();
@@ -265,6 +340,53 @@ export const CoordinatorDashboard: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [isLoadingData, session]);
+
+  // Polling fallback to keep registrations & payments updated every 12 seconds in case websockets fail
+  useEffect(() => {
+    if (!session?.eventId) return;
+    const interval = setInterval(async () => {
+      if (showSplash || document.hidden) return;
+      try {
+        const { data: regsData } = await supabase
+          .from('registrations')
+          .select('*')
+          .eq('event_id', session.eventId);
+        
+        if (regsData) {
+          const fresh = regsData.map((r: any) => ({
+            reg_id: r.id,
+            full_name: r.full_name,
+            phone: r.phone,
+            email: r.email,
+            username: r.username,
+            college: r.college || r.institution,
+            batch: r.participant_type || r.batch || '',
+            status: r.status,
+            is_active: r.is_active || false,
+            created_at: r.created_at,
+            is_team_registration: r.is_team_registration,
+            team_name: r.team_name,
+            team_id: r.team_id
+          }));
+          setRpcRegistrations(fresh);
+        }
+
+        const { data: payData } = await supabase
+          .from('payment_submissions')
+          .select('registration_id, utr_number, amount, submitted_at, verified_at')
+          .eq('event_id', String(session.eventId));
+        if (payData) {
+          const map: Record<string, any> = {};
+          payData.forEach((s: any) => { map[s.registration_id] = s; });
+          setPaymentSubmissions(map);
+        }
+      } catch (err) {
+        console.warn('Background poll failed:', err);
+      }
+    }, 12000);
+
+    return () => clearInterval(interval);
+  }, [session?.eventId, showSplash]);
 
   // SLA Alert — runs once when dashboard loads (after splash)
   useEffect(() => {
@@ -330,6 +452,9 @@ export const CoordinatorDashboard: React.FC = () => {
         });
 
         setOldestUnansweredHrs(maxHrs > 0 ? maxHrs : null);
+        if (maxHrs >= 2) {
+          setShowSlaBreachModal(true);
+        }
 
         // Show alert if SLA breach (>5 hrs)
         if (breachCount > 0) {
@@ -1079,12 +1204,14 @@ export const CoordinatorDashboard: React.FC = () => {
   // Process registrations stats & filters
   const stats = useMemo(() => {
     const approved = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved' && r.is_active === true);
-    const pending = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved' && r.is_active === false);
+    const pending = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'pending');
+    const paymentPending = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'payment_pending');
     const rejected = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'rejected');
     
     let baseList = [];
     if (activeTab === 'approved') baseList = approved;
     else if (activeTab === 'pending') baseList = pending;
+    else if (activeTab === 'payment_pending') baseList = paymentPending;
     else baseList = rejected;
 
     // Apply batch filter
@@ -1103,15 +1230,20 @@ export const CoordinatorDashboard: React.FC = () => {
     }
     
     return {
-      filteredRegs: baseList.sort((a: any, b: any) => a.full_name?.localeCompare(b.full_name)),
+      filteredRegs: baseList.sort((a: any, b: any) => {
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return timeA - timeB; // Oldest first
+      }),
       approvedCount: approved.length,
       pendingCount: pending.length,
+      paymentPendingCount: paymentPending.length,
       rejectedCount: rejected.length,
       batchOptions: Array.from(new Set(rpcRegistrations.map((r: any) => r.batch).filter(Boolean))).sort()
     };
-  }, [rpcRegistrations, activeTab, searchQuery, selectedBatch]);
+  }, [rpcRegistrations, activeTab, searchQuery, selectedBatch, paymentSubmissions]);
 
-  const { filteredRegs, approvedCount, pendingCount, rejectedCount, batchOptions } = stats;
+  const { filteredRegs, approvedCount, pendingCount, paymentPendingCount, rejectedCount, batchOptions } = stats;
 
   // Reset pagination on filter or search change
   useEffect(() => {
@@ -1140,6 +1272,151 @@ export const CoordinatorDashboard: React.FC = () => {
       filename: `${session?.eventTitle.replace(/\s+/g, '_')}_${activeTab}_participants.pdf`
     });
   };
+
+  // CSV Export
+  const handleExportCSV = () => {
+    if (!filteredRegs.length) {
+      push({ message: "No data to export", type: "error" });
+      return;
+    }
+    const headers = ['#', 'Name', 'Phone', 'Email', 'Batch', 'Status', 'Registered On', 'UTR Number'];
+    const rows = filteredRegs.map((reg: any, i: number) => [
+      i + 1,
+      reg.full_name || '',
+      reg.phone || '',
+      reg.email || '',
+      reg.batch || '',
+      reg.status || '',
+      reg.created_at ? new Date(reg.created_at).toLocaleString() : '',
+      paymentSubmissions[reg.reg_id]?.utr_number || ''
+    ]);
+    const csv = [headers, ...rows].map(r => r.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${session?.eventTitle?.replace(/\s+/g, '_') || 'event'}_${activeTab}_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    push({ message: 'CSV exported!', type: 'success' });
+  };
+
+  // Reject with reason
+  const handleRejectWithReason = useCallback(async () => {
+    if (!rejectingRegId) return;
+    setIsSubmittingRejection(true);
+    try {
+      await dualUpdate('registrations', rejectingRegId, {
+        status: 'rejected',
+        is_active: false,
+        rejection_reason: rejectionReason.trim() || null
+      });
+      setRpcRegistrations(prev =>
+        prev.map(r => r.reg_id === rejectingRegId ? { ...r, status: 'rejected', is_active: false, rejection_reason: rejectionReason.trim() || null } : r)
+      );
+      push({ message: 'Registration rejected.', type: 'info' });
+      if (selectedReg?.reg_id === rejectingRegId) setSelectedReg(null);
+    } catch (e: any) {
+      push({ message: e.message || 'Failed to reject', type: 'error' });
+    } finally {
+      setIsSubmittingRejection(false);
+      setRejectingRegId(null);
+      setRejectionReason('');
+    }
+  }, [rejectingRegId, rejectionReason, push, selectedReg]);
+
+  // Verify payment (payment_pending → approved)
+  const handleVerifyPayment = useCallback(async (regId: string) => {
+    try {
+      setIsUpdatingStatus(regId);
+      const { error } = await supabase
+        .from('payment_submissions')
+        .update({ verified_at: new Date().toISOString(), verified_by_event: session?.eventTitle })
+        .eq('registration_id', regId);
+      if (error) console.warn('payment_submissions update:', error);
+      await dualUpdate('registrations', regId, { status: 'approved', is_active: true });
+      setRpcRegistrations(prev =>
+        prev.map(r => r.reg_id === regId ? { ...r, status: 'approved', is_active: true } : r)
+      );
+      push({ message: '✅ Payment verified! Registration approved.', type: 'success' });
+    } catch (e: any) {
+      push({ message: e.message || 'Verification failed', type: 'error' });
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  }, [session, push]);
+
+  // Load payment submissions for the current event
+  useEffect(() => {
+    if (!session?.eventId) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from('payment_submissions')
+        .select('registration_id, utr_number, amount, submitted_at, verified_at')
+        .eq('event_id', String(session.eventId));
+      if (data) {
+        const map: Record<string, any> = {};
+        data.forEach((s: any) => { map[s.registration_id] = s; });
+        setPaymentSubmissions(map);
+      }
+    };
+    load();
+  }, [session?.eventId]);
+
+  // Save payment settings
+  const handleSavePaymentSettings = useCallback(async () => {
+    if (!session) return;
+    setSavingPayment(true);
+    try {
+      await dualUpdate('events', session.eventId, {
+        payment_enabled: paymentEnabled,
+        coordinator_upi_id: coordinatorUpiId.trim() || null,
+        coordinator_upi_name: coordinatorUpiName.trim() || null,
+        payment_amount: paymentEnabled ? parseFloat(paymentAmount) || 0 : 0,
+      });
+      if (typeof updateEvent === 'function') {
+        await updateEvent(session.eventId, {
+          payment_enabled: paymentEnabled,
+          coordinator_upi_id: coordinatorUpiId.trim() || null,
+          coordinator_upi_name: coordinatorUpiName.trim() || null,
+          payment_amount: paymentEnabled ? parseFloat(paymentAmount) || 0 : 0,
+        });
+      }
+      push({ message: '💳 Payment settings saved!', type: 'success' });
+    } catch (e: any) {
+      push({ message: e.message || 'Failed to save payment settings', type: 'error' });
+    } finally {
+      setSavingPayment(false);
+    }
+  }, [session, paymentEnabled, coordinatorUpiId, coordinatorUpiName, paymentAmount, push, updateEvent]);
+
+  // Save registration window
+  const handleSaveRegWindow = useCallback(async () => {
+    if (!session) return;
+    setSavingRegWindow(true);
+    try {
+      const timerEnabled = !!(regOpensAt || regClosesAt);
+      await dualUpdate('events', session.eventId, {
+        registration_opens_at: regOpensAt ? new Date(regOpensAt).toISOString() : null,
+        registration_closes_at: regClosesAt ? new Date(regClosesAt).toISOString() : null,
+        registration_timer_enabled: timerEnabled,
+      });
+      if (typeof updateEvent === 'function') {
+        await updateEvent(session.eventId, {
+          registration_opens_at: regOpensAt ? new Date(regOpensAt).toISOString() : null,
+          registration_closes_at: regClosesAt ? new Date(regClosesAt).toISOString() : null,
+          registration_timer_enabled: timerEnabled,
+        });
+      }
+      push({ message: '🗓 Registration window saved!', type: 'success' });
+    } catch (e: any) {
+      push({ message: e.message || 'Failed to save registration window', type: 'error' });
+    } finally {
+      setSavingRegWindow(false);
+    }
+  }, [session, regOpensAt, regClosesAt, push, updateEvent]);
 
   if (!session) return null;
 
@@ -1174,6 +1451,56 @@ export const CoordinatorDashboard: React.FC = () => {
 
       {welcomeSplash}
 
+      {/* SLA Breach Popup Modal */}
+      {showSlaBreachModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowSlaBreachModal(false)} />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative bg-gray-900/90 border border-red-500/30 rounded-[2.5rem] p-8 max-w-md w-full shadow-[0_0_50px_rgba(239,68,68,0.2)] text-center overflow-hidden"
+          >
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-red-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 space-y-6">
+              <div className="mx-auto w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center animate-pulse">
+                <span className="text-3xl">⏰</span>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black tracking-tight text-white uppercase">SLA Warning!</h3>
+                <p className="text-sm text-gray-400">
+                  Student messages are pending unanswered!
+                </p>
+                <div className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-2xl inline-block mt-2">
+                  <span className="text-xs font-black text-red-400 uppercase tracking-wider">
+                    Unanswered for: {Math.round(oldestUnansweredHrs || 0)} Hours
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                As per festival coordinator guidelines, all student queries must be replied to immediately to maintain support quality.
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    setShowSlaBreachModal(false);
+                    setActiveSection('chat');
+                  }}
+                  className="w-full py-3.5 bg-gradient-to-r from-red-600 to-orange-500 rounded-xl text-white font-black text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all active:scale-[0.98]"
+                >
+                  Reply Now
+                </button>
+                <button
+                  onClick={() => setShowSlaBreachModal(false)}
+                  className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-400 hover:text-white font-black text-[10px] uppercase tracking-widest transition-all"
+                >
+                  Remind Me Later
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* ══ MAIN LAYOUT ══ */}
       <div className="relative z-10 flex flex-col lg:flex-row min-h-screen">
 
@@ -1203,10 +1530,11 @@ export const CoordinatorDashboard: React.FC = () => {
           </div>
 
           {/* Stats */}
-          <div className="p-4 border-b border-white/[0.08] grid grid-cols-3 gap-2">
+          <div className="p-4 border-b border-white/[0.08] grid grid-cols-4 gap-2">
             {([
               { label: 'Approved', count: approvedCount, color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/20' },
               { label: 'Pending', count: pendingCount, color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20' },
+              { label: 'Payment', count: paymentPendingCount, color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
               { label: 'Rejected', count: rejectedCount, color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/20' },
             ] as const).map(s => (
               <div key={s.label} className={`rounded-xl border p-2.5 text-center ${s.bg}`}>
@@ -1248,8 +1576,8 @@ export const CoordinatorDashboard: React.FC = () => {
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all text-left border ${activeSection === key ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5 border-transparent'}`}>
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {label}
-                {key === 'participants' && pendingCount > 0 && (
-                  <span className="ml-auto text-[10px] font-black bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded-full animate-pulse">{pendingCount}</span>
+                {key === 'participants' && (pendingCount > 0 || paymentPendingCount > 0) && (
+                  <span className="ml-auto text-[10px] font-black bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded-full animate-pulse">{pendingCount + paymentPendingCount}</span>
                 )}
                 {key === 'chat' && unreadChatCount > 0 && (
                   <span className="ml-auto text-[10px] font-black bg-red-500 text-white px-1.5 py-0.5 rounded-full animate-pulse">{unreadChatCount}</span>
@@ -1344,24 +1672,26 @@ export const CoordinatorDashboard: React.FC = () => {
                 {/* Filters bar */}
                 <div className="bg-black/40 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-3 space-y-3">
                   <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                    {(['approved', 'pending', 'rejected', 'groups'] as const)
+                    {(['approved', 'pending', 'payment_pending', 'rejected', 'groups'] as const)
                       .filter(tab => tab !== 'groups' || eventDetails?.special_grouping_enabled === true)
                       .map((tab) => {
                         const groupsCount = Array.from(new Set(rpcRegistrations.filter((r: any) => r.is_team_registration && r.team_name).map((r: any) => r.team_name))).length;
-                        const count = tab === 'approved' ? approvedCount : tab === 'pending' ? pendingCount : tab === 'rejected' ? rejectedCount : groupsCount;
+                        const count = tab === 'approved' ? approvedCount : tab === 'pending' ? pendingCount : tab === 'payment_pending' ? paymentPendingCount : tab === 'rejected' ? rejectedCount : groupsCount;
                         const active = activeTab === tab;
-                        const colorActive = tab === 'approved' 
-                          ? 'text-indigo-400 bg-indigo-500/20 border-indigo-500/30' 
-                          : tab === 'pending' 
-                          ? 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30' 
-                          : tab === 'rejected' 
-                          ? 'text-violet-400 bg-violet-500/20 border-violet-500/30' 
+                        const colorActive = tab === 'approved'
+                          ? 'text-indigo-400 bg-indigo-500/20 border-indigo-500/30'
+                          : tab === 'pending'
+                          ? 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30'
+                          : tab === 'payment_pending'
+                          ? 'text-orange-400 bg-orange-500/20 border-orange-500/30'
+                          : tab === 'rejected'
+                          ? 'text-violet-400 bg-violet-500/20 border-violet-500/30'
                           : 'text-purple-400 bg-purple-500/20 border-purple-500/30';
                         return (
-                          <button key={tab} onClick={() => setActiveTab(tab)}
+                          <button key={tab} onClick={() => setActiveTab(tab as any)}
                             className={`relative px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap capitalize flex items-center gap-2 border ${active ? colorActive : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border-transparent'}`}>
-                            {tab === 'groups' ? 'Group Manager' : tab}
-                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${tab === 'pending' && count > 0 ? 'bg-yellow-400 text-yellow-900 animate-pulse' : 'bg-white/10 text-gray-300'}`}>{count}</span>
+                            {tab === 'groups' ? 'Group Manager' : tab === 'payment_pending' ? '💳 Payments' : tab}
+                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${(tab === 'pending' || tab === 'payment_pending') && count > 0 ? 'bg-yellow-400 text-yellow-900 animate-pulse' : 'bg-white/10 text-gray-300'}`}>{count}</span>
                           </button>
                         );
                       })}
@@ -1399,6 +1729,21 @@ export const CoordinatorDashboard: React.FC = () => {
                         <span className="hidden sm:inline">{registrationOpen ? 'Close Reg to Export' : 'Export PDF'}</span>
                         <span className="sm:hidden">{registrationOpen ? 'Locked' : 'PDF'}</span>
                       </button>
+                      <button
+                        onClick={handleExportCSV}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all font-bold text-sm flex-shrink-0 border bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20"
+                      >
+                        <FileText className="w-4 h-4 text-emerald-400" />
+                        <span className="hidden sm:inline">CSV</span>
+                      </button>
+                      <button
+                        onClick={handleManualRefresh}
+                        disabled={isManualRefreshing}
+                        title="Refresh Data"
+                        className="flex items-center justify-center p-2.5 rounded-xl border bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20 transition-all disabled:opacity-50 shrink-0"
+                      >
+                        <RefreshCw className={`w-4 h-4 text-indigo-400 ${isManualRefreshing ? 'animate-spin' : ''}`} />
+                      </button>
                       {activeTab === 'approved' && whatsappLink && approvedCount > 0 && (
                         <button onClick={() => setShowBulkInvite(true)} className="flex items-center gap-2 px-4 py-2.5 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 hover:bg-green-500/20 transition-all font-bold text-sm flex-shrink-0">
                           <SendHorizonal className="w-4 h-4" /><span className="hidden sm:inline">Bulk Invite</span><span className="sm:hidden">Invite</span>
@@ -1409,23 +1754,25 @@ export const CoordinatorDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Bulk Approve button — only shown on pending tab with results */}
-                {activeTab === 'pending' && filteredRegs.length > 0 && (
+                {/* Bulk Approve button — only shown on pending/payment_pending tab with results */}
+                {(activeTab === 'pending' || activeTab === 'payment_pending') && filteredRegs.length > 0 && (
                   <div className="flex items-center justify-between px-1">
-                    <p className="text-xs text-gray-500">{filteredRegs.length} pending registration{filteredRegs.length !== 1 ? 's' : ''} shown</p>
-                    <button
-                      onClick={async () => {
-                        if (!window.confirm(`Approve all ${filteredRegs.length} pending registrations?`)) return;
-                        for (const reg of filteredRegs) {
-                          await handleUpdateStatus(reg.reg_id, 'approved');
-                        }
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black text-green-400 border border-green-500/25 hover:bg-green-500/15 transition-all"
-                      style={{ background: 'rgba(34,197,94,0.06)' }}
-                    >
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      Bulk Approve All ({filteredRegs.length})
-                    </button>
+                    <p className="text-xs text-gray-500">{filteredRegs.length} {activeTab === 'payment_pending' ? 'payment pending' : 'pending'} registration{filteredRegs.length !== 1 ? 's' : ''} shown</p>
+                    {activeTab === 'pending' && (
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm(`Approve all ${filteredRegs.length} pending registrations?`)) return;
+                          for (const reg of filteredRegs) {
+                            await handleUpdateStatus(reg.reg_id, 'approved');
+                          }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black text-green-400 border border-green-500/25 hover:bg-green-500/15 transition-all"
+                        style={{ background: 'rgba(34,197,94,0.06)' }}
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Bulk Approve All ({filteredRegs.length})
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -1464,6 +1811,9 @@ export const CoordinatorDashboard: React.FC = () => {
                                 <h3 className="font-black text-white text-sm truncate">{reg.full_name}</h3>
                               </div>
                               <p className="text-xs text-gray-400 font-bold truncate tracking-wide">{reg.batch || 'No batch listed'}</p>
+                              <p className="text-[10px] text-gray-500 mt-1 font-bold">
+                                Reg: {reg.created_at ? new Date(reg.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : 'N/A'}
+                              </p>
                               <div className="flex items-center gap-2 mt-2">
                                 <span className="text-sm font-medium text-gray-300">{reg.phone}</span>
                                 {reg.phone && whatsappLink && activeTab === 'approved' && (
@@ -1478,17 +1828,46 @@ export const CoordinatorDashboard: React.FC = () => {
                             </div>
                           </div>
                           {activeTab === 'pending' && (
-                            <div className="flex gap-2 px-4 pb-4 border-t border-yellow-500/10">
-                              <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(reg.reg_id, 'approved'); }}
-                                className="flex-1 flex items-center justify-center gap-1.5 bg-green-500/15 text-green-400 hover:bg-green-500/25 border border-green-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50 mt-3">
-                                <CheckCircle className="w-3.5 h-3.5" /> Approve
-                              </button>
-                              <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(reg.reg_id, 'rejected'); }}
-                                className="flex-1 flex items-center justify-center gap-1.5 bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 border border-violet-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50 mt-3">
-                                <XCircle className="w-3.5 h-3.5" /> Reject
-                              </button>
+                          <div className="flex gap-2 px-4 pb-4 border-t border-yellow-500/10">
+                            <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(reg.reg_id, 'approved'); }}
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-green-500/15 text-green-400 hover:bg-green-500/25 border border-green-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50 mt-3">
+                              <CheckCircle className="w-3.5 h-3.5" /> Approve
+                            </button>
+                            <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); setRejectingRegId(reg.reg_id); }}
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 border border-violet-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50 mt-3">
+                              <XCircle className="w-3.5 h-3.5" /> Reject
+                            </button>
+                          </div>
+                        )}
+                        {activeTab === 'payment_pending' && (() => {
+                          const sub = paymentSubmissions[reg.reg_id];
+                          return (
+                            <div className="px-4 pb-4 border-t border-orange-500/10">
+                              {sub ? (
+                                <div className="mt-2 mb-2 px-3 py-2 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+                                  <p className="text-[10px] text-orange-400/70 uppercase tracking-widest font-black mb-0.5">UTR Submitted</p>
+                                  <p className="text-sm font-black text-white font-mono">{sub.utr_number}</p>
+                                  <p className="text-[10px] text-gray-500 mt-0.5">{new Date(sub.submitted_at).toLocaleString()} · ₹{sub.amount}</p>
+                                </div>
+                              ) : (
+                                <div className="mt-2 mb-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl">
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-0.5">UTR Status</p>
+                                  <p className="text-xs font-bold text-gray-400 mt-0.5">⚠️ Not Submitted yet by student</p>
+                                </div>
+                              )}
+                              <div className="flex gap-2 mt-2">
+                                <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); handleVerifyPayment(reg.reg_id); }}
+                                  className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50">
+                                  <CheckCircle className="w-3.5 h-3.5" /> Verify & Approve
+                                </button>
+                                <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); setRejectingRegId(reg.reg_id); }}
+                                  className="flex-1 flex items-center justify-center gap-1.5 bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50">
+                                  <XCircle className="w-3.5 h-3.5" /> Wrong UTR
+                                </button>
+                              </div>
                             </div>
-                          )}
+                          );
+                        })()}
                           {activeTab === 'approved' && (
                             <div className="px-4 pb-4 border-t border-white/[0.04]">
                               <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(reg.reg_id, 'rejected'); }}
@@ -1531,7 +1910,20 @@ export const CoordinatorDashboard: React.FC = () => {
                                   </div>
                                   <div>
                                     <div className="font-black text-white group-hover:text-cyan-300 transition-colors text-sm">{reg.full_name}</div>
-                                    <div className="text-xs text-gray-400 font-bold truncate max-w-xs mt-0.5 tracking-wide">{reg.batch || 'No batch listed'}</div>
+                                    <div className="text-xs text-gray-400 font-bold truncate max-w-xs mt-0.5 tracking-wide">
+                                      {reg.batch || 'No batch'} · {reg.created_at ? new Date(reg.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : 'N/A'}
+                                    </div>
+                                    {activeTab === 'payment_pending' && (
+                                      paymentSubmissions[reg.reg_id] ? (
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 font-mono text-[10px] font-bold mt-1">
+                                          UTR: {paymentSubmissions[reg.reg_id].utr_number}
+                                        </div>
+                                      ) : (
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-gray-500 text-[10px] font-bold mt-1">
+                                          UTR: Not Submitted
+                                        </div>
+                                      )
+                                    )}
                                   </div>
                                 </div>
                               </td>
@@ -1555,8 +1947,16 @@ export const CoordinatorDashboard: React.FC = () => {
                                     <>
                                       <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleUpdateStatus(reg.reg_id, 'approved')}
                                         className="px-3 py-1.5 bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 hover:bg-indigo-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Approve</button>
-                                      <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleUpdateStatus(reg.reg_id, 'rejected')}
+                                      <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => setRejectingRegId(reg.reg_id)}
                                         className="px-3 py-1.5 bg-violet-500/15 text-violet-400 border border-violet-500/25 hover:bg-violet-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Reject</button>
+                                    </>
+                                  )}
+                                  {activeTab === 'payment_pending' && (
+                                    <>
+                                      <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleVerifyPayment(reg.reg_id)}
+                                        className="px-3 py-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Verify ✓</button>
+                                      <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => setRejectingRegId(reg.reg_id)}
+                                        className="px-3 py-1.5 bg-rose-500/15 text-rose-400 border border-rose-500/25 hover:bg-rose-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Wrong UTR</button>
                                     </>
                                   )}
                                   {activeTab === 'approved' && (
@@ -1619,7 +2019,7 @@ export const CoordinatorDashboard: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/[0.08] overflow-hidden">
+                <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/[0.08] overflow-hidden h-[600px]">
                   <ChatPanel themeAccent="indigo" eventId={session?.eventId?.toString()} />
                 </div>
               </div>
@@ -1672,6 +2072,142 @@ export const CoordinatorDashboard: React.FC = () => {
                   </div>
                 </div>
 
+                {/* 💳 Payment Settings Card */}
+                <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/[0.08] p-5 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-500/[0.05] rounded-full blur-[80px] translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+                  <h3 className="text-sm font-black text-white mb-1 flex items-center gap-2 uppercase tracking-wider">
+                    <IndianRupee size={15} className="text-emerald-500" />Payment Settings
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-4">Set UPI payment for this event. Students will see QR + your UPI ID during registration.</p>
+
+                  {/* Toggle */}
+                  <div className="flex items-center justify-between mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                    <div>
+                      <p className="text-sm font-black text-white">Enable Registration Fee</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">{paymentEnabled ? 'Students must pay before registration is active' : 'Free event — no payment required'}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentEnabled(v => !v)}
+                      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 focus:outline-none ${
+                        paymentEnabled ? 'bg-emerald-500' : 'bg-white/10'
+                      }`}
+                    >
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-300 ${
+                        paymentEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  </div>
+
+                  {paymentEnabled && (
+                    <div className="space-y-3 animate-in fade-in duration-300">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">UPI ID</label>
+                          <input
+                            type="text"
+                            value={coordinatorUpiId}
+                            onChange={e => setCoordinatorUpiId(e.target.value)}
+                            placeholder="9876543210@paytm"
+                            className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Your Name (shown to students)</label>
+                          <input
+                            type="text"
+                            value={coordinatorUpiName}
+                            onChange={e => setCoordinatorUpiName(e.target.value)}
+                            placeholder="Rahul Sharma"
+                            className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Registration Fee (₹)</label>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={paymentAmount}
+                            onChange={e => setPaymentAmount(e.target.value)}
+                            placeholder="200"
+                            className="w-full bg-black/50 border border-white/10 rounded-xl pl-8 pr-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                          />
+                        </div>
+                      </div>
+                      {coordinatorUpiId && coordinatorUpiName && (
+                        <div className="p-3 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/20">
+                          <p className="text-[10px] text-emerald-400/60 uppercase tracking-widest font-black mb-1">Preview (students will see)</p>
+                          <p className="text-sm font-black text-white">Pay ₹{paymentAmount || '0'} to {coordinatorUpiName}</p>
+                          <p className="text-xs text-white/40 font-mono mt-0.5">{coordinatorUpiId}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSavePaymentSettings}
+                    disabled={savingPayment}
+                    className="mt-4 flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                  >
+                    <Save size={14} />{savingPayment ? 'Saving...' : 'Save Payment Settings'}
+                  </button>
+                </div>
+
+                {/* 🗓 Registration Window Card */}
+                <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/[0.08] p-5 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/[0.05] rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                  <h3 className="text-sm font-black text-white mb-1 flex items-center gap-2 uppercase tracking-wider">
+                    <CalendarClock size={15} className="text-violet-400" />Registration Window
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-4">Set when registration opens and closes. Outside this window, registration button is disabled for students.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Opens At</label>
+                      <input
+                        type="datetime-local"
+                        value={regOpensAt}
+                        onChange={e => setRegOpensAt(e.target.value)}
+                        className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50 [color-scheme:dark]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Closes At</label>
+                      <input
+                        type="datetime-local"
+                        value={regClosesAt}
+                        onChange={e => setRegClosesAt(e.target.value)}
+                        className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50 [color-scheme:dark]"
+                      />
+                    </div>
+                  </div>
+                  {(regOpensAt || regClosesAt) && (() => {
+                    const now = new Date();
+                    const opens = regOpensAt ? new Date(regOpensAt) : null;
+                    const closes = regClosesAt ? new Date(regClosesAt) : null;
+                    const isOpen = (!opens || now >= opens) && (!closes || now <= closes);
+                    return (
+                      <div className={`mb-3 p-3 rounded-xl border text-xs font-bold flex items-center gap-2 ${
+                        isOpen ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                      }`}>
+                        <Clock size={12} />
+                        {isOpen ? '🟢 Registration is currently OPEN' : '🔴 Registration is currently CLOSED'}
+                        {closes && !isOpen && now < closes && ` · Opens ${opens?.toLocaleString() || 'N/A'}`}
+                        {closes && isOpen && ` · Closes ${closes.toLocaleString()}`}
+                      </div>
+                    );
+                  })()}
+                  <button
+                    onClick={handleSaveRegWindow}
+                    disabled={savingRegWindow}
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-black rounded-xl text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(139,92,246,0.2)]"
+                  >
+                    <Save size={14} />{savingRegWindow ? 'Saving...' : 'Save Window'}
+                  </button>
+                </div>
+
                 {/* Registration toggle */}
                 {registrationOpen !== null && (
                   <div className={`rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${registrationOpen ? 'bg-cyan-500/[0.08] border-cyan-500/20' : 'bg-violet-500/[0.08] border-violet-500/20'}`}>
@@ -1719,6 +2255,56 @@ export const CoordinatorDashboard: React.FC = () => {
           </button>
         ))}
       </nav>
+
+      {/* ══ REJECTION REASON MODAL ══ */}
+      {rejectingRegId && (
+        <div className="fixed inset-0 z-[102] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-gray-950/95 backdrop-blur-xl border border-rose-500/20 rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center">
+                  <XCircle className="w-5 h-5 text-rose-400" />
+                </div>
+                <div>
+                  <h2 className="font-black text-white text-base">Reject Registration</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Student will see this reason in their dashboard</p>
+                </div>
+              </div>
+              <button onClick={() => { setRejectingRegId(null); setRejectionReason(''); }} className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Rejection Reason (optional)</label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={e => setRejectionReason(e.target.value)}
+                  placeholder="e.g. Payment not received, Invalid UTR, Registration quota full..."
+                  rows={3}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/40 resize-none placeholder-gray-600"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setRejectingRegId(null); setRejectionReason(''); }}
+                  className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-black text-white hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRejectWithReason}
+                  disabled={isSubmittingRejection}
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 rounded-xl text-sm font-black text-white disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                >
+                  {isSubmittingRejection ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                  Confirm Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ REGISTRATION DETAIL MODAL ══ */}
       {selectedReg && (
@@ -1769,6 +2355,32 @@ export const CoordinatorDashboard: React.FC = () => {
                       <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-1">Registered On</p>
                       <p className="text-sm font-semibold text-gray-200">{new Date(selectedReg.created_at).toLocaleString()}</p>
                     </div>
+                    {paymentSubmissions[selectedReg.reg_id] && (
+                      <div className="border-t border-white/5 pt-3 mt-3 space-y-3">
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-1">UTR / Transaction ID</p>
+                          <p className="text-sm font-black text-amber-400 font-mono select-all bg-amber-500/5 border border-amber-500/10 p-2 rounded-lg">
+                            {paymentSubmissions[selectedReg.reg_id].utr_number}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-0.5">Amount Paid</p>
+                            <p className="text-sm font-bold text-gray-200">
+                              ₹{paymentSubmissions[selectedReg.reg_id].amount || '0'}
+                            </p>
+                          </div>
+                          {paymentSubmissions[selectedReg.reg_id].submitted_at && (
+                            <div className="text-right">
+                              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-0.5">Submitted At</p>
+                              <p className="text-xs text-gray-400">
+                                {new Date(paymentSubmissions[selectedReg.reg_id].submitted_at).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
