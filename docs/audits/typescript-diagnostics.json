@@ -1,0 +1,1202 @@
+[
+  {
+    "file": "src/components/admin/AdminMessageToast.tsx",
+    "line": 34,
+    "code": 2345,
+    "message": "Argument of type 'string' is not assignable to parameter of type 'number'."
+  },
+  {
+    "file": "src/components/admin/AdminPasscodesPanel.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Trash2' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/AdminPasscodesPanel.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Plus' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/AdminUsersPanel.tsx",
+    "line": 9,
+    "code": 6133,
+    "message": "'Eye' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/AdminUsersPanel.tsx",
+    "line": 10,
+    "code": 6133,
+    "message": "'CheckCircle2' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/AdminUsersPanel.tsx",
+    "line": 17,
+    "code": 2741,
+    "message": "Property '$$typeof' is missing in type '({ className }: { className?: string | undefined; }) => Element' but required in type 'ForwardRefExoticComponent<LucideProps>'."
+  },
+  {
+    "file": "src/components/admin/AnnualSportsScheduleManagement.tsx",
+    "line": 73,
+    "code": 2769,
+    "message": "No overload matches this call.   Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.     Argument of type 'string | null' is not assignable to parameter of type 'string | number | Date'.       Type 'null' is not assignable to type 'string | number | Date'.   Overload 2 of 4, '(value: string | number): Date', gave the following error.     Argument of type 'string | null' is not assignable to parameter of type 'string | number'.       Type 'null' is not assignable to type 'string | number'."
+  },
+  {
+    "file": "src/components/admin/AnnualSportsScheduleManagement.tsx",
+    "line": 134,
+    "code": 2322,
+    "message": "Type 'string | null | undefined' is not assignable to type 'string | number | readonly string[] | undefined'.   Type 'null' is not assignable to type 'string | number | readonly string[] | undefined'."
+  },
+  {
+    "file": "src/components/admin/AnnualSportsScheduleManagement.tsx",
+    "line": 145,
+    "code": 2322,
+    "message": "Type 'string' is not assignable to type 'number'."
+  },
+  {
+    "file": "src/components/admin/AnnualSportsScheduleManagement.tsx",
+    "line": 151,
+    "code": 2322,
+    "message": "Type 'string' is not assignable to type 'number'."
+  },
+  {
+    "file": "src/components/admin/AnnualSportsScheduleManagement.tsx",
+    "line": 193,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types 'string' and 'number | null' have no overlap."
+  },
+  {
+    "file": "src/components/admin/AnnualSportsScheduleManagement.tsx",
+    "line": 194,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types 'string' and 'number | null' have no overlap."
+  },
+  {
+    "file": "src/components/admin/AnnualSportsScheduleManagement.tsx",
+    "line": 200,
+    "code": 2769,
+    "message": "No overload matches this call.   Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.     Argument of type 'string | null' is not assignable to parameter of type 'string | number | Date'.       Type 'null' is not assignable to type 'string | number | Date'.   Overload 2 of 4, '(value: string | number): Date', gave the following error.     Argument of type 'string | null' is not assignable to parameter of type 'string | number'.       Type 'null' is not assignable to type 'string | number'."
+  },
+  {
+    "file": "src/components/admin/AnnualSportsScheduleManagement.tsx",
+    "line": 212,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types '\"upcoming\" | \"cancelled\"' and '\"ongoing\"' have no overlap."
+  },
+  {
+    "file": "src/components/admin/BandManagement.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'createPortal' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/EventCategoriesManagement.tsx",
+    "line": 5,
+    "code": 2305,
+    "message": "Module '\"../../context/DataContext\"' has no exported member 'EventCategory'."
+  },
+  {
+    "file": "src/components/admin/events/EventForm.tsx",
+    "line": 3,
+    "code": 6133,
+    "message": "'Clock' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/EventsManagement.tsx",
+    "line": 85,
+    "code": 6133,
+    "message": "'isOwner' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/EventsManagement.tsx",
+    "line": 1256,
+    "code": 2322,
+    "message": "Type '\"warning\"' is not assignable to type '\"error\" | \"success\" | \"info\" | undefined'."
+  },
+  {
+    "file": "src/components/admin/EventsManagement.tsx",
+    "line": 1431,
+    "code": 2322,
+    "message": "Type '\"warning\"' is not assignable to type '\"error\" | \"success\" | \"info\" | undefined'."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 23,
+    "code": 6133,
+    "message": "'clamp' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 38,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 49,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 66,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 88,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 107,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 127,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 144,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 162,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 181,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 206,
+    "code": 7006,
+    "message": "Parameter 'p' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 213,
+    "code": 7006,
+    "message": "Parameter 'p' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 226,
+    "code": 7006,
+    "message": "Parameter 'p' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 233,
+    "code": 7006,
+    "message": "Parameter 'p' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 246,
+    "code": 7006,
+    "message": "Parameter 'p' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/BrandingSettings.tsx",
+    "line": 253,
+    "code": 7006,
+    "message": "Parameter 'p' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/HeroContentSettings.tsx",
+    "line": 26,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/HeroContentSettings.tsx",
+    "line": 40,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/HeroContentSettings.tsx",
+    "line": 53,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/InstagramIntegrationSettings.tsx",
+    "line": 32,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/InstagramIntegrationSettings.tsx",
+    "line": 44,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/InstagramIntegrationSettings.tsx",
+    "line": 55,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/InstagramIntegrationSettings.tsx",
+    "line": 65,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/InstagramIntegrationSettings.tsx",
+    "line": 95,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/InstagramIntegrationSettings.tsx",
+    "line": 107,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/InstagramIntegrationSettings.tsx",
+    "line": 118,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/InstagramIntegrationSettings.tsx",
+    "line": 128,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/LeadershipSettings.tsx",
+    "line": 21,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/LeadershipSettings.tsx",
+    "line": 33,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/LeadershipSettings.tsx",
+    "line": 52,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/LeadershipSettings.tsx",
+    "line": 72,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/LeadershipSettings.tsx",
+    "line": 85,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/PartnersSectionSettings.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Type' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/homepage/PartnersSectionSettings.tsx",
+    "line": 46,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/PartnersSectionSettings.tsx",
+    "line": 59,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/PartnersSectionSettings.tsx",
+    "line": 69,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/PartnersSectionSettings.tsx",
+    "line": 84,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/homepage/PartnersSectionSettings.tsx",
+    "line": 92,
+    "code": 7006,
+    "message": "Parameter 'prev' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/admin/InlineDescriptionAI.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Sparkles' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/InlineDescriptionAI.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'AlertCircle' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/InlineDescriptionAI.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'RefreshCw' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/InlineDescriptionAI.tsx",
+    "line": 32,
+    "code": 6133,
+    "message": "'toastId' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/layout/CommandPalette.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Command' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/layout/CommandPalette.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'X' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/layout/CommandPalette.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Shield' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/OwnerApprovalCenter.tsx",
+    "line": 218,
+    "code": 2345,
+    "message": "Argument of type 'number' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "src/components/admin/OwnerApprovalCenter.tsx",
+    "line": 228,
+    "code": 2345,
+    "message": "Argument of type 'number' is not assignable to parameter of type 'string'."
+  },
+  {
+    "file": "src/components/admin/OwnerApprovalCenter.tsx",
+    "line": 920,
+    "code": 2345,
+    "message": "Argument of type 'string' is not assignable to parameter of type 'number'."
+  },
+  {
+    "file": "src/components/admin/OwnerApprovalCenter.tsx",
+    "line": 923,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types 'number | null' and 'string' have no overlap."
+  },
+  {
+    "file": "src/components/admin/OwnerApprovalCenter.tsx",
+    "line": 927,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types 'number | null' and 'string' have no overlap."
+  },
+  {
+    "file": "src/components/admin/OwnerApprovalCenter.tsx",
+    "line": 930,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types 'number | null' and 'string' have no overlap."
+  },
+  {
+    "file": "src/components/admin/OwnerApprovalCenter.tsx",
+    "line": 953,
+    "code": 2345,
+    "message": "Argument of type 'string' is not assignable to parameter of type 'number'."
+  },
+  {
+    "file": "src/components/admin/OwnerApprovalCenter.tsx",
+    "line": 963,
+    "code": 2345,
+    "message": "Argument of type 'string' is not assignable to parameter of type 'SetStateAction<number | null>'."
+  },
+  {
+    "file": "src/components/admin/OwnerApprovalCenter.tsx",
+    "line": 970,
+    "code": 2345,
+    "message": "Argument of type 'string' is not assignable to parameter of type 'number'."
+  },
+  {
+    "file": "src/components/admin/RicoFamilyManagement.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'UserPlus' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/ScheduleManagement.tsx",
+    "line": 3,
+    "code": 6133,
+    "message": "'X' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/ScheduleManagement.tsx",
+    "line": 15,
+    "code": 6133,
+    "message": "'isProcessingImport' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/ShoutoutManagement.tsx",
+    "line": 3,
+    "code": 6133,
+    "message": "'Filter' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/ShoutoutManagement.tsx",
+    "line": 3,
+    "code": 6133,
+    "message": "'Clock' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/SportsRegistrationAdmin.tsx",
+    "line": 1,
+    "code": 6133,
+    "message": "'useMemo' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/SportsRegistrationAdmin.tsx",
+    "line": 1,
+    "code": 6133,
+    "message": "'useEffect' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/SportsTeamsAdmin.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Eye' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/SportsTeamsAdmin.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'EyeOff' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/SportsTeamsAdmin.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Users' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/SportsTeamsAdmin.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Droplet' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/SportsTeamsAdmin.tsx",
+    "line": 27,
+    "code": 6133,
+    "message": "'showValidationErrors' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/StorageOverview.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Clock' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/StorageOverview.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Search' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/StorageOverview.tsx",
+    "line": 49,
+    "code": 6133,
+    "message": "'lastTotalUpdatedMs' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/StudentManagement.tsx",
+    "line": 7,
+    "code": 6133,
+    "message": "'Plus' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/StudentManagement.tsx",
+    "line": 8,
+    "code": 6133,
+    "message": "'X' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/admin/TeamMembersManagement.tsx",
+    "line": 364,
+    "code": 2322,
+    "message": "Type '{ url: string; onUpload: (url: any) => void; folder: string; }' is not assignable to type 'IntrinsicAttributes & ImageUploadProps'.   Property 'url' does not exist on type 'IntrinsicAttributes & ImageUploadProps'."
+  },
+  {
+    "file": "src/components/admin/TeamMembersManagement.tsx",
+    "line": 364,
+    "code": 7006,
+    "message": "Parameter 'url' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 44,
+    "code": 2339,
+    "message": "Property 'payment_enabled' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 44,
+    "code": 2339,
+    "message": "Property 'coordinator_upi_id' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 127,
+    "code": 2339,
+    "message": "Property 'payment_enabled' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 127,
+    "code": 2339,
+    "message": "Property 'coordinator_upi_id' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 127,
+    "code": 2339,
+    "message": "Property 'payment_amount' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 181,
+    "code": 2339,
+    "message": "Property 'payment_enabled' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 181,
+    "code": 2339,
+    "message": "Property 'coordinator_upi_id' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 181,
+    "code": 2339,
+    "message": "Property 'payment_amount' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 206,
+    "code": 6133,
+    "message": "'data' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 240,
+    "code": 2339,
+    "message": "Property 'payment_amount' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 253,
+    "code": 6133,
+    "message": "'data' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 287,
+    "code": 2339,
+    "message": "Property 'payment_amount' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 398,
+    "code": 2339,
+    "message": "Property 'payment_enabled' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 398,
+    "code": 2339,
+    "message": "Property 'coordinator_upi_id' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 398,
+    "code": 2339,
+    "message": "Property 'payment_amount' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 535,
+    "code": 2339,
+    "message": "Property 'payment_enabled' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 535,
+    "code": 2339,
+    "message": "Property 'coordinator_upi_id' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/CartDrawer.tsx",
+    "line": 535,
+    "code": 2339,
+    "message": "Property 'payment_amount' does not exist on type 'CartEvent'."
+  },
+  {
+    "file": "src/components/coordinator/CoordinatorDashboard.tsx",
+    "line": 8,
+    "code": 6133,
+    "message": "'Plus' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/coordinator/CoordinatorDashboard.tsx",
+    "line": 8,
+    "code": 6133,
+    "message": "'QrCode' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/coordinator/CoordinatorDashboard.tsx",
+    "line": 1214,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types '\"rejected\" | \"groups\"' and '\"payment_pending\"' have no overlap."
+  },
+  {
+    "file": "src/components/coordinator/CoordinatorDashboard.tsx",
+    "line": 1458,
+    "code": 2552,
+    "message": "Cannot find name 'motion'. Did you mean 'Moon'?"
+  },
+  {
+    "file": "src/components/coordinator/CoordinatorDashboard.tsx",
+    "line": 1500,
+    "code": 2552,
+    "message": "Cannot find name 'motion'. Did you mean 'Moon'?"
+  },
+  {
+    "file": "src/components/coordinator/CoordinatorDashboard.tsx",
+    "line": 1758,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types '\"approved\" | \"rejected\" | \"groups\"' and '\"payment_pending\"' have no overlap."
+  },
+  {
+    "file": "src/components/coordinator/CoordinatorDashboard.tsx",
+    "line": 1760,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types '\"pending\"' and '\"payment_pending\"' have no overlap."
+  },
+  {
+    "file": "src/components/coordinator/CoordinatorDashboard.tsx",
+    "line": 1842,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types '\"pending\" | \"approved\" | \"rejected\"' and '\"payment_pending\"' have no overlap."
+  },
+  {
+    "file": "src/components/coordinator/CoordinatorDashboard.tsx",
+    "line": 1916,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types '\"pending\" | \"approved\" | \"rejected\"' and '\"payment_pending\"' have no overlap."
+  },
+  {
+    "file": "src/components/coordinator/CoordinatorDashboard.tsx",
+    "line": 1954,
+    "code": 2367,
+    "message": "This comparison appears to be unintentional because the types '\"pending\" | \"approved\" | \"rejected\"' and '\"payment_pending\"' have no overlap."
+  },
+  {
+    "file": "src/components/dashboard/BatchWar.tsx",
+    "line": 4,
+    "code": 6133,
+    "message": "'Award' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/dashboard/BatchWar.tsx",
+    "line": 11,
+    "code": 6133,
+    "message": "'DUMMY_WAR' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/dashboard/LikesReceivedList.tsx",
+    "line": 24,
+    "code": 6133,
+    "message": "'likers' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/dashboard/ProfileModal.tsx",
+    "line": 3,
+    "code": 6133,
+    "message": "'Shield' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/dashboard/XPRing.tsx",
+    "line": 31,
+    "code": 6133,
+    "message": "'xp' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/dashboard/XPRing.tsx",
+    "line": 66,
+    "code": 6133,
+    "message": "'glowColor' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/DomeGallery.tsx",
+    "line": 99,
+    "code": 2322,
+    "message": "Type '{ src: string; alt: string; x: number; y: number; sizeX: number; sizeY: number; }[]' is not assignable to type 'ItemDef[]'.   Property 'thumbnail' is missing in type '{ src: string; alt: string; x: number; y: number; sizeX: number; sizeY: number; }' but required in type 'ItemDef'."
+  },
+  {
+    "file": "src/components/Home/AboutSection.tsx",
+    "line": 3,
+    "code": 6133,
+    "message": "'ScrollReveal' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/Home/AboutSection.tsx",
+    "line": 4,
+    "code": 6133,
+    "message": "'BRAND_NAME' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/Home/TopLegendsSection.tsx",
+    "line": 3,
+    "code": 6133,
+    "message": "'Trophy' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/PaymentStep.tsx",
+    "line": 1,
+    "code": 6133,
+    "message": "'useEffect' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/RegistrationModal.tsx",
+    "line": 28,
+    "code": 6133,
+    "message": "'isApproved' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/Sponsors/SponsorCard.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Crown' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/Sponsors/SponsorCard.tsx",
+    "line": 28,
+    "code": 6133,
+    "message": "'intensityFromTier' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/ui/AudioController.tsx",
+    "line": 4,
+    "code": 6133,
+    "message": "'HOVER_SOUND' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/ui/AudioController.tsx",
+    "line": 5,
+    "code": 6133,
+    "message": "'HOVER_SOUND_B64' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/ui/AudioController.tsx",
+    "line": 6,
+    "code": 6133,
+    "message": "'CLICK_SOUND_B64' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/ui/BollywoodLoader.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Video' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/ui/BollywoodLoader.tsx",
+    "line": 2,
+    "code": 6133,
+    "message": "'Play' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/ui/Canvas3D.tsx",
+    "line": 3,
+    "code": 6133,
+    "message": "'Environment' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/ui/Canvas3D.tsx",
+    "line": 46,
+    "code": 6196,
+    "message": "'SceneErrorBoundary' is declared but never used."
+  },
+  {
+    "file": "src/components/ui/ConcertMaintenanceScene.tsx",
+    "line": 81,
+    "code": 2339,
+    "message": "Property 'dotlottie-player' does not exist on type 'JSX.IntrinsicElements'."
+  },
+  {
+    "file": "src/components/ui/ParticleHero.tsx",
+    "line": 1,
+    "code": 6133,
+    "message": "'useEffect' is declared but its value is never read."
+  },
+  {
+    "file": "src/components/ui/ParticleHero.tsx",
+    "line": 17,
+    "code": 6198,
+    "message": "All destructured elements are unused."
+  },
+  {
+    "file": "src/components/ui/Preloader.tsx",
+    "line": 173,
+    "code": 2339,
+    "message": "Property 'dotlottie-player' does not exist on type 'JSX.IntrinsicElements'."
+  },
+  {
+    "file": "src/context/AuthContext.tsx",
+    "line": 204,
+    "code": 2551,
+    "message": "Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, \"admin_users\", unknown, \"POST\">'. Did you mean 'match'?"
+  },
+  {
+    "file": "src/context/AuthContext.tsx",
+    "line": 204,
+    "code": 7006,
+    "message": "Parameter 'err' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/context/AuthContext.tsx",
+    "line": 214,
+    "code": 2551,
+    "message": "Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, \"admin_permissions\", unknown, \"POST\">'. Did you mean 'match'?"
+  },
+  {
+    "file": "src/context/AuthContext.tsx",
+    "line": 214,
+    "code": 7006,
+    "message": "Parameter 'err' implicitly has an 'any' type."
+  },
+  {
+    "file": "src/context/DataContext.tsx",
+    "line": 51,
+    "code": 2551,
+    "message": "Property 'roadmapMilestones' does not exist on type 'CoreContextType'. Did you mean 'addRoadmapMilestone'?"
+  },
+  {
+    "file": "src/context/DataContext.tsx",
+    "line": 125,
+    "code": 2339,
+    "message": "Property 'sportsSettings' does not exist on type 'SportsContextType'."
+  },
+  {
+    "file": "src/context/DataContext.tsx",
+    "line": 127,
+    "code": 2551,
+    "message": "Property 'updateSportsRegistrationStatus' does not exist on type 'SportsContextType'. Did you mean 'updateSportsRegistration'?"
+  },
+  {
+    "file": "src/context/DataContext.tsx",
+    "line": 129,
+    "code": 2551,
+    "message": "Property 'updateSportsSettings' does not exist on type 'SportsContextType'. Did you mean 'updateSportsSeason'?"
+  },
+  {
+    "file": "src/context/PersonnelContext.tsx",
+    "line": 179,
+    "code": 6133,
+    "message": "'deleteBandMember' is declared but its value is never read."
+  },
+  {
+    "file": "src/hooks/useApprovals.ts",
+    "line": 131,
+    "code": 6133,
+    "message": "'modifiedChanges' is declared but its value is never read."
+  },
+  {
+    "file": "src/hooks/useTopStars.ts",
+    "line": 77,
+    "code": 2339,
+    "message": "Property 'title' does not exist on type '{ id: any; title: any; }[]'."
+  },
+  {
+    "file": "src/layouts/DashboardLayout.tsx",
+    "line": 19,
+    "code": 6133,
+    "message": "'Zap' is declared but its value is never read."
+  },
+  {
+    "file": "src/layouts/DashboardLayout.tsx",
+    "line": 22,
+    "code": 6133,
+    "message": "'ChevronRight' is declared but its value is never read."
+  },
+  {
+    "file": "src/layouts/DashboardLayout.tsx",
+    "line": 25,
+    "code": 6133,
+    "message": "'AtSign' is declared but its value is never read."
+  },
+  {
+    "file": "src/lib/adminService.ts",
+    "line": 3,
+    "code": 6133,
+    "message": "'dualUpsert' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/AdminDashboard.tsx",
+    "line": 51,
+    "code": 6133,
+    "message": "'FacultyHeadsManagement' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/AdminDashboard.tsx",
+    "line": 52,
+    "code": 6133,
+    "message": "'CoreTeamManagement' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/CRDashboard.tsx",
+    "line": 4,
+    "code": 6133,
+    "message": "'XCircle' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/CRDashboard.tsx",
+    "line": 5,
+    "code": 6133,
+    "message": "'Phone' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/CRDashboard.tsx",
+    "line": 5,
+    "code": 6133,
+    "message": "'ArrowLeft' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/ActiveEvents.tsx",
+    "line": 162,
+    "code": 2304,
+    "message": "Cannot find name 'roundsCleared'."
+  },
+  {
+    "file": "src/pages/dashboard/ActiveEvents.tsx",
+    "line": 197,
+    "code": 2304,
+    "message": "Cannot find name 'roundsCleared'."
+  },
+  {
+    "file": "src/pages/dashboard/ActiveEvents.tsx",
+    "line": 375,
+    "code": 2322,
+    "message": "Type 'undefined' is not assignable to type 'string | null'."
+  },
+  {
+    "file": "src/pages/dashboard/ActiveEvents.tsx",
+    "line": 567,
+    "code": 2322,
+    "message": "Type 'undefined' is not assignable to type 'string | null'."
+  },
+  {
+    "file": "src/pages/dashboard/ActiveEvents.tsx",
+    "line": 952,
+    "code": 2741,
+    "message": "Property 'username' is missing in type '{ id: any; full_name: any; avatar_url: any; aura_color: any; background_url: null; batch: any; tier: any; xp: any; likes_count: any; hype_score: any; rank: any; }' but required in type 'TopStarProfile'."
+  },
+  {
+    "file": "src/pages/dashboard/Community.tsx",
+    "line": 8,
+    "code": 6133,
+    "message": "'DynamicBadge' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Community.tsx",
+    "line": 251,
+    "code": 2554,
+    "message": "Expected 1 arguments, but got 3."
+  },
+  {
+    "file": "src/pages/dashboard/Overview.tsx",
+    "line": 9,
+    "code": 6133,
+    "message": "'TrendingUp' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Overview.tsx",
+    "line": 11,
+    "code": 6133,
+    "message": "'Layers' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Overview.tsx",
+    "line": 12,
+    "code": 6133,
+    "message": "'ArrowRight' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Overview.tsx",
+    "line": 13,
+    "code": 6133,
+    "message": "'User' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Overview.tsx",
+    "line": 14,
+    "code": 6133,
+    "message": "'ShieldCheck' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Overview.tsx",
+    "line": 15,
+    "code": 6133,
+    "message": "'QrCode' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Overview.tsx",
+    "line": 16,
+    "code": 6133,
+    "message": "'Settings' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Overview.tsx",
+    "line": 70,
+    "code": 6133,
+    "message": "'firstName' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Overview.tsx",
+    "line": 117,
+    "code": 6133,
+    "message": "'handleShowPass' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Sports.tsx",
+    "line": 4,
+    "code": 6133,
+    "message": "'ChevronRight' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Teams.tsx",
+    "line": 5,
+    "code": 6133,
+    "message": "'ArrowRight' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Teams.tsx",
+    "line": 9,
+    "code": 6133,
+    "message": "'BRAND_NAME' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Teams.tsx",
+    "line": 47,
+    "code": 6133,
+    "message": "'registrations' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Teams.tsx",
+    "line": 48,
+    "code": 6133,
+    "message": "'pendingInvitesCount' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Vibes.tsx",
+    "line": 3,
+    "code": 6133,
+    "message": "'Sparkles' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/dashboard/Vibes.tsx",
+    "line": 3,
+    "code": 6133,
+    "message": "'Users' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/Events.tsx",
+    "line": 70,
+    "code": 6133,
+    "message": "'setSearchParams' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/Events.tsx",
+    "line": 79,
+    "code": 6133,
+    "message": "'registrationEventId' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/Events.tsx",
+    "line": 103,
+    "code": 2345,
+    "message": "Argument of type '{ event_id: string; status: any; }[]' is not assignable to parameter of type 'SetStateAction<string[]>'.   Type '{ event_id: string; status: any; }[]' is not assignable to type 'string[]'.     Type '{ event_id: string; status: any; }' is not assignable to type 'string'."
+  },
+  {
+    "file": "src/pages/Events.tsx",
+    "line": 660,
+    "code": 2339,
+    "message": "Property 'event_id' does not exist on type 'string'."
+  },
+  {
+    "file": "src/pages/Events.tsx",
+    "line": 660,
+    "code": 2339,
+    "message": "Property 'status' does not exist on type 'string'."
+  },
+  {
+    "file": "src/pages/Events.tsx",
+    "line": 661,
+    "code": 2339,
+    "message": "Property 'event_id' does not exist on type 'string'."
+  },
+  {
+    "file": "src/pages/Events.tsx",
+    "line": 661,
+    "code": 2339,
+    "message": "Property 'status' does not exist on type 'string'."
+  },
+  {
+    "file": "src/pages/Login.tsx",
+    "line": 39,
+    "code": 6133,
+    "message": "'isAdmin' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/Login.tsx",
+    "line": 39,
+    "code": 6133,
+    "message": "'isOwner' is declared but its value is never read."
+  },
+  {
+    "file": "src/pages/Login.tsx",
+    "line": 39,
+    "code": 6133,
+    "message": "'dataLoading' is declared but its value is never read."
+  },
+  {
+    "file": "src/utils/eventUtils.ts",
+    "line": 1,
+    "code": 6133,
+    "message": "'parseEventDateTime' is declared but its value is never read."
+  }
+]

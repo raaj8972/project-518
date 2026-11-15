@@ -1,0 +1,20 @@
+[
+  {
+    "table": "security_settings_public",
+    "status": 404,
+    "ms": 1034,
+    "error": {
+      "code": "PGRST205",
+      "message": "Could not find the table 'public.security_settings_public' in the schema cache"
+    }
+  },
+  {
+    "table": "hero_media",
+    "status": 400,
+    "ms": 527,
+    "error": {
+      "code": "22P02",
+      "message": "invalid input syntax for type bigint: \"home\""
+    }
+  }
+]

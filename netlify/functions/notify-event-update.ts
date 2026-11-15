@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from './lib/email';
 
 export default async (req: Request) => {
+  if (!['POST', 'OPTIONS'].includes(req.method)) return Response.json({ error: 'Method not allowed' }, { status: 405, headers: { Allow: 'POST, OPTIONS' } });
   const headers = {
     // 'Access-Control-Allow-Origin': '*' // Restricted by policy,
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',

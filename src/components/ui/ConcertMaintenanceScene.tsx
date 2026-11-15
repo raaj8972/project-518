@@ -75,8 +75,8 @@ export const ConcertMaintenanceScene: React.FC<ConcertMaintenanceSceneProps> = (
             {/* @ts-ignore - Custom Web Component */}
             <dotlottie-player
               src="/animations/maintenance.lottie"
-              loop="true"
-              autoplay="true"
+              loop
+              autoplay
               style={{ width: '100%', height: '100%', display: 'block' }}
             ></dotlottie-player>
           </div>

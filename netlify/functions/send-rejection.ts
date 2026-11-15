@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from './lib/email';
 
 // Initialize Supabase Admin client
-const { getSupabaseClient } = await import('./lib/supabase');
+import { getSupabaseClient } from './lib/supabase';
 const supabaseAdmin = getSupabaseClient(true);
 
 const corsHeaders = {
@@ -78,6 +78,7 @@ const getEmailTemplate = (eventTitle: string, fullName: string, reason: string, 
 };
 
 export default async (req: Request) => {
+  if (!['POST', 'OPTIONS'].includes(req.method)) return Response.json({ error: 'Method not allowed' }, { status: 405, headers: { Allow: 'POST, OPTIONS' } });
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }

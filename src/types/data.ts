@@ -313,7 +313,7 @@ export interface DataContextType {
   bulkDeleteGalleryImages?: (ids: number[]) => Promise<void>;
   deleteAllGalleryImages: () => Promise<void>;
   toggleGalleryImageFeatured: (id: number) => Promise<void>;
-  addSponsor: (sponsor: Partial<Sponsor>) => Promise<void>;
+  addSponsor: (sponsor: Partial<Sponsor>) => Promise<Sponsor>;
   updateSponsor: (id: number, sponsor: Partial<Sponsor>) => Promise<void>;
   deleteSponsor: (id: number) => Promise<void>;
   toggleSponsorFeatured: (id: number) => Promise<void>;
@@ -444,13 +444,15 @@ export interface DataContextType {
   addAdminUser?: (userId: string, email: string, role?: 'owner' | 'admin') => Promise<void>;
   removeAdminUser?: (userId: string) => Promise<void>;
   addAdminByEmail?: (email: string) => Promise<void>;
-  createAdminAccount?: (email: string, password: string, role?: 'owner' | 'admin') => Promise<{ user_id: string; email: string } | null>;
+  createAdminAccount?: (email: string, allowedPages: string[], role?: 'owner' | 'admin', displayName?: string) => Promise<{ success: boolean; invitation: { id: string; email: string }; delivery: string; message: string }>;
   updateAdminEmail?: (userId: string, newEmail: string) => Promise<void>;
   listAdminPermissions?: () => Promise<any[]>;
   setAdminPermission?: (userId: string, patch: Partial<AdminPermission>) => Promise<void>;
   updateAdminRole?: (userId: string, role: 'owner' | 'admin') => Promise<void>;
   updateAdminPassword?: (userId: string, password: string) => Promise<void>;
   myPermissions?: {
+    allowed_pages?: string[];
+    page_access_configured?: boolean;
     can_events?: boolean;
     can_schedule?: boolean;
     can_gallery?: boolean;

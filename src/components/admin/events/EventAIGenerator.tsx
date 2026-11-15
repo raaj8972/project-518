@@ -42,7 +42,7 @@ CRITICAL: Return ONLY raw JSON. No markdown blocks.
 The required JSON structure:
 {
   "title": "String (A catchy title for the event)",
-  "category": "String (Choose one: Technical, Non-Technical, Cultural, Sports, Arts, General)",
+  "category": "String (Choose one: Cultural, Academic)",
   "description": "String (A professional, engaging 2-3 paragraph description formatted with HTML <p> or <br> tags)",
   "date": "String (YYYY-MM-DD if provided, else leave empty '')",
   "time": "String (HH:MM if provided, else leave empty '')",

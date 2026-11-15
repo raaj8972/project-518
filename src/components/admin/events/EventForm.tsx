@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Plus, Trash2, MapPin, Clock, Users,
+  Plus, Trash2, MapPin, Users,
   AlertCircle, Settings,
   Image as ImageIcon, FileText, Link
 } from 'lucide-react';
@@ -9,6 +9,8 @@ import { VideoUpload } from '../../VideoUpload';
 import { EventAIGenerator, EventFormState } from './EventAIGenerator';
 import { StructuredRulesEditor } from './StructuredRulesEditor';
 import { RuleSection } from '../../../utils/rulesUtils';
+import { EventPosterPreview } from './EventPosterPreview';
+import { EVENT_CATEGORIES, eventCategory, EVENT_POSTER_ASPECT } from '../../../utils/eventPresentation';
 
 interface Staff {
   name: string;
@@ -32,18 +34,17 @@ export const EventForm: React.FC<EventFormProps> = ({
   initialRulesSections,
   initialCoordinators,
   isEditing,
-  eventCategories,
   onSave,
   onCancel
 }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('general');
-  const [formData, setFormData] = useState<EventFormState>(initialData);
+  const [formData, setFormData] = useState<EventFormState>({ ...initialData, category: eventCategory(initialData.category) });
   const [rulesSections, setRulesSections] = useState<RuleSection[]>(initialRulesSections);
   const [draftCoordinators, setDraftCoordinators] = useState<Staff[]>(initialCoordinators);
   const [newCoordinator, setNewCoordinator] = useState({ name: '', phone: '' });
 
   useEffect(() => {
-    setFormData(initialData);
+    setFormData({ ...initialData, category: eventCategory(initialData.category) });
     setRulesSections(initialRulesSections);
     setDraftCoordinators(initialCoordinators);
   }, [initialData, initialRulesSections, initialCoordinators]);
@@ -52,7 +53,7 @@ export const EventForm: React.FC<EventFormProps> = ({
     setFormData(prev => ({
       ...prev,
       title: data.title || prev.title,
-      category: data.category || prev.category,
+      category: eventCategory(data.category || prev.category),
       description: data.description || prev.description,
       date: data.date || prev.date,
       time: data.time || prev.time,
@@ -140,12 +141,12 @@ export const EventForm: React.FC<EventFormProps> = ({
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Category</label>
                   <select
-                    value={formData.category}
+                    value={eventCategory(formData.category)}
                     onChange={e => updateField('category', e.target.value)}
                     className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white transition-all appearance-none"
                   >
                     <option value="" className="bg-[#181824]">Select</option>
-                    {eventCategories.map(c => <option key={c.id} value={c.name} className="bg-[#181824]">{c.name}</option>)}
+                    {EVENT_CATEGORIES.map(category => <option key={category} value={category} className="bg-[#181824]">{category}</option>)}
                   </select>
                 </div>
                 <div className="flex items-center gap-4 mt-auto pb-4">
@@ -173,7 +174,6 @@ export const EventForm: React.FC<EventFormProps> = ({
                   placeholder="https://youtube.com/..."
                   className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-600 transition-all font-mono text-sm"
                 />
-              </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Event Description *</label>
@@ -237,7 +237,11 @@ export const EventForm: React.FC<EventFormProps> = ({
                     currentImage={formData.image}
                     onImageSelect={(url: string) => updateField('image', url)}
                     bucket="event-images"
+                    cropAspect={EVENT_POSTER_ASPECT}
+                    enableCropper
+                    fileTypeLabel="Poster (1600 × 1000)"
                   />
+                  <div className="mt-5"><EventPosterPreview event={formData} /></div>
                 </div>
               </div>
               <div className="space-y-6">

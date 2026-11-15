@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, Eye, EyeOff, Users, Flag, Droplet } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Flag } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useSportsData } from '../../context/SportsContext';
 import { ImageUpload } from '../ImageUpload';
@@ -24,7 +24,7 @@ export const SportsTeamsAdmin: React.FC = () => {
   
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
-  const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [, setShowValidationErrors] = useState(false);
 
   const [form, setForm] = useState({
     sport_id: '',

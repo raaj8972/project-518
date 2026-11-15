@@ -37,3 +37,5 @@ export const handler: Handler = async () => {
 export const config: Config = {
   schedule: '*/15 * * * *',
 }
+
+export const scheduledHandler = handler;

@@ -6,6 +6,7 @@ import { useEventCart } from '../context/EventCartContext';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
+import { groupParticipantIds } from '../utils/cartParticipants';
 
 interface CartDrawerProps {
   onRegisterSuccess?: () => void;
@@ -41,7 +42,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onRegisterSuccess }) => 
     if (checkoutStep !== 'payment') return;
     
     const refreshCartEvents = async () => {
-      const paidIds = cartItems.filter(e => e.payment_enabled && e.coordinator_upi_id).map(e => e.id.toString());
+      const paidIds = cartItems.map(e => ({ ...e, ...localEventOverrides[e.id] })).filter(e => e.payment_enabled && e.coordinator_upi_id).map(e => e.id.toString());
       if (paidIds.length === 0) return;
       
       try {
@@ -120,199 +121,81 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onRegisterSuccess }) => 
   }, [isDrawerOpen, user]);
 
   const handleRegisterAll = async () => {
-    if (!user || !profile) { toast.error('Profile incomplete!'); return; }
-    if (cartItems.length === 0) return;
-
-    // Check if there are paid items that need payment verification
-    const paidItems = cartItems.filter(event => event.payment_enabled && event.coordinator_upi_id && (event.payment_amount || 0) > 0);
-    
-    if (checkoutStep === 'cart' && paidItems.length > 0) {
-      setCheckoutStep('payment');
-      return;
-    }
-
-    // Validate that all paid events in the cart have a valid UTR number entered (minimum 6 characters)
-    if (checkoutStep === 'payment') {
-      for (const event of paidItems) {
-        const utr = utrs[event.id]?.trim();
-        if (!utr || utr.length < 6) {
-          toast.error(`Please enter a valid UTR / Transaction ID (min 6 characters) for ${event.title}`);
-          return;
-        }
-      }
-    }
-
-    // First validate all group size limits before starting any registrations!
-    for (const event of cartItems) {
-      if (event.isTeam) {
-        const groupId = selectedGroups[event.id];
-        if (!groupId) {
-          toast.error(`Please select a group for ${event.title}`);
-          return;
-        }
-
-        const group = myGroups.find(g => g.id === groupId);
-        if (!group) {
-          toast.error(`Selected group not found for ${event.title}`);
-          return;
-        }
-
-        const acceptedMembersCount = (group.members || []).filter((m: any) => m.status === 'accepted').length + 1; // +1 for self
-        const minSize = event.min_team || 1;
-        const maxSize = event.max_team || 1;
-
-        if (acceptedMembersCount < minSize) {
-          toast.error(`"${group.name}" has only ${acceptedMembersCount} members. "${event.title}" requires at least ${minSize} members.`);
-          return;
-        }
-        if (acceptedMembersCount > maxSize) {
-          toast.error(`"${group.name}" has ${acceptedMembersCount} members. "${event.title}" allows at most ${maxSize} members.`);
-          return;
-        }
-      }
-    }
-
+    if (registering) return;
+    if (!user || !profile?.is_approved) { toast.error('Your profile must be approved before registering.'); return; }
+    if (!cartItems.length) return;
     setRegistering(true);
     const registered: string[] = [];
     const failed: string[] = [];
-
-    for (const event of cartItems) {
-      try {
-        const isPaidEvent = event.payment_enabled && event.coordinator_upi_id && (event.payment_amount || 0) > 0;
-        
-        if (event.isTeam) {
-          const groupId = selectedGroups[event.id];
-          const group = myGroups.find(g => g.id === groupId);
-          if (!group) throw new Error('Selected group not found');
-          
-          const acceptedMembers = (group.members || []).filter((m: any) => m.status === 'accepted');
-          
-          const allUserIds = [
-            user.id,
-            ...acceptedMembers.map((m: any) => m.user_id)
-          ];
-
-          const participantDetails = [
-            { full_name: profile.full_name, email: user.email, phone: profile.phone, college: profile.college, batch: profile.batch },
-            ...acceptedMembers.map((m: any) => ({
-              full_name: m.profile?.full_name || '',
-              email: '',
-              phone: m.profile?.phone || '',
-              college: m.profile?.college || '',
-              batch: m.profile?.batch || '',
-            }))
-          ];
-
-          const { data, error } = await supabase.rpc('register_cart_event', {
-            p_event_id: event.id.toString(),
-            p_user_ids: allUserIds,
-            p_team_name: group.name,
-            p_participant_details: participantDetails
-          });
-
-          if (error) {
-            console.error(error);
-            toast.error(`[${event.title}] ${error.message}`);
-            failed.push(event.id);
-          } else {
-            registered.push(event.id);
-
-            // Handle payment submission insert if paid
-            if (isPaidEvent) {
-              const utr = utrs[event.id]?.trim().toUpperCase();
-              await new Promise(r => setTimeout(r, 400)); // stabilization gap
-              
-              const { data: latestReg } = await supabase
-                .from('registrations')
-                .select('id')
-                .eq('event_id', event.id.toString())
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-              
-              if (latestReg) {
-                await supabase.from('payment_submissions').insert({
-                  registration_id: latestReg.id,
-                  event_id: event.id.toString(),
-                  user_id: user.id,
-                  utr_number: utr,
-                  amount: event.payment_amount,
-                  submitted_at: new Date().toISOString()
-                });
-              }
-            }
-          }
-        } else {
-          // Individual Registration using the same RPC (concurrency-safe!)
-          const allUserIds = [user.id];
-          const participantDetails = [
-            { full_name: profile.full_name, email: user.email, phone: profile.phone, college: profile.college, batch: profile.batch }
-          ];
-
-          const { data, error } = await supabase.rpc('register_cart_event', {
-            p_event_id: event.id.toString(),
-            p_user_ids: allUserIds,
-            p_team_name: null,
-            p_participant_details: participantDetails
-          });
-
-          if (error) {
-            console.error(error);
-            toast.error(`[${event.title}] ${error.message}`);
-            failed.push(event.id);
-          } else {
-            registered.push(event.id);
-
-            // Handle payment submission insert if paid
-            if (isPaidEvent) {
-              const utr = utrs[event.id]?.trim().toUpperCase();
-              await new Promise(r => setTimeout(r, 400)); // stabilization gap
-              
-              const { data: latestReg } = await supabase
-                .from('registrations')
-                .select('id')
-                .eq('event_id', event.id.toString())
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-              
-              if (latestReg) {
-                await supabase.from('payment_submissions').insert({
-                  registration_id: latestReg.id,
-                  event_id: event.id.toString(),
-                  user_id: user.id,
-                  utr_number: utr,
-                  amount: event.payment_amount,
-                  submitted_at: new Date().toISOString()
-                });
-              }
-            }
-          }
+    try {
+      // Always read current pricing, availability and limits, including old persisted carts.
+      const { data: events, error } = await supabase.from('events')
+        .select('id, title, date, payment_enabled, payment_amount, coordinator_upi_id, coordinator_upi_name, registration_default_mode, team_min_members, team_max_members, registration_open')
+        .in('id', cartItems.map(e => e.id));
+      if (error) throw error;
+      const overrides: Record<string, any> = {};
+      const checkoutItems = cartItems.map(item => {
+        const current = events?.find(e => String(e.id) === item.id);
+        if (!current) throw new Error(`${item.title} is no longer available.`);
+        if (current.registration_open === false) throw new Error(`Registration is closed for ${current.title}.`);
+        const event = { ...item, ...current, id: String(current.id),
+          isTeam: current.registration_default_mode === 'team' || Number(current.team_max_members) > 1,
+          min_team: current.team_min_members || 1, max_team: current.team_max_members || 1 };
+        overrides[item.id] = event;
+        return event;
+      });
+      setLocalEventOverrides(overrides);
+      const paidItems = checkoutItems.filter(e => e.payment_enabled && Number(e.payment_amount) > 0);
+      if (paidItems.some(e => !e.coordinator_upi_id)) throw new Error('Payment details are missing. Please contact the coordinator.');
+      if (paidItems.length && checkoutStep === 'cart') { setCheckoutStep('payment'); return; }
+      for (const event of paidItems) {
+        if (!/^[a-zA-Z0-9-]{6,64}$/.test(utrs[event.id]?.trim() || '')) throw new Error(`Enter a valid transaction reference for ${event.title}.`);
+        const previous = localEventOverrides[event.id];
+        if (previous && (Number(previous.payment_amount) !== Number(event.payment_amount) || previous.coordinator_upi_id !== event.coordinator_upi_id)) {
+          throw new Error(`Payment details for ${event.title} changed. Review the updated amount and recipient before continuing.`);
         }
-      } catch (e: any) {
-        console.error(e);
-        toast.error(`[${event.title}] ${e.message || 'Registration failed'}`);
-        failed.push(event.id);
       }
-    }
-
-    setDone(registered);
-    setRegistering(false);
-
-    if (failed.length === 0) {
-      toast.success(`🎉 Registered successfully for ${registered.length} event${registered.length > 1 ? 's' : ''}!`);
-      if (onRegisterSuccess) {
-        onRegisterSuccess();
+      for (const event of checkoutItems) {
+        try {
+          let ids = [user.id];
+          let teamName: string | null = null;
+          if (event.isTeam) {
+            const group = myGroups.find(g => g.id === selectedGroups[event.id]);
+            if (!group) throw new Error('Select a group for this team event.');
+            ids = groupParticipantIds(group);
+            teamName = group.name;
+            if (ids.length < event.min_team || ids.length > event.max_team) throw new Error(`Group must have ${event.min_team}–${event.max_team} accepted participants.`);
+          }
+          const { data: profiles, error: profilesError } = await supabase.from('profiles')
+            .select('id, full_name, phone, college, batch').in('id', ids);
+          if (profilesError) throw profilesError;
+          if (profiles?.length !== ids.length) throw new Error('Could not load all group members. Refresh your groups and try again.');
+          const details = ids.map(id => {
+            const p = profiles!.find(p => p.id === id)!;
+            return { ...p, email: id === user.id ? user.email : '' };
+          });
+          const { error: checkoutError } = await supabase.rpc('checkout_cart_event', {
+            p_event_id: event.id, p_user_ids: ids, p_team_name: teamName,
+            p_participant_details: details,
+            p_utr: paidItems.some(e => e.id === event.id) ? utrs[event.id].trim().toUpperCase() : null
+          });
+          if (checkoutError) throw checkoutError;
+          registered.push(event.id);
+        } catch (error: any) {
+          failed.push(event.id);
+          toast.error(`[${event.title}] ${error.message || 'Registration failed'}`);
+        }
       }
-      setTimeout(() => { clearCart(); setDone([]); closeDrawer(); }, 2000);
-    } else {
-      if (registered.length > 0 && onRegisterSuccess) {
-        onRegisterSuccess();
+      setDone(registered);
+      if (registered.length) {
+        registered.forEach(removeFromCart);
+        onRegisterSuccess?.();
+        toast.success(`Registered for ${registered.length} event${registered.length === 1 ? '' : 's'}.`);
       }
-      toast.error(`${failed.length} failed, ${registered.length} succeeded`);
-    }
+      if (!failed.length) { clearCart(); closeDrawer(); setDone([]); }
+    } catch (error: any) {
+      toast.error(error.message || 'Unable to check registration details. Please retry.');
+    } finally { setRegistering(false); }
   };
 
   return (

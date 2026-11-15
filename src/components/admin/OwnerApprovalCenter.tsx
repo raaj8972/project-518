@@ -172,13 +172,13 @@ export const OwnerApprovalCenter: React.FC = () => {
   const { pendingApprovals, loading, approveChange, rejectChange } = useApprovals();
   const { events, siteSettings } = useData();
   const [selectedTab, setSelectedTab] = useState<'pending' | 'all'>('pending');
-  const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editedChanges, setEditedChanges] = useState<any>(null);
 
   // Initialize editedChanges when expanding an item
-  const handleExpand = (id: number, changes: any) => {
+  const handleExpand = (id: string, changes: any) => {
     if (expandedId === id) {
       setExpandedId(null);
       setEditedChanges(null);
@@ -210,7 +210,7 @@ export const OwnerApprovalCenter: React.FC = () => {
     return entityType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const handleApprove = async (id: number) => {
+  const handleApprove = async (id: string) => {
     if (confirm('Are you sure you want to approve this change? It will immediately be visible on the public site.')) {
       // If we have edited changes for this item, use them
       const changesToApprove = (expandedId === id && editedChanges) ? editedChanges : undefined;
@@ -224,7 +224,7 @@ export const OwnerApprovalCenter: React.FC = () => {
     }
   };
 
-  const handleReject = async (id: number) => {
+  const handleReject = async (id: string) => {
     const result = await rejectChange(id, rejectionReason);
     if (result.success) {
       alert('Change rejected successfully!');

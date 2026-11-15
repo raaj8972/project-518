@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Users, CheckCircle2, XCircle, Search, LogOut, Loader2, 
-  UserCheck, AlertCircle, Phone, ArrowLeft, RefreshCw 
+  Users, CheckCircle2, Search, LogOut, Loader2,
+  UserCheck, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
@@ -10,7 +10,7 @@ import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 
 export const CRDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [session, setSession] = useState<{ batch: string; password?: string } | null>(null);
+  const [session, setSession] = useState<{ batch: string } | null>(null);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
@@ -33,7 +33,12 @@ export const CRDashboard: React.FC = () => {
         navigate('/cr/login');
         return;
       }
-      setSession(data);
+      void supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session || session.user.app_metadata?.role !== 'cr' || session.user.app_metadata.cr_batch !== data.batch) {
+          sessionStorage.removeItem('cr_session'); navigate('/cr/login'); return;
+        }
+        setSession(data);
+      });
     } catch {
       navigate('/cr/login');
     }
@@ -44,14 +49,18 @@ export const CRDashboard: React.FC = () => {
     if (!session?.batch) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, phone, college, batch, is_approved, avatar_url, created_at')
-        .eq('batch', session.batch)
-        .order('full_name', { ascending: true });
-
-      if (error) throw error;
-      setProfiles(data || []);
+      const allProfiles:any[]=[];
+      const pageSize=500;
+      for(let offset=0;;offset+=pageSize){
+        const {data,error}=await supabase.from('profiles')
+          .select('id, full_name, username, phone, college, batch, is_approved, avatar_url, created_at')
+          .eq('batch',session.batch).order('full_name',{ascending:true}).order('id',{ascending:true})
+          .range(offset,offset+pageSize-1);
+        if(error)throw error;
+        allProfiles.push(...(data||[]));
+        if(!data||data.length<pageSize)break;
+      }
+      setProfiles(allProfiles);
     } catch (err: any) {
       console.error(err);
       toast.error('Error fetching student profiles: ' + err.message);
@@ -73,7 +82,7 @@ export const CRDashboard: React.FC = () => {
       const { error } = await supabase.rpc('approve_student_profile', {
         p_student_id: profileId,
         p_batch: session?.batch || '',
-        p_password: session?.password || '',
+        p_password: '',
         p_is_approved: !currentStatus
       });
 
@@ -99,17 +108,8 @@ export const CRDashboard: React.FC = () => {
 
     setBulkApproving(true);
     try {
-      const promises = filteredPendingIds.map(id => 
-        supabase.rpc('approve_student_profile', {
-          p_student_id: id,
-          p_batch: session?.batch || '',
-          p_password: session?.password || '',
-          p_is_approved: true
-        })
-      );
-      const results = await Promise.all(promises);
-      const firstError = results.find(r => r.error)?.error;
-      if (firstError) throw firstError;
+      const {error}=await supabase.rpc('cr_approve_batch_profiles',{p_student_ids:filteredPendingIds,p_is_approved:true});
+      if(error)throw error;
 
       toast.success(`Successfully approved all ${filteredPendingIds.length} profiles! 🚀`);
       setProfiles(prev => 
@@ -126,7 +126,7 @@ export const CRDashboard: React.FC = () => {
   const handleSignOut = () => {
     sessionStorage.removeItem('cr_session');
     toast.success('Signed out successfully.');
-    navigate('/cr/login');
+    void supabase.auth.signOut().finally(() => navigate('/cr/login'));
   };
 
   // Filter profiles based on active tab and search query

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Loader2, AlertCircle, RefreshCw, Wand2 } from 'lucide-react';
+import { Loader2, Wand2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/ToastProvider';
 
@@ -29,7 +29,6 @@ export const InlineDescriptionAI: React.FC<InlineDescriptionAIProps> = ({
     }
 
     setIsGenerating(true);
-    const toastId = push({ message: `Generating description for ${contextName}...`, type: 'info' }) as unknown as string;
 
     try {
       // Craft a highly specific prompt instructing the AI to only write a description

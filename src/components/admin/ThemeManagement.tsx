@@ -1,117 +1,50 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { Sparkles, Check, AlertCircle } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { useToast } from '../ToastProvider';
+import type { SiteTheme } from '../../utils/siteTheme';
+
+const choices: Array<{ id: SiteTheme; title: string; description: string; accent: string; background: string }> = [
+  { id: 'spiderman', title: 'Ricorrenza · Emerald & Gold', description: 'Cinematic emerald city, metallic gold titles and a glowing mechanical spider.', accent: '#9ae77b', background: 'linear-gradient(135deg, #153923, #080e09)' },
+  { id: 'cyberpunk', title: 'Cyberpunk', description: 'Dark surfaces with neon pink and violet accents.', accent: '#f472b6', background: 'linear-gradient(135deg, #241027, #08080d)' },
+  { id: 'bollywood', title: 'Cyberpunk Cyan', description: 'Cyan accents and a cinematic festival atmosphere.', accent: '#67e8f9', background: 'linear-gradient(135deg, #082b35, #08080d)' },
+  { id: 'vaporwave', title: 'Vaporwave', description: 'Purple and blue colour with a retro atmosphere.', accent: '#c4b5fd', background: 'linear-gradient(135deg, #30194f, #101d3c)' },
+];
 
 export const ThemeManagement: React.FC = () => {
   const { theme, setTheme } = useTheme();
   const { push } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
-
-  const handleSetTheme = async (newTheme: 'cyberpunk' | 'bollywood' | 'vaporwave') => {
-    if (theme === newTheme) return;
+  const handleSetTheme = async (choice: SiteTheme) => {
+    if (choice === theme || isUpdating) return;
     setIsUpdating(true);
     try {
-      await setTheme(newTheme);
-      push({ message: `Global theme has been set to ${newTheme} for all users.`, type: 'success' });
-    } catch (err) {
-      console.error(err);
-      push({ message: 'Could not update global theme', type: 'error' });
-    } finally {
-      setIsUpdating(false);
-    }
+      await setTheme(choice);
+      push({ message: `Theme updated to ${choices.find(item => item.id === choice)?.title}.`, type: 'success' });
+    } catch {
+      push({ message: 'Could not update the theme. Please try again.', type: 'error' });
+    } finally { setIsUpdating(false); }
   };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-pink-500">
-          Global Theme Management
-        </h2>
+    <section className="space-y-6" aria-labelledby="appearance-title">
+      <header><h2 id="appearance-title" className="text-2xl text-white">Website appearance</h2><p className="mt-2 text-sm text-gray-400">Choose the colours and typography visitors see throughout RICO.</p></header>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {choices.map(choice => {
+          const active = theme === choice.id;
+          return <button key={choice.id} type="button" disabled={isUpdating} aria-pressed={active} onClick={() => handleSetTheme(choice.id)}
+            className="relative rounded-xl border border-white/10 bg-white/[0.02] p-6 text-left transition-colors hover:border-white/30 disabled:opacity-60"
+            style={{ borderColor: active ? choice.accent : undefined }}>
+            <div className="mb-5 flex h-24 items-center justify-between rounded-lg border border-white/10 px-5" style={{ background: choice.background }} aria-hidden="true">
+              <span style={{ color: '#f5f5f7', fontFamily: 'Anton, sans-serif', fontSize: 30, letterSpacing: '.02em' }}>RICO<span style={{ color: choice.accent }}>.</span></span>
+              <span className="flex gap-2">{['#050506', '#28282f', '#f5f5f7', choice.accent].map(colour => <span key={colour} className="h-5 w-5 rounded-full border border-white/20" style={{ background: colour }} />)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3"><h3 className="text-base font-semibold text-white">{choice.title}</h3>{active && <Check className="h-5 w-5 shrink-0" style={{ color: choice.accent }} aria-label="Active theme" />}</div>
+            <p className="mt-2 text-sm leading-relaxed text-gray-400">{choice.description}</p>
+            <span className="mt-4 inline-flex items-center gap-2 text-xs font-semibold" style={{ color: active ? choice.accent : '#b9b9c6' }}>{isUpdating ? <><Loader2 className="h-3 w-3 animate-spin" /> Updating…</> : active ? 'Active theme' : 'Apply theme'}</span>
+          </button>;
+        })}
       </div>
-
-      <div className="bg-[#111] border border-white/10 rounded-xl p-6">
-        <div className="flex items-start gap-4 mb-8">
-          <div className="p-3 bg-amber-500/10 rounded-lg shrink-0">
-            <AlertCircle className="w-6 h-6 text-amber-500" />
-          </div>
-          <div>
-            <h3 className="text-lg font-medium text-white mb-2">Caution: Live Site Update</h3>
-            <p className="text-white/60">
-              Changing the theme here will instantly update the appearance of the entire website for all users globally. 
-              The change propagates in real-time.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Cyberpunk Theme */}
-          <button 
-            disabled={isUpdating}
-            onClick={() => handleSetTheme('cyberpunk')}
-            className={`relative flex flex-col items-center gap-4 p-8 rounded-xl border-2 transition-all ${
-              theme === 'cyberpunk' 
-                ? 'border-pink-500 bg-pink-500/10 shadow-[0_0_20px_rgba(236,72,153,0.3)]' 
-                : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
-            }`}
-          >
-            {theme === 'cyberpunk' && (
-              <div className="absolute top-4 right-4 text-pink-500">
-                <Check className="w-6 h-6" />
-              </div>
-            )}
-            <Sparkles className={`w-16 h-16 ${theme === 'cyberpunk' ? 'text-pink-500' : 'text-white/40'}`} />
-            <div className="text-center">
-              <h4 className="text-xl font-bold text-white mb-2">Cyberpunk (Current)</h4>
-              <p className="text-sm text-white/50">Neon lights, dark UI, synthwave aesthetics and intense Stranger Things glow.</p>
-            </div>
-          </button>
-
-          {/* Cyberpunk v2 Theme (Cyan) */}
-          <button 
-            disabled={isUpdating}
-            onClick={() => handleSetTheme('bollywood')}
-            className={`relative flex flex-col items-center gap-4 p-8 rounded-xl border-2 transition-all ${
-              theme === 'bollywood' 
-                ? 'border-cyan-500 bg-cyan-500/10 shadow-[0_0_20px_rgba(34,211,238,0.3)]' 
-                : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
-            }`}
-          >
-            {theme === 'bollywood' && (
-              <div className="absolute top-4 right-4 text-cyan-500">
-                <Check className="w-6 h-6" />
-              </div>
-            )}
-            <Sparkles className={`w-16 h-16 ${theme === 'bollywood' ? 'text-cyan-500 animate-pulse' : 'text-white/40'}`} />
-            <div className="text-center">
-              <h4 className="text-xl font-bold text-white mb-2">Cyberpunk v2 (Cyan)</h4>
-              <p className="text-sm text-white/50">Holographic blue overlays, system-grid backgrounds, and high-tech UI components.</p>
-            </div>
-          </button>
-
-          {/* Vaporwave Theme (Purple/Blue) */}
-          <button 
-            disabled={isUpdating}
-            onClick={() => handleSetTheme('vaporwave')}
-            className={`relative flex flex-col items-center gap-4 p-8 rounded-xl border-2 transition-all ${
-              theme === 'vaporwave' 
-                ? 'border-purple-500 bg-purple-500/10 shadow-[0_0_20px_rgba(168,85,247,0.3)]' 
-                : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
-            }`}
-          >
-            {theme === 'vaporwave' && (
-              <div className="absolute top-4 right-4 text-purple-500">
-                <Check className="w-6 h-6" />
-              </div>
-            )}
-            <Sparkles className={`w-16 h-16 ${theme === 'vaporwave' ? 'text-purple-500' : 'text-white/40'}`} />
-            <div className="text-center">
-              <h4 className="text-xl font-bold text-white mb-2">Vaporwave (Original)</h4>
-              <p className="text-sm text-white/50">Retro purple & blue gradients, nostalgic synthwave colors, and softer neon glows.</p>
-            </div>
-          </button>
-        </div>
-      </div>
-    </div>
+      <p className="text-xs leading-relaxed text-gray-400">The festival theme applies to the public site and student experience. Staff workspaces keep their independent appearance.</p>
+    </section>
   );
 };

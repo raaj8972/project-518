@@ -1,4 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { SITE_FEATURES } from '../constants/siteFeatures';
+import { useTheme } from '../context/ThemeContext';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Calendar, Image, Clock, LogIn, Music, Heart, Trophy, HeartHandshake, Home, ShieldCheck, LayoutDashboard } from 'lucide-react';
 import { useData } from '../context/DataContext';
@@ -7,6 +9,8 @@ import { useStudentAuth } from '../context/StudentAuthContext';
 import BrandLogo3D from './BrandLogo3D';
 import { BRAND_YEAR } from '../constants/brand';
 import { CartButton } from './CartDrawer';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { DoomNavigationDrawer } from './navigation/DoomNavigationDrawer';
 
 
 interface NavItem {
@@ -23,21 +27,36 @@ interface NavItem {
  * Throttles scroll and resize events.
  */
 export const Navbar = React.memo(function Navbar() {
+  const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
-  const { 
-    homepageSettings, 
-    prefetchEvents, 
-    prefetchGalleryImages, 
-    adminUsers, 
-    siteSettings 
+  const isArenaRoute = location.pathname === '/events';
+  const isCinematicMenu = theme === 'spiderman' || isArenaRoute;
+  const reduceMotion = useReducedMotion();
+  const menuToggleRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { setIsOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!isOpen || isCinematicMenu) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setIsOpen(false); menuToggleRef.current?.focus(); }
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [isOpen, isCinematicMenu]);
+  const {
+    homepageSettings,
+    prefetchEvents,
+    prefetchGalleryImages,
+    adminUsers,
+    siteSettings,
+    socialMediaSettings
   } = useData();
   const { user } = useAuth();
   const { user: studentUser } = useStudentAuth();
   const currentUserId = user?.id || null;
   const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollY = useRef(0);
 
   // Compute responsive offsets
   const [vw, setVw] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -62,16 +81,16 @@ export const Navbar = React.memo(function Navbar() {
   const logoSrc = useMemo(() => {
     const hs = homepageSettings as Record<string, any>;
     const raw = hs?.brand_logo_url;
-    
+
     // Explicitly fallback to favicon.svg if no custom logo is provided
     if (!raw) return '/favicon.svg';
-    
+
     let u = String(raw).trim();
     if (!u) return '/favicon.svg';
-    
-    if (u.startsWith('//')) u = 'https:' + u; 
+
+    if (u.startsWith('//')) u = 'https:' + u;
     if (u.startsWith('http://')) u = 'https://' + u.slice(7);
-    
+
     // Cache-busting using updated_at or default version
     const ver = hs?.updated_at || hs?.brand_logo_size_px || '1';
     const sep = u.includes('?') ? '&' : '?';
@@ -105,21 +124,21 @@ export const Navbar = React.memo(function Navbar() {
     const order = (siteSettings as any)?.navigation_order && (siteSettings as any).navigation_order.length > 0
       ? (siteSettings as any).navigation_order
       : defaultOrder;
-    
+
     // 2. Map the order to actual items
-    const base: NavItem[] = order.map((key: string) => publicItems[key]).filter(Boolean);
+    const base: NavItem[] = order.filter((key: string) => SITE_FEATURES.sports || key !== 'sports').map((key: string) => publicItems[key]).filter(Boolean);
 
     // 3. Ensure any missing public items are added (fallback)
     defaultOrder.forEach(key => {
-      if (!order.includes(key) && publicItems[key]) base.push(publicItems[key]);
+      if ((SITE_FEATURES.sports || key !== 'sports') && !order.includes(key) && publicItems[key]) base.push(publicItems[key]);
     });
 
     // 4. Add fixed private/auth items at the end
-    base.push({ 
-      name: studentUser ? 'Dashboard' : 'Student Login', 
-      path: studentUser ? '/dashboard' : '/student/login', 
-      icon: studentUser ? LayoutDashboard : LogIn, 
-      color: 'text-blue-500' 
+    base.push({
+      name: studentUser ? 'Dashboard' : 'Student Login',
+      path: studentUser ? '/dashboard' : '/student/login',
+      icon: studentUser ? LayoutDashboard : LogIn,
+      color: 'text-blue-500'
     });
 
     try {
@@ -148,13 +167,13 @@ export const Navbar = React.memo(function Navbar() {
         } else {
           const isHome = location.pathname === '/';
           const hideThreshold = isHome ? window.innerHeight * 2.5 : 200;
-          if (currentScrollY > lastScrollY && currentScrollY > hideThreshold) {
+          if (currentScrollY > lastScrollY.current && currentScrollY > hideThreshold) {
             setIsVisible(false);
-          } else if (currentScrollY < lastScrollY - 20) {
+          } else if (currentScrollY < lastScrollY.current - 20) {
             setIsVisible(true);
           }
         }
-        setLastScrollY(currentScrollY);
+        lastScrollY.current = currentScrollY;
         raf = 0;
       });
     };
@@ -163,7 +182,7 @@ export const Navbar = React.memo(function Navbar() {
       window.removeEventListener('scroll', handleScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [lastScrollY, location.pathname]);
+  }, [location.pathname]);
 
   // Handle mouse move to top
   useEffect(() => {
@@ -181,26 +200,29 @@ export const Navbar = React.memo(function Navbar() {
   if (isAdminRoute || isSecurityRoute || isCoordinatorRoute || isDashboardRoute) return null;
 
   return (
-    <div className={`cyberpunk-navbar fixed inset-x-0 z-[100] transition-all duration-500 ease-in-out flex justify-center w-full pointer-events-none p-2 sm:p-4 pt-[calc(env(safe-area-inset-top,8px)+4px)] ${
-      isVisible ? 'top-0' : '-top-32 opacity-0'
+    <div className={`cyberpunk-navbar ${isArenaRoute ? 'arena-navbar' : ''} ${isCinematicMenu ? 'doom-navigation' : ''} fixed inset-x-0 z-[100] transition-all duration-500 ease-in-out flex justify-center w-full pointer-events-none p-2 sm:p-4 pt-[calc(env(safe-area-inset-top,8px)+4px)] ${
+      isVisible || isOpen ? 'top-0' : '-top-32 opacity-0'
     } ${scrolled ? '' : 'sm:top-2'} `}>
       <div className={`w-full max-w-[1600px] flex items-center justify-between gap-2 md:gap-4 px-2 sm:px-4 transition-transform duration-500 ${
-        isVisible ? 'translate-y-0' : '-translate-y-full'
+        isVisible || isOpen ? 'translate-y-0' : '-translate-y-full'
       }`}>
-        
+
         {/* Left: Brand Pill */}
         <div className={`glass-pill pointer-events-auto transition-all duration-300 flex items-center h-10 md:h-14 px-3 md:px-4 ${
           scrolled ? 'bg-black/90' : 'bg-black/60'
         } shadow-xl border border-white/10`}>
-          <Link to="/" onClick={handleNavClick} className="flex items-center space-x-2 md:space-x-3 group">
-            <BrandLogo3D 
-              src={logoSrc} 
-              size={logoSize * (vw < 768 ? 1.2 : 1)} 
-              glowStrength={glowStrength} 
-              glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined} 
-            />
+          <Link to="/" onClick={handleNavClick} className="site-brand-link flex items-center space-x-2 md:space-x-3 group">
+            {isArenaRoute && !homepageSettings?.brand_logo_url ? <img src="/images/ricorrenza-medical-mark.svg" alt="Ricorrenza medical emblem" className="arena-brand-mark" width="56" height="58" /> : <BrandLogo3D
+              src={logoSrc}
+              size={logoSize * (vw < 768 ? 1.2 : 1)}
+              glowStrength={theme === 'spiderman' ? .4 : glowStrength}
+              glowColor={theme === 'spiderman' ? '#cdb46b' : (homepageSettings as any)?.brand_logo_glow_color || undefined}
+            />}
+            <span className={isArenaRoute ? 'arena-brand-copy' : undefined}>
             <span className="text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none bollywood-text whitespace-nowrap">
-              RICORRENZA {homepageSettings?.brand_year ?? BRAND_YEAR}
+              RICORRENZA <span className="festival-brand-year">{homepageSettings?.brand_year ?? BRAND_YEAR}</span>
+            </span>
+            {isArenaRoute && <span>IQ CITY MEDICAL COLLEGE, DURGAPUR</span>}
             </span>
           </Link>
         </div>
@@ -217,7 +239,9 @@ export const Navbar = React.memo(function Navbar() {
               <Link
                 key={item.path}
                 to={item.path}
+                aria-current={isActive(item.path) ? 'page' : undefined}
                 onClick={handleNavClick}
+                onMouseEnter={item.onHover}
                 className={`group relative px-3 py-2 rounded-full transition-all duration-300 whitespace-nowrap ${
                   !isPriority ? 'hidden xl:flex' : 'flex'
                 }`}
@@ -235,7 +259,7 @@ export const Navbar = React.memo(function Navbar() {
         </nav>
 
         {/* Right: Actions Pill */}
-        <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="arena-nav-actions flex items-center gap-2 pointer-events-auto">
           <CartButton />
           <div className={`hidden lg:flex glass-pill items-center h-12 md:h-14 px-2 gap-2 ${
             scrolled ? 'bg-black/80' : 'bg-black/40'
@@ -248,8 +272,8 @@ export const Navbar = React.memo(function Navbar() {
                   key={item.path}
                   to={item.path}
                   onClick={handleNavClick}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-full font-bold text-xs xl:text-sm transition-all hover:scale-105 active:scale-95 ${
-                    isAdmin 
+                  className={`festival-login-link flex items-center space-x-2 px-4 py-2 rounded-full font-bold text-xs xl:text-sm transition-all hover:scale-105 active:scale-95 ${
+                    isAdmin
                       ? 'bg-dynamic text-black shadow-[0_0_15px_rgba(var(--dynamic-accent-rgb),0.3)] border border-dynamic/50'
                       : 'text-white hover:bg-white/10'
                   }`}
@@ -262,17 +286,22 @@ export const Navbar = React.memo(function Navbar() {
           </div>
 
           <button
+            ref={menuToggleRef}
             onClick={() => setIsOpen(!isOpen)}
-            className="lg:hidden glass-pill flex items-center justify-center w-10 h-10 md:w-14 md:h-14 bg-black/60 text-white active:scale-95 transition-transform pointer-events-auto"
+            className="arena-menu-toggle lg:hidden glass-pill flex items-center justify-center w-10 h-10 md:w-14 md:h-14 bg-black/60 text-white active:scale-95 transition-transform pointer-events-auto"
             aria-label="Toggle menu"
+            aria-expanded={isOpen}
+            aria-controls="festival-mobile-menu"
           >
             {isOpen ? <X size={20} className="md:w-6 md:h-6" /> : <Menu size={20} className="md:w-6 md:h-6" />}
           </button>
         </div>
       </div>
 
-      {isOpen && (
-        <div className="lg:hidden absolute top-full inset-x-4 mt-2 bg-black/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden pointer-events-auto shadow-2xl">
+      {isCinematicMenu && <DoomNavigationDrawer open={isOpen} items={navItems} onClose={() => { setIsOpen(false); menuToggleRef.current?.focus(); }} onNavigate={handleNavClick} socialMediaSettings={socialMediaSettings} />}
+      <AnimatePresence>
+      {isOpen && !isCinematicMenu && (
+        <motion.div key="festival-menu" initial={{ opacity: 0, y: reduceMotion ? 0 : -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -8 }} transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.16, 1, 0.3, 1] }} id="festival-mobile-menu" className="festival-mobile-menu lg:hidden absolute top-full inset-x-4 mt-2 bg-black/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden pointer-events-auto shadow-2xl">
            <div className="px-2 py-3 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -291,8 +320,9 @@ export const Navbar = React.memo(function Navbar() {
               );
             })}
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       <style dangerouslySetInnerHTML={{ __html: `
         .glass-pill {

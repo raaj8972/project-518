@@ -1,0 +1,9 @@
+.festival-liquid-flow { position: fixed; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
+.festival-liquid-flow canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+.festival-liquid-toggle { position: absolute; right: 14px; bottom: max(14px, env(safe-area-inset-bottom)); display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 11px; border: 1px solid #b8a05d70; border-radius: 3px 10px 3px 10px; background: #09170eed; color: #d5e5bc; font: 10px 'Poppins', system-ui, sans-serif; cursor: pointer; pointer-events: auto; opacity: 0; visibility: hidden; }
+.festival-liquid-flow[data-active="true"] .festival-liquid-toggle { opacity: 1; visibility: visible; }
+.festival-liquid-toggle:hover { background: #183620; border-color: #98e778; }
+.festival-liquid-toggle:focus-visible { outline: 2px solid #cceba1; outline-offset: 4px; }
+body:has([role="dialog"][aria-modal="true"]) :is(.festival-liquid-flow, .festival-liquid-toggle) { visibility: hidden !important; }
+@media (max-width: 767px) { .festival-liquid-toggle { right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion: reduce) { .festival-liquid-flow { display: none; } }

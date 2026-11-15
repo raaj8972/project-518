@@ -36,13 +36,10 @@ function supabasePayload(item: any, includeId = false): any {
 
 /** Promisified timeout wrapper to prevent indefinite hangs */
 function withTimeout<T>(promise: Promise<T> | PromiseLike<T>, ms: number): Promise<T> {
-  const timeoutMs = ms || 12000;
-  return Promise.race([
-    Promise.resolve(promise),
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs)
-    )
-  ]);
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('TIMEOUT')), ms || 12000);
+    Promise.resolve(promise).then(value => { clearTimeout(timer); resolve(value); }, error => { clearTimeout(timer); reject(error); });
+  });
 }
 
 // ─────────────────────────────────────────────────────────
@@ -54,27 +51,45 @@ function withTimeout<T>(promise: Promise<T> | PromiseLike<T>, ms: number): Promi
 // ─────────────────────────────────────────────────────────
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const memoryCache = new Map<string, { data: any; timestamp: number }>();
+const READ_TIMEOUT_MS = 12000;
+type ReadResult = { data: any; count?: number | null; source: 'supabase' | 'supabase-cache' };
+type CacheEntry = { data: any; count?: number | null; timestamp: number };
+const memoryCache = new Map<string, CacheEntry>();
+const pendingReads = new Map<string, Promise<ReadResult>>();
+const tableVersions = new Map<string, number>();
+let authCacheScope = 'anonymous';
+
+// A response authorized for one session must never satisfy another session's read.
+// Keep this listener synchronous: awaiting Supabase calls inside auth listeners can block auth.
+supabase.auth.onAuthStateChange((_event, session) => {
+  const scope = session ? `${session.user.id}:${JSON.stringify(session.user.app_metadata)}` : 'anonymous';
+  if (scope !== authCacheScope) {
+    authCacheScope = scope;
+    memoryCache.clear();
+    pendingReads.clear();
+  }
+});
 
 function safeSessionStorage() {
-  if (typeof window !== 'undefined' && window.sessionStorage) {
-    return window.sessionStorage;
-  }
+  try {
+    if (typeof window !== 'undefined') return window.sessionStorage;
+  } catch { /* Storage can be unavailable in private or embedded contexts. */ }
   return null;
 }
 
 function getCacheKey(opts: ReadOptions): string {
   // Safe serialization of the query options, dropping forceRefresh
   const { forceRefresh, ...rest } = opts;
-  return `supabase_cache_${opts.table}_${JSON.stringify(rest)}`;
+  const normalized = Object.fromEntries(Object.entries(rest).filter(([, value]) => value !== undefined).sort(([a], [b]) => a.localeCompare(b)));
+  return `supabase_cache_v2_${opts.table}_${authCacheScope}_${JSON.stringify(normalized)}`;
 }
 
-function getCachedData(key: string): any | null {
+function getCachedData(key: string): CacheEntry | null {
   const memoryEntry = memoryCache.get(key);
   const now = Date.now();
 
   if (memoryEntry && now - memoryEntry.timestamp < CACHE_TTL_MS) {
-    return memoryEntry.data;
+    return memoryEntry;
   }
 
   const storage = safeSessionStorage();
@@ -85,7 +100,7 @@ function getCachedData(key: string): any | null {
         const parsed = JSON.parse(stored);
         if (now - parsed.timestamp < CACHE_TTL_MS) {
           memoryCache.set(key, parsed);
-          return parsed.data;
+          return parsed;
         } else {
           storage.removeItem(key);
         }
@@ -98,9 +113,9 @@ function getCachedData(key: string): any | null {
   return null;
 }
 
-function setCachedData(key: string, data: any) {
+function setCachedData(key: string, data: any, count?: number | null) {
   const now = Date.now();
-  const entry = { data, timestamp: now };
+  const entry = { data, count, timestamp: now };
   memoryCache.set(key, entry);
 
   const storage = safeSessionStorage();
@@ -114,7 +129,11 @@ function setCachedData(key: string, data: any) {
 }
 
 export function invalidateTableCache(table: string) {
-  const prefix = `supabase_cache_${table}_`;
+  const prefix = `supabase_cache_v2_${table}_`;
+  tableVersions.set(table, (tableVersions.get(table) || 0) + 1);
+  for (const key of pendingReads.keys()) {
+    if (key.startsWith(prefix)) pendingReads.delete(key);
+  }
   
   for (const key of memoryCache.keys()) {
     if (key.startsWith(prefix)) {
@@ -156,19 +175,25 @@ export interface ReadOptions {
   count?: 'exact' | 'planned' | 'estimated';
 }
 
-export async function dualRead(opts: ReadOptions): Promise<{ data: any; count?: number | null; source: 'supabase' | 'supabase-cache' }> {
+export async function dualRead(opts: ReadOptions): Promise<ReadResult> {
   const { table, eq, gt, in: inOpts, is, or, order, limit, single, maybeSingle, forceRefresh, count } = opts;
 
   const cacheKey = getCacheKey(opts);
   if (!forceRefresh) {
     const cached = getCachedData(cacheKey);
     if (cached !== null) {
-      // Note: cached data doesn't include count for now, which is fine for small tables
-      return { data: cached, source: 'supabase-cache' };
+      return { data: cached.data, count: cached.count, source: 'supabase-cache' };
     }
   }
 
-  const performFetch = async (retryCount = 0): Promise<{ data: any; count?: number | null; source: 'supabase' | 'supabase-cache' }> => {
+  const existing = pendingReads.get(cacheKey);
+  if (existing) return existing;
+
+  const version = tableVersions.get(table) || 0;
+  const scope = authCacheScope;
+  const performFetch = async (): Promise<ReadResult> => {
+    const controller = new AbortController();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
       let q = supabase.from(table).select(opts.select || '*', { count: count || undefined });
       
@@ -182,32 +207,38 @@ export async function dualRead(opts: ReadOptions): Promise<{ data: any; count?: 
       if (limit)  q = q.limit(limit);
       if (opts.range) q = q.range(opts.range[0], opts.range[1]);
 
-      if (single || maybeSingle) {
-        const { data, error, count: resCount } = await withTimeout<any>((q as any).maybeSingle(), 30000);
-        if (error) throw error;
-        if (single && !data) throw new Error('NOT_FOUND');
-        setCachedData(cacheKey, data);
-        return { data, count: resCount, source: 'supabase' };
-      } else {
-        const { data, error, count: resCount } = await withTimeout<any>(q, 30000);
-        if (error) throw error;
-        const finalData = data ?? [];
-        setCachedData(cacheKey, finalData);
-        return { data: finalData, count: resCount, source: 'supabase' };
+      q = q.abortSignal(controller.signal);
+      const readQuery = single || maybeSingle ? q.maybeSingle() : q;
+      const deadline = new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          reject(new Error('TIMEOUT'));
+          controller.abort();
+        }, READ_TIMEOUT_MS);
+      });
+      const { data, error, count: resCount } = await Promise.race([Promise.resolve(readQuery), deadline]);
+      if (error) throw error;
+      if (single && !data) throw new Error('NOT_FOUND');
+      const finalData = single || maybeSingle ? data : data ?? [];
+      // A write/realtime invalidation may have happened while this request was running.
+      if (scope === authCacheScope && version === (tableVersions.get(table) || 0)) {
+        setCachedData(cacheKey, finalData, resCount);
       }
+      return { data: finalData, count: resCount, source: 'supabase' };
     } catch (err: any) {
-      if ((err.message === 'TIMEOUT' || err.code === 'PGRST301') && retryCount < 2) {
-        const backoff = (retryCount + 1) * 1500;
-        console.warn(`[Db] ${table} fetch stalled (attempt ${retryCount + 1}). Retrying in ${backoff}ms...`);
-        await new Promise(r => setTimeout(r, backoff));
-        return performFetch(retryCount + 1);
-      }
       console.error(`[Db] dualRead CRITICAL for ${table}:`, err.message || err);
       throw err;
+    } finally {
+      if (timeout) clearTimeout(timeout);
     }
   };
 
-  return performFetch();
+  const request = performFetch();
+  pendingReads.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    if (pendingReads.get(cacheKey) === request) pendingReads.delete(cacheKey);
+  }
 }
 
 // ─────────────────────────────────────────────────────────
@@ -273,14 +304,16 @@ export async function dualUpdate(table: string, id: number | string, patch: any,
         throw new Error(error2.message);
       }
       invalidateTableCache(table);
-      return saved2 ?? [{ id }];
+      if (!saved2?.length) throw new Error("No record was updated. Check your permissions or refresh the page.");
+      return saved2;
     }
     console.error(`[Db] dualUpdate FAILED for ${table}/${id}:`, error.message);
     throw new Error(error.message);
   }
 
   invalidateTableCache(table);
-  return saved ?? [{ id }];
+  if (!saved?.length) throw new Error("No record was updated. Check your permissions or refresh the page.");
+  return saved;
 }
 
 export async function dualUpsert(table: string, data: any | any[]) {
@@ -344,11 +377,12 @@ export async function dualUpsert(table: string, data: any | any[]) {
 }
 
 export async function dualDelete(table: string, id: number | string, idColumn = 'id') {
-  const { error } = await withTimeout(supabase.from(table).delete().eq(idColumn, id), 30000);
+  const { data, error } = await withTimeout(supabase.from(table).delete().eq(idColumn, id).select(idColumn), 30000);
   if (error) {
     console.error(`[Db] dualDelete FAILED for ${table}/${id}:`, error.message);
     throw new Error(error.message);
   }
+  if (!data?.length) throw new Error("No record was deleted. Check your permissions or refresh the page.");
   invalidateTableCache(table);
 }
 

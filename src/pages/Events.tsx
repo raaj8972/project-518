@@ -1,6 +1,8 @@
+import { getRoundWinners } from '../services/roundWinners';
+import { getRankingData } from '../services/rankingData';
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Zap, AlertCircle } from 'lucide-react';
+import { ArrowRightIcon, ReloadIcon } from '@radix-ui/react-icons';
 
 // Supabase
 import { supabase } from '../lib/supabase';
@@ -11,8 +13,9 @@ import { useAuth } from '../context/AuthContext';
 
 // Components
 import { CategoryFilter } from '../components/Events/CategoryFilter';
-import { CyberpunkHeroContent } from '../components/ui/CyberpunkHeroContent';
-import { useTheme } from '../context/ThemeContext';
+import { EventsArenaHero } from '../components/Events/EventsArenaHero';
+import { RegistrationModal } from '../components/RegistrationModal';
+import { eventCategory, presentRules } from '../utils/eventPresentation';
 import { EventCard } from '../components/Events/EventCard';
 import { RulesModal } from '../components/Events/RulesModal';
 import { WinnersSection } from '../components/Events/WinnersSection';
@@ -27,14 +30,10 @@ import { CartDrawer } from '../components/CartDrawer';
 
 
 // Utils
-import { 
-  getCoordinators,
-  isStructuredRules,
-  unpackStructured 
-} from '../utils/eventUtils';
+import { getCoordinators, canRegisterNow } from '../utils/eventUtils';
 
 // Styles
-import '../styles/Events.css';
+import '../styles/EventArena.css';
 
 export const Events: React.FC = () => {
   const { 
@@ -44,9 +43,9 @@ export const Events: React.FC = () => {
     connectionStatus, 
     lastError, 
     refreshAll, 
-    siteSettings, 
     adminUsers, 
-    updateEvent 
+    updateEvent,
+    loading
   } = useData() as any;
   const { user: firebaseUser, isAuthenticated: isFirebaseAuthenticated } = useAuth();
   const { isAuthenticated: isSupabaseAuthenticated } = useStudentAuth();
@@ -54,8 +53,7 @@ export const Events: React.FC = () => {
   const isAnyAuthenticated = isFirebaseAuthenticated || isSupabaseAuthenticated;
   const { push } = useToast();
   const navigate = useNavigate();
-  const { theme } = useTheme();
-  const { addToCart, removeFromCart, openDrawer, isInCart } = useEventCart();
+  const { isInCart } = useEventCart();
 
 
   const isOwner = (() => {
@@ -67,28 +65,38 @@ export const Events: React.FC = () => {
     } catch { return false; }
   })();
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const registerIdParam = searchParams.get('register');
+  const [searchParams] = useSearchParams();
+  const focusedEventId = searchParams.get('event') || searchParams.get('register');
+  const focusedOnce = useRef<string | null>(null);
   
   // More robust matching for the registration event
-  const registrationEvent = React.useMemo(() => {
-    if (!registerIdParam || !events) return undefined;
-    return events.find((e: any) => String(e.id) === String(registerIdParam));
-  }, [events, registerIdParam]);
 
-  const registrationEventId = registrationEvent?.id || 0;
 
 
   const [expandedRules, setExpandedRules] = useState<Set<number>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [showAllEvents, setShowAllEvents] = useState(false);
+  const [registrationEventId, setRegistrationEventId] = useState<number | null>(null);
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   const [rulesModalFor, setRulesModalFor] = useState<number | null>(null);
   const [authModalEventId, setAuthModalEventId] = useState<number | null>(null);
-  const [userRegistrations, setUserRegistrations] = useState<string[]>([]);
+  const [userRegistrations, setUserRegistrations] = useState<Array<{ event_id: string; status: string }>>([]);
+  useEffect(() => {
+    if (!focusedEventId || focusedOnce.current === focusedEventId) return;
+    const event = events.find((e: { id: string | number }) => String(e.id) === focusedEventId);
+    if (!event) return;
+    focusedOnce.current = focusedEventId;
+    setSelectedCategory('All');
+    setShowAllEvents(true);
+    setFlippedCards(new Set([event.id as number]));
+    const timer = setTimeout(() => document.getElementById(`event-${event.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+    return () => clearTimeout(timer);
+  }, [focusedEventId, events]);
+
   const scrollSaveRef = useRef<number>(0);
 
   const fetchUserRegistrations = useCallback(async () => {
-    if (!isAnyAuthenticated) return;
+    if (!isAnyAuthenticated) { setUserRegistrations([]); return; }
     const { data: sessionData } = await supabase.auth.getSession();
     const uid = sessionData.session?.user?.id;
     if (!uid) return;
@@ -109,36 +117,13 @@ export const Events: React.FC = () => {
   }, [fetchUserRegistrations]);
 
   
-  const [pageJustLoaded, setPageJustLoaded] = useState(true);
-  useEffect(() => {
-    const timer = setTimeout(() => setPageJustLoaded(false), 2000);
-    return () => clearTimeout(timer);
-  }, []);
-
   // Round winners state & fetch
   const [roundWinners, setRoundWinners] = useState<any[]>([]);
   const [selectedWinnerProfile, setSelectedWinnerProfile] = useState<any | null>(null);
 
   const fetchRoundWinners = useCallback(async () => {
     try {
-      const { data } = await supabase
-        .from('registration_rounds')
-        .select(`
-          id,
-          status,
-          prize_rank,
-          feedback,
-          registration:registrations(
-            id,
-            event_id,
-            full_name,
-            team_name,
-            is_team_registration,
-            team_members,
-            user_id
-          )
-        `)
-        .not('prize_rank', 'is', null);
+      const data = await getRoundWinners();
       if (data) {
         setRoundWinners(data);
       }
@@ -184,19 +169,7 @@ export const Events: React.FC = () => {
         const xpRecord = Array.isArray(p.student_xp) ? p.student_xp[0] : p.student_xp;
         
         // Fetch all profiles, registrations, and rounds to calculate correct rank
-        const { data: allProfiles } = await supabase
-          .from('profiles')
-          .select('id, username, likes_count, student_xp(xp_total)');
-
-        const [regsResponse, roundsResponse, eventRoundsResponse] = await Promise.all([
-          supabase.from('registrations').select('id, user_id, status, is_active, event_id, event:events(id, title)'),
-          supabase.from('registration_rounds').select('id, registration_id, status, round_id, prize_rank'),
-          supabase.from('event_rounds').select('id, name')
-        ]);
-
-        const regsList = regsResponse.data || [];
-        const roundsList = roundsResponse.data || [];
-        const eventRounds = eventRoundsResponse.data || [];
+        const { profiles: allProfiles, registrations: regsList, rounds: roundsList, eventRounds } = await getRankingData();
 
         const roundNameMap: Record<string, string> = {};
         eventRounds.forEach(er => {
@@ -330,6 +303,7 @@ export const Events: React.FC = () => {
             .map((r: any) => r.event.title)
         )) as string[];
 
+        setFlippedCards(new Set());
         setSelectedWinnerProfile({
           id: p.id,
           full_name: p.full_name,
@@ -356,7 +330,7 @@ export const Events: React.FC = () => {
     const legacy = (eventWinners || []).map((w: any) => ({
       ...w,
       id: w.id,
-      event_id: Number(w.event_id),
+      event_id: w.event_id,
       name: w.name,
       position: Number(w.position),
       year: w.year,
@@ -382,7 +356,8 @@ export const Events: React.FC = () => {
           members.forEach((m: any) => {
             newWinners.push({
               id: `${rw.id}-${m.name || m.full_name}`,
-              event_id: Number(reg.event_id),
+              event_id: reg.event_id,
+              event_title: reg.event_title,
               name: m.name || m.full_name || reg.full_name,
               position,
               year: m.batch || m.participant_type || reg.participant_type || '',
@@ -393,7 +368,8 @@ export const Events: React.FC = () => {
         } catch (e) {
           newWinners.push({
             id: rw.id,
-            event_id: Number(reg.event_id),
+            event_id: reg.event_id,
+            event_title: reg.event_title,
             name: reg.team_name || reg.full_name,
             position,
             year: reg.participant_type || '',
@@ -404,7 +380,8 @@ export const Events: React.FC = () => {
       } else {
         newWinners.push({
           id: rw.id,
-          event_id: Number(reg.event_id),
+          event_id: reg.event_id,
+          event_title: reg.event_title,
           name: reg.full_name,
           position,
           year: reg.participant_type || '',
@@ -424,7 +401,6 @@ export const Events: React.FC = () => {
   }, [rulesModalFor]);
 
   const openRulesModal = (id: number) => {
-    if (pageJustLoaded) return;
     if (!Array.isArray(filteredEvents) || filteredEvents.length === 0) return;
     scrollSaveRef.current = window.scrollY;
     setRulesModalFor(id);
@@ -453,193 +429,55 @@ export const Events: React.FC = () => {
     });
   }, [events]);
 
-  const allCategoriesMap = new Map<string, string>();
-  (visibleEvents as any[]).forEach((e: any) => {
-    const raw = e?.category;
-    if (raw == null) return;
-    const trimmed = String(raw).trim();
-    if (!trimmed) return;
-    const key = trimmed.toLowerCase();
-    if (!allCategoriesMap.has(key)) allCategoriesMap.set(key, trimmed);
-  });
-  const allCategories = Array.from(allCategoriesMap.values());
-  const categories = ['All', ...allCategories];
-
-  useEffect(() => {
-    const supportsTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-    if (!supportsTouch) return;
-    const cards = Array.from(document.querySelectorAll('.tilt-card')) as HTMLElement[];
-    const handler = (e: Event) => {
-      const el = e.currentTarget as HTMLElement;
-      if (!el) return;
-      el.classList.add('sheen');
-      setTimeout(() => el.classList.remove('sheen'), 700);
-    };
-    cards.forEach((el) => el.addEventListener('click', handler, { passive: true }));
-    return () => cards.forEach((el) => el.removeEventListener('click', handler as EventListener));
-  }, [visibleEvents]);
-
   const openRegistration = (eventId: number) => {
-    if (!isAnyAuthenticated) {
+    const event = events.find((e: any) => String(e.id) === String(eventId));
+    if (!event || !canRegisterNow(event)) {
+      push({ type: 'error', message: 'Registration is currently closed for this event.' });
+      return;
+    }
+    if (!isSupabaseAuthenticated) {
       setAuthModalEventId(eventId);
       return;
     }
-
-    const event = events.find((e: any) => e.id === eventId);
-    if (!event) return;
-
-    if (userRegistrations.includes(String(eventId))) {
-      push({ type: 'error', message: 'Already registered for this event!' });
+    if (userRegistrations.some(r => r.event_id === String(eventId))) {
+      navigate('/dashboard/events');
       return;
     }
-
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(50);
-    }
-
-    if (isInCart(event.id.toString())) {
-      removeFromCart(event.id.toString());
-      push({ type: 'success', message: 'Removed from cart' });
-    } else {
-      addToCart({
-        id: event.id.toString(),
-        title: event.title,
-        category: typeof event.category === 'object' ? event.category.name : event.category,
-        isTeam: (event.team_max_members && event.team_max_members > 1) || (event.max_team_size && event.max_team_size > 1) || event.registration_default_mode === 'team',
-        min_team: event.team_min_members || 1,
-        max_team: event.team_max_members || 1
-      });
-      openDrawer();
-    }
+    setRegistrationEventId(eventId);
   };
   const toggleRules = (id: number) => setExpandedRules((prev: Set<number>) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const toggleFlip = (id: number) => setFlippedCards((prev: Set<number>) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-
-  const posterFit: 'contain' | 'cover' = ((siteSettings as any)?.events_poster_fit === 'cover' ? 'cover' : 'contain');
+  const toggleFlip = (id: number) => setFlippedCards(prev => prev.has(id) ? new Set() : new Set([id]));
 
   const filteredEvents = React.useMemo(() => {
     try {
       if (!visibleEvents || !Array.isArray(visibleEvents)) return [];
       if (!selectedCategory || selectedCategory === 'All') return visibleEvents;
       const key = String(selectedCategory).trim().toLowerCase();
-      return (visibleEvents as any[]).filter((e: any) => String(e?.category ?? '').trim().toLowerCase() === key);
+      return (visibleEvents as any[]).filter((e: any) => eventCategory(e?.category).toLowerCase() === key);
     } catch (err) { return visibleEvents || []; }
   }, [visibleEvents, selectedCategory]);
 
-  const activeRuleItems = React.useMemo(() => {
-    try {
-      if (!rulesModalFor) return [];
-      const ev = (events as any[]).find((e: any) => e.id === rulesModalFor);
-      if (!ev || !ev.rules) return [{ content: 'No rules available', level: 'bullet' } as const];
+  const activeRuleItems = useMemo(() => presentRules(events.find((event: any) => event.id === rulesModalFor)?.rules), [rulesModalFor, events]);
+  const displayedEvents = showAllEvents ? filteredEvents : filteredEvents.slice(0, 4);
 
-      const items: any[] = [];
-      if (isStructuredRules(ev.rules)) {
-        const sections = unpackStructured(ev.rules);
-        sections.forEach(sec => {
-          if (sec.heading?.trim()) items.push({ content: sec.heading, level: 'h1' });
-          (sec.blocks || []).forEach(block => {
-            if (block.title?.trim()) items.push({ content: block.title, level: 'h2' });
-            const isNumbered = (block.style || 'number') !== 'bullet';
-            (block.items || []).forEach((pt: string, i: number) => {
-              items.push({ content: pt, level: isNumbered ? 'numbered' : 'bullet', index: i + 1 });
-            });
-          });
-        });
-      } else {
-        (ev.rules || []).forEach((rule: string, i: number) => {
-          items.push({ content: rule, level: 'numbered', index: i + 1 });
-        });
-      }
-      return items.length ? items : [{ content: 'No rules available', level: 'bullet' }];
-    } catch (err) { return [{ content: 'Error loading rules', level: 'bullet' }]; }
-  }, [rulesModalFor, events]);
-
-  useEffect(() => {
-    const supportsTilt = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-    if (!supportsTilt) return;
-    const maxTilt = 12;
-    const cards = Array.from(document.querySelectorAll('.tilt-card')) as HTMLElement[];
-    const move = (el: HTMLElement, e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      const px = (e.clientX - rect.left) / rect.width - 0.5;
-      const py = (e.clientY - rect.top) / rect.height - 0.5;
-      el.style.setProperty('--rx', `${Math.max(-maxTilt, Math.min(maxTilt, -py * maxTilt * 2))}deg`);
-      el.style.setProperty('--ry', `${Math.max(-maxTilt, Math.min(maxTilt, px * maxTilt * 2))}deg`);
-    };
-    const leave = (el: HTMLElement) => {
-      el.style.setProperty('--rx', '0deg');
-      el.style.setProperty('--ry', '0deg');
-    };
-    cards.forEach(el => {
-      el.addEventListener('mousemove', (e) => move(el, e as MouseEvent));
-      el.addEventListener('mouseleave', () => leave(el));
-    });
-  }, [flippedCards, filteredEvents]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('animate-in');
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.12 });
-
-    document.querySelectorAll('.scroll-animate').forEach(el => observer.observe(el));
-    return () => observer.disconnect();
-  }, [filteredEvents]);
-
-  useEffect(() => {
-    setExpandedRules(new Set());
+  // Reveal the shared event link immediately, including when the page is entered after sign in.
+  const changeCategory = (category: string) => {
+    setSelectedCategory(category);
+    setShowAllEvents(false);
     setFlippedCards(new Set());
-  }, [selectedCategory]);
+    setExpandedRules(new Set());
+  };
 
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setTick((v: number) => (v + 1) % 1_000_000), 1000);
-    return () => clearInterval(t);
-  }, []);
 
   return (
-    <div className="stranger-theme min-h-screen" style={{ overscrollBehaviorY: 'contain' }}>
-      {theme === 'bollywood' && (
-        <CyberpunkHeroContent pageKey="events" />
-      )}
-
-      <main className={`relative z-10 ${theme === 'bollywood' ? '-mt-20' : 'pt-20'}`}>
-        
-        <div className="container mx-auto px-4 py-12">
-          {connectionStatus === 'error' && (
-            <div className="max-w-2xl mx-auto mb-12 animate-in slide-in-from-top duration-500">
-              <div className="bg-violet-950/40 backdrop-blur-md border border-violet-500/50 rounded-2xl p-6 flex items-center gap-4 text-violet-200 shadow-[0_0_30px_rgba(139,92,246,0.2)]">
-                <div className="p-3 bg-violet-500/20 rounded-xl"><AlertCircle className="text-violet-500" size={24} /></div>
-                <div>
-                  <h3 className="font-bold text-lg mb-1">Connection Error</h3>
-                  <p className="text-sm opacity-90">{lastError || 'Something went wrong. Please refresh the page.'}</p>
-                  <button onClick={refreshAll} className="mt-4 px-6 py-2 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-lg transition-all flex items-center gap-2">
-                    <Zap size={16} /> Reconnect Now
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 scroll-animate">
-            <div className="flex-1">
-              <h2 className="text-4xl md:text-5xl font-black text-white nebula-title-text mb-4">EVENT CATEGORIES</h2>
-              <div className="h-1 w-24 bg-cyan-500 rounded-full shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
-            </div>
-            <CategoryFilter 
-              categories={categories} 
-              selectedCategory={selectedCategory} 
-              setSelectedCategory={setSelectedCategory} 
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-32">
-            {filteredEvents.map((event: any, idx: number) => (
+    <div className="arena-page">
+      <EventsArenaHero />
+      <div className="arena-main" id="event-arena">
+          {connectionStatus === 'error' && <div className="arena-connection-error" role="alert"><p>{lastError || 'We could not refresh the events. Please try again.'}</p><button type="button" className="arena-gold-button" onClick={refreshAll}><ReloadIcon /> Refresh events</button></div>}
+          <CategoryFilter selectedCategory={selectedCategory} setSelectedCategory={changeCategory} />
+          <div className="arena-list-heading"><p>{selectedCategory === 'All' ? 'Every passion has a place here' : `${selectedCategory} / Find your moment`}</p><span aria-live="polite">{loading && !visibleEvents.length ? 'Loading events…' : `${filteredEvents.length} ${filteredEvents.length === 1 ? 'event' : 'events'} to explore`}</span></div>
+          <div className="arena-grid" aria-busy={loading && !visibleEvents.length}>
+            {loading && !visibleEvents.length ? Array.from({ length: 4 }, (_, index) => <div className="arena-skeleton" key={index} aria-hidden="true" />) : displayedEvents.map((event: any, idx: number) => (
               <EventCard
                 key={event.id}
                 event={event}
@@ -653,19 +491,19 @@ export const Events: React.FC = () => {
                 onToggleRules={toggleRules}
                 eventWinners={mergedWinners}
                 coordinators={getCoordinators(event.id, eventCoordinators)}
-                posterFit={posterFit}
+                posterFit="cover"
                 updateEvent={updateEvent}
                 onOpenProfile={handleOpenWinnerProfile}
-                isInCart={isInCart(event.id.toString())}
-                isRegistered={userRegistrations.some(r => r.event_id === event.id.toString() && r.status !== 'payment_pending')}
-                isPaymentPending={userRegistrations.some(r => r.event_id === event.id.toString() && r.status === 'payment_pending')}
+                isInCart={isInCart(String(event.id))}
+                isRegistered={userRegistrations.some(r => r.event_id === String(event.id) && r.status !== 'payment_pending')}
+                isPaymentPending={userRegistrations.some(r => r.event_id === String(event.id) && r.status === 'payment_pending')}
               />
             ))}
           </div>
-
-          <WinnersSection eventWinners={mergedWinners} />
-        </div>
-      </main>
+          {!loading && !filteredEvents.length && <div className="arena-empty"><h2>The arena is getting ready.</h2><p>{selectedCategory === 'All' ? 'Events will appear here as soon as they are announced.' : 'No events in this category yet. Explore another arena.'}</p>{selectedCategory !== 'All' && <button className="arena-gold-button" onClick={() => changeCategory('All')}>Explore all events <ArrowRightIcon /></button>}</div>}
+          {!showAllEvents && filteredEvents.length > 4 ? <div className="arena-view-all"><button type="button" className="arena-gold-button" onClick={() => setShowAllEvents(true)}>View all events <span>({filteredEvents.length})</span><ArrowRightIcon /></button></div> : filteredEvents.length > 0 && <p className="arena-result-note">You've reached the edge of the arena.</p>}
+          <WinnersSection eventWinners={mergedWinners} events={visibleEvents} onOpenProfile={handleOpenWinnerProfile} onOpenEvent={id => { setSelectedCategory('All'); setShowAllEvents(true); setFlippedCards(new Set([id as any])); }} />
+      </div>
 
       {rulesModalFor && (
         <RulesModal
@@ -681,7 +519,7 @@ export const Events: React.FC = () => {
         onClose={() => setAuthModalEventId(null)}
         onConfirm={() => {
           if (authModalEventId) {
-            navigate(`/student/login?mode=signup&redirect=/events`);
+            navigate(`/student/login?mode=signup&redirect=${encodeURIComponent(`/events?event=${authModalEventId}`)}`);
           }
           setAuthModalEventId(null);
         }}
@@ -695,6 +533,7 @@ export const Events: React.FC = () => {
           isLiked={false}
         />
       )}
+      {registrationEventId !== null && <RegistrationModal isOpen onClose={() => { setRegistrationEventId(null); void fetchUserRegistrations(); }} eventId={registrationEventId} eventTitle={events.find((event: any) => event.id === registrationEventId)?.title || 'Event'} />}
       <CartDrawer onRegisterSuccess={fetchUserRegistrations} />
     </div>
   );

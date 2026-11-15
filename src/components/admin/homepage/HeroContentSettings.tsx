@@ -1,63 +1,10 @@
-import React from 'react';
-import { Type, FileText } from 'lucide-react';
+import type { HomepageDraft, HomepageDraftSetter } from './homepageForm';
+import { StudioField, StudioGroup } from './StudioControls';
 
-interface HeroContentSettingsProps {
-  form: {
-    hero_title: string;
-    hero_subtitle: string;
-    hero_description: string;
-  };
-  setForm: React.Dispatch<React.SetStateAction<any>>;
+export function HeroContentSettings({ form, setForm }: { form: HomepageDraft; setForm: HomepageDraftSetter }) {
+  return <StudioGroup>
+    <StudioField label="Festival title" value={form.hero_title} onChange={value => setForm(previous => ({ ...previous, hero_title: value }))} placeholder="RICORRENZA" required count hint="The first thing visitors see on your homepage." />
+    <StudioField label="Tagline" value={form.hero_subtitle} onChange={value => setForm(previous => ({ ...previous, hero_subtitle: value }))} placeholder="Your campus. Your stage." count hint="One short line that sets the mood." />
+    <StudioField label="Introduction" value={form.hero_description} onChange={value => setForm(previous => ({ ...previous, hero_description: value }))} multiline count placeholder="Tell visitors what the festival is about." hint="A little context before visitors explore your events." />
+  </StudioGroup>;
 }
-
-export const HeroContentSettings: React.FC<HeroContentSettingsProps> = ({ form, setForm }) => {
-  return (
-    <div className="space-y-6">
-      <h4 className="text-lg font-bold text-white mb-4">Hero Copy</h4>
-      
-      <div className="space-y-4">
-        <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Hero Title</label>
-          <div className="relative group">
-            <Type className="absolute left-4 top-3.5 w-5 h-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
-            <input
-              type="text"
-              value={form.hero_title}
-              onChange={(e) => setForm(prev => ({ ...prev, hero_title: e.target.value }))}
-              placeholder="RICORRENZA"
-              className="w-full bg-black/20 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all font-bold tracking-wide"
-            />
-          </div>
-        </div>
-        
-        <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Hero Subtitle</label>
-          <div className="relative group">
-            <Type className="absolute left-4 top-3.5 w-5 h-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
-            <input
-              type="text"
-              value={form.hero_subtitle}
-              onChange={(e) => setForm(prev => ({ ...prev, hero_subtitle: e.target.value }))}
-              placeholder="Experience the Future"
-              className="w-full bg-black/20 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all font-medium"
-            />
-          </div>
-        </div>
-        
-        <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Hero Description</label>
-          <div className="relative group">
-            <FileText className="absolute left-4 top-3.5 w-5 h-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
-            <textarea
-              value={form.hero_description}
-              onChange={(e) => setForm(prev => ({ ...prev, hero_description: e.target.value }))}
-              placeholder="Experience the future of Healthcare, Technology, and Creativity"
-              rows={4}
-              className="w-full bg-black/20 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};

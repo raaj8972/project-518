@@ -19,6 +19,11 @@ export const SmoothScroll: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     lenisRef.current = lenis;
+    const immediateScroll = (event: Event) => {
+      const top = (event as CustomEvent<{ top: number }>).detail?.top;
+      if (typeof top === 'number' && Number.isFinite(top)) lenis.scrollTo(top, { immediate: true, force: true });
+    };
+    window.addEventListener('rico:scroll-to', immediateScroll);
 
     function raf(time: number) {
       lenis.raf(time);
@@ -33,6 +38,7 @@ export const SmoothScroll: React.FC<{ children: React.ReactNode }> = ({ children
         cancelAnimationFrame(rafId.current);
       }
       lenis.destroy();
+      window.removeEventListener('rico:scroll-to', immediateScroll);
     };
   }, []);
 

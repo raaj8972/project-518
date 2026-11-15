@@ -1,3 +1,4 @@
+import { useDomainRealtime } from '../hooks/useDomainRealtime';
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { dualInsert, dualUpdate, dualDelete } from '../lib/dualDb';
 import { 
@@ -121,6 +122,8 @@ export function SportsProvider({ children, enabled = true }: { children: ReactNo
       fetchSportsData();
     }
   }, [refreshTrigger, user?.id, fetchSportsData, enabled]);
+
+  useDomainRealtime('sports-context-realtime', enabled, ['sports_seasons', 'sports_teams', 'sports_players', 'sports_registrations', 'sports_matches', 'annual_sports_events', 'annual_sports_registrations', 'annual_sports_matches'], fetchSportsData);
 
   const value: SportsContextType = {
     sportsSeasons,

@@ -149,3 +149,6 @@ const collector: Handler = async (event) => {
 
 // Run daily at 3 AM
 export const handler = schedule('0 3 * * *', collector);
+
+// The Vercel/local adapter requires CRON_SECRET before calling the collector.
+export const scheduledHandler = collector;

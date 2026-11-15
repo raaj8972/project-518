@@ -4,6 +4,7 @@ import { StrictMode } from 'react';
 console.log('[main.tsx] Module execution started, React available:', !!StrictMode);
 import { createRoot } from 'react-dom/client';
 import './index.css';
+import './styles/Spiderman.css';
 import { registerServiceWorker } from './utils/serviceWorkerRegistration';
 
 declare global {

@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { particleVertexShader, particleFragmentShader } from '../../shaders/particleShader';
@@ -14,7 +14,7 @@ export const ParticleHero: React.FC<ParticleHeroProps> = ({
 }) => {
   const meshRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const { viewport, size } = useThree();
+  useThree();
   
   const particleCount = 15000;
   

@@ -55,7 +55,7 @@ export const BandMemberCard: React.FC<BandMemberProps> = ({ member, className = 
           <div className={`relative w-full h-full rounded-[2rem] overflow-hidden border ${getBorderColor()} bg-black/40 backdrop-blur-md shadow-2xl`}>
             {/* Background Effects */}
             <div className={`absolute inset-0 bg-gradient-to-br ${getGlowColor()} to-transparent opacity-50`}></div>
-            <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] mix-blend-overlay"></div>
+            <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-[0.03] mix-blend-overlay"></div>
             
             {/* Image Container with geometric mask */}
             <div className="relative h-[80%] w-full overflow-hidden">

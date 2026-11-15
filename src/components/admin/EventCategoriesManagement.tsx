@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Save, X, Palette, AlertCircle, GripVertical, Check, ArrowUp, ArrowDown } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useApprovals } from '../../hooks/useApprovals';
-import type { EventCategory } from '../../context/DataContext';
+import type { EventCategory } from '../../types/data';
 
 export const EventCategoriesManagement: React.FC = () => {
   const { 

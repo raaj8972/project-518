@@ -1,4 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { supabase } from '../../lib/supabase';
+import { entryPassFile } from '../../utils/entryPassActions';
+import { downloadFile } from '../../utils/eventActions';
+import { toast } from 'react-hot-toast';
 import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -28,8 +32,26 @@ interface EntryPassProps {
 }
 
 const EntryPass: React.FC<EntryPassProps> = ({ pass }) => {
-  const downloadPass = () => {
-    window.print();
+  const [gateStatus, setGateStatus] = useState('');
+  const [checkingGate, setCheckingGate] = useState(false);
+  const savePass = async (e: React.MouseEvent, share = false) => {
+    e.stopPropagation();
+    try {
+      const file = await entryPassFile(pass);
+      if (share && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'My Ricorrenza pass' });
+      else downloadFile(file, file.name);
+    } catch (error: any) { if (error.name !== 'AbortError') toast.error('Could not save the pass. Please retry.'); }
+  };
+  const checkGate = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCheckingGate(true);
+    try {
+      const { data, error } = await supabase.from('entry_passes').select('is_active, is_used, scanned_at, valid_date').eq('pass_token', pass.pass_token).single();
+      if (error) throw error;
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      setGateStatus(!data.is_active ? 'Pass deactivated. Contact the help desk.' : data.valid_date && data.valid_date !== today ? `Valid on ${data.valid_date}` : data.is_used || data.scanned_at ? 'Already checked in' : 'Pass active and ready for check-in');
+    } catch { toast.error('Could not check the current pass status.'); }
+    finally { setCheckingGate(false); }
   };
 
   // Theme based on day
@@ -228,29 +250,31 @@ const EntryPass: React.FC<EntryPassProps> = ({ pass }) => {
           </div>
         </div>
 
-        {/* Advanced Functional Buttons */}
+        {gateStatus && <p role="status" className="px-6 py-3 text-sm text-cyan-200">{gateStatus}</p>}
+        {/* Pass actions */}
         <div className="grid grid-cols-2 lg:grid-cols-4 border-t border-white/5 bg-white/[0.02] divide-x divide-y lg:divide-y-0 divide-white/5">
           <button 
-            disabled={pass.is_used}
+            onClick={e => { void savePass(e); }}
             className="py-4 px-2 flex flex-col items-center justify-center gap-1.5 hover:bg-white/5 transition-all text-white/50 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Wallet className="w-4 h-4 text-emerald-400" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Add to Wallet</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider">Save Pass</span>
           </button>
-          <button 
+          <button
+            onClick={e => { e.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pass.venue || 'IQ City Medical College')}`, '_blank', 'noopener,noreferrer'); }}
             className="py-4 px-2 flex flex-col items-center justify-center gap-1.5 hover:bg-white/5 transition-all text-white/50 hover:text-white"
           >
             <Navigation className="w-4 h-4 text-cyan-400" />
             <span className="text-[9px] font-bold uppercase tracking-wider">Directions</span>
           </button>
-          <button 
+          <button onClick={checkGate} disabled={checkingGate}
             className="py-4 px-2 flex flex-col items-center justify-center gap-1.5 hover:bg-white/5 transition-all text-white/50 hover:text-white"
           >
             <Activity className="w-4 h-4 text-orange-400" />
             <span className="text-[9px] font-bold uppercase tracking-wider">Gate Status</span>
           </button>
           <button 
-            onClick={downloadPass}
+            onClick={e => { void savePass(e, true); }}
             className="py-4 px-2 flex flex-col items-center justify-center gap-1.5 hover:bg-white/5 transition-all text-white/50 hover:text-white"
           >
             <Share2 className="w-4 h-4 text-purple-400" />

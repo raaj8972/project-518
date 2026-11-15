@@ -1,102 +1,18 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { createPortal } from 'react-dom';
-import { X, FileText } from 'lucide-react';
+import { CheckIcon, Cross2Icon, FileTextIcon } from '@radix-ui/react-icons';
+import { useFestivalDialog } from '../../hooks/useFestivalDialog';
 
-interface RulesModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  eventTitle: string;
-  rules: any[];
-}
+interface RulesModalProps { isOpen: boolean; onClose: () => void; eventTitle: string; rules: any[] }
 
-export const RulesModal: React.FC<RulesModalProps> = ({
-  isOpen,
-  onClose,
-  eventTitle,
-  rules
-}) => {
+export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose, eventTitle, rules }) => {
+  const titleId = useId();
+  const dialogRef = useFestivalDialog(isOpen, onClose);
   if (!isOpen) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      <div 
-        className="absolute inset-0 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300"
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-2xl bg-[#0a0a0a] border border-red-900/30 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-red-900/20 bg-gradient-to-r from-red-950/20 to-transparent">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-600/10 rounded-lg text-red-500">
-              <FileText size={24} />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">{eventTitle}</h2>
-              <p className="text-sm text-red-500/70 font-medium">Event Rules & Guidelines</p>
-            </div>
-          </div>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar scroll-smooth">
-          {rules.map((item, idx) => {
-            switch (item.level) {
-              case 'h1':
-                return (
-                  <h3 key={idx} className="text-lg font-bold text-red-500 uppercase tracking-wider pb-2 border-b border-red-900/10 pt-4 first:pt-0">
-                    {item.content}
-                  </h3>
-                );
-              case 'h2':
-                return (
-                  <h4 key={idx} className="text-md font-semibold text-gray-200 pt-2">
-                    {item.content}
-                  </h4>
-                );
-              case 'numbered':
-                return (
-                  <div key={idx} className="flex gap-4 group">
-                    <span className="text-red-600 font-mono font-bold pt-0.5 text-sm">{item.index}.</span>
-                    <p className="text-gray-300 leading-relaxed text-sm group-hover:text-white transition-colors">
-                      {item.content}
-                    </p>
-                  </div>
-                );
-              case 'bullet':
-                return (
-                  <div key={idx} className="flex gap-4 group">
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-600 mt-2 flex-shrink-0 group-hover:scale-125 transition-transform" />
-                    <p className="text-gray-300 leading-relaxed text-sm group-hover:text-white transition-colors">
-                      {item.content}
-                    </p>
-                  </div>
-                );
-              default:
-                return null;
-            }
-          })}
-        </div>
-
-        {/* Footer */}
-        <div className="p-6 border-t border-red-900/20 bg-red-950/5 flex items-center justify-between gap-4">
-          <p className="text-xs text-gray-500 italic">
-            * Please follow these rules carefully for a fair competition.
-          </p>
-          <button 
-            onClick={onClose}
-            className="px-6 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-bold rounded-lg transition-all active:scale-95 shadow-[0_0_15px_rgba(220,38,38,0.3)]"
-          >
-            Got it
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
+  return createPortal(<div className="arena-dialog-layer arena-rules-layer"><div className="arena-dialog-backdrop" onClick={onClose} /><div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className="arena-dialog arena-rulebook" data-lenis-prevent>
+    <div className="arena-web-corner" aria-hidden="true" />
+    <header className="arena-rulebook-header"><span className="arena-eyebrow"><FileTextIcon /> THE OFFICIAL RULEBOOK</span><h2 id={titleId}>Rules of the arena</h2><p>{eventTitle}</p><button type="button" className="arena-close" aria-label="Close event rules" onClick={onClose}><Cross2Icon /></button></header>
+    <div className="arena-rulebook-content">{rules.length ? rules.map((item, index) => item.level === 'h1' ? <h3 key={index}>{item.content}</h3> : item.level === 'h2' ? <h4 key={index}>{item.content}</h4> : item.level === 'text' ? <p className="arena-rule-text" key={index}>{item.content}</p> : <div className="arena-rule" key={index}><span>{item.level === 'numbered' ? String(item.index || index + 1).padStart(2, '0') : '·'}</span><p>{item.content}</p></div>) : <div className="arena-rules-empty"><FileTextIcon /><p>The official guidelines will be published soon.</p><small>Contact the event coordinator for details before registering.</small></div>}</div>
+    <footer className="arena-rulebook-footer"><p>Read the guidelines. Respect the arena.</p><button type="button" className="arena-gold-button" onClick={onClose}>Got it <CheckIcon /></button></footer>
+  </div></div>, document.body);
 };

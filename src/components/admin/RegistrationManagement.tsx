@@ -1,5 +1,6 @@
 import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 import React, { useState, useMemo, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { 
   Users, Search, Filter, Download, Trash2, RefreshCw, 
@@ -172,19 +173,21 @@ interface RegistrationManagementProps {
 
 export function RegistrationManagement({ coordinatorMode = false, coordinatorEventId }: RegistrationManagementProps) {
   // Removed registrations, deletedRegistrations and mutation methods from useData
-  const { events, siteSettings, updateSiteSettings, adminUsers, eventCoordinators, resetRegistrationIdSequence } = useData();
+  const { events, siteSettings, updateSiteSettings, adminUsers, eventCoordinators, resetRegistrationIdSequence, isOwner: checkIsOwner } = useData();
   const { user } = useAuth();
 
   const isOwner = useMemo(() => {
     const admin = adminUsers?.find(u => u.user_id === user?.id);
-    return admin?.role === 'owner' || user?.user_metadata?.is_super_admin;
-  }, [user, adminUsers]);
+    return checkIsOwner() || admin?.role === 'owner' || user?.user_metadata?.is_super_admin;
+  }, [user, adminUsers, checkIsOwner]);
 
   const { push } = useToast();
   
   // Pagination State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+
+  const location = useLocation();
 
   // Filters State
   const [selectedEvent, setSelectedEvent] = useState<string>(
@@ -244,6 +247,15 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
 
   const [emailProvider, setEmailProvider] = useState<'smtp' | 'resend'>('smtp'); // Default to Hostinger
   const [expandedRegistration, setExpandedRegistration] = useState<string | null>(null);
+  useEffect(() => {
+    if (coordinatorMode) return;
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+    setSelectedStatus(status && ['pending', 'approved', 'rejected'].includes(status) ? status : 'all');
+    setSearchTerm(params.get('search') || '');
+    setExpandedRegistration(params.get('registration'));
+    setPage(1);
+  }, [location.search, coordinatorMode]);
   const [emailLogs, setEmailLogs] = useState<any[]>([]); // New state for logs
   const [logsLoading, setLogsLoading] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
@@ -1454,7 +1466,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </div>
               </div>
 
-              {/* Registration Settings */}
+              {/* Owners manage profile fields in Students. Delegated registration admins retain their assigned controls. */}
+              {isOwner ? <div className="owner-notice"><p>Institution field visibility and required/optional settings are managed in Students.</p><Link className="owner-button" to="/admin/student-system?section=settings">Open profile settings</Link></div> : (
               <div className="bg-black/20 border border-white/10 rounded-xl p-4 space-y-3">
                 <div className="text-sm font-bold text-gray-300 uppercase tracking-wide">Registration Form Settings</div>
                 <div className="flex flex-wrap items-center gap-4">
@@ -1499,6 +1512,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   </button>
                 </div>
               </div>
+              )}
 
               {/* Dangerous Actions */}
               {isOwner && (

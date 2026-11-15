@@ -3,21 +3,13 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
 import { dualRead, dualInsert, dualUpdate, dualDelete } from '../../lib/dualDb';
 import { useToast } from '../../components/ToastProvider';
-import { Shield, Crown, Eye, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square, XCircle, Search, Settings, History, Users, Palette, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Shield, Crown, Eye, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, CheckSquare, Square, XCircle, Search, Settings, History, Users, Palette, Image as ImageIcon } from 'lucide-react';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
 import { DEFAULT_RULES, ValidationRule } from '../../utils/validationRules';
 import { PassTemplateDesigner } from './PassTemplateDesigner';
 import { generatePassPDF, generateA4SheetPDF } from '../../utils/pdfGenerator';
 import { generatePassImages } from '../../utils/passImageGenerator';
-
-interface SecurityUser {
-  id: number;
-  username: string;
-  full_name: string;
-  is_active: boolean;
-  created_at: string;
-}
 
 interface PassRegistration {
   id: string;
@@ -46,18 +38,16 @@ interface VipPass {
 }
 
 interface SecurityManagementProps {
-  defaultTab?: 'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'council' | 'design';
+  defaultTab?: 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'design';
 }
 
-export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultTab = 'users' }) => {
+export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultTab = 'passes' }) => {
   const { securitySettings, updateSecuritySettings } = useData();
   const { push: toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'council' | 'design'>(defaultTab);
-  const [securityUsers, setSecurityUsers] = useState<SecurityUser[]>([]);
+  const [activeTab, setActiveTab] = useState<'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'design'>(defaultTab);
   const [passRegistrations, setPassRegistrations] = useState<PassRegistration[]>([]);
   const [vipPasses, setVipPasses] = useState<VipPass[]>([]);
   const [scanHistory, setScanHistory] = useState<any[]>([]);
-  const [showCreateUser, setShowCreateUser] = useState(false);
   const [showCreateVIP, setShowCreateVIP] = useState(false);
   const [showBulkVIP, setShowBulkVIP] = useState(false);
   const [selectedPass, setSelectedPass] = useState<any>(null);
@@ -113,34 +103,11 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     setSelectedVipIds(next);
   };
 
-  const [newUser, setNewUser] = useState({
-    username: '',
-    password: '',
-    full_name: '',
-  });
-
   const [newVIP, setNewVIP] = useState({
     name: '',
     notes: '',
     validDate: '',
   });
-
-  const [councilPassword, setCouncilPassword] = useState('');
-
-  const updateCouncilPassword = async () => {
-    if (!councilPassword.trim()) return toast({ message: 'Enter a password', type: 'error' });
-    setLoading(true);
-    try {
-      const { error } = await supabase.rpc('set_council_password', { p_password: councilPassword });
-      if (error) throw error;
-      toast({ message: 'Council password updated', type: 'success' });
-      setCouncilPassword('');
-    } catch (err: any) {
-       toast({ message: err.message || 'Failed to update', type: 'error' });
-    } finally {
-       setLoading(false);
-    }
-  };
 
   useEffect(() => {
     loadData();
@@ -255,13 +222,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
   };
 
   const loadData = async () => {
-    if (activeTab === 'users') {
-      const { data: users } = await dualRead({
-        table: 'security_users',
-        order: ['created_at', { ascending: false }]
-      });
-      if (users) setSecurityUsers(users);
-    } else if (activeTab === 'passes') {
+    if (activeTab === 'passes') {
       const { data: passes } = await dualRead({
         table: 'pass_registrations',
         order: ['created_at', { ascending: false }]
@@ -412,43 +373,6 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       toast({ message: err.message || 'Failed to delete rule', type: 'error' });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCreateSecurityUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { error } = await supabase.rpc('create_security_user', {
-        p_username: newUser.username,
-        p_password: newUser.password,
-        p_full_name: newUser.full_name,
-      });
-
-      if (error) throw error;
-
-      toast({ message: 'Security user created successfully', type: 'success' });
-      setNewUser({ username: '', password: '', full_name: '' });
-      setShowCreateUser(false);
-      loadData();
-    } catch (error: any) {
-      toast({ message: error.message || 'Failed to create user', type: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteSecurityUser = async (id: number, username: string) => {
-    if (!window.confirm(`Are you sure you want to delete the security user "@${username}"?`)) return;
-    try {
-      const { error } = await supabase.rpc('delete_security_user', { p_user_id: id });
-      if (error) throw error;
-      toast({ message: 'Security user deleted', type: 'success' });
-      loadData();
-    } catch (err: any) {
-      console.error(err);
-      toast({ message: err.message || 'Failed to delete user', type: 'error' });
     }
   };
 
@@ -856,14 +780,12 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       {/* Modern Tabs */}
       <div className="rico-glass-card p-2 rounded-[1.5rem] border-white/5 shadow-2xl flex flex-wrap gap-1.5 sticky top-24 z-40 backdrop-blur-3xl bg-black/40">
         {[
-          { id: 'users', label: 'Nodes', icon: Users, color: 'indigo' },
-          { id: 'passes', label: 'Inbound', icon: FileUp, color: 'blue' },
-          { id: 'vip', label: 'Matrix', icon: Crown, color: 'yellow' },
-          { id: 'settings', label: 'Config', icon: Settings, color: 'purple' },
-          { id: 'rules', label: 'Firewall', icon: Shield, color: 'emerald' },
-          { id: 'history', label: 'Audit', icon: History, color: 'rose' },
-          { id: 'council', label: 'Council', icon: Lock, color: 'amber' },
-          { id: 'design', label: 'Studio', icon: Palette, color: 'teal' },
+          { id: 'passes', label: 'Entry passes', icon: FileUp, color: 'blue' },
+          { id: 'vip', label: 'VIP passes', icon: Crown, color: 'yellow' },
+          { id: 'settings', label: 'Settings', icon: Settings, color: 'purple' },
+          { id: 'rules', label: 'Validation rules', icon: Shield, color: 'emerald' },
+          { id: 'history', label: 'Scan history', icon: History, color: 'rose' },
+          { id: 'design', label: 'Pass design', icon: Palette, color: 'teal' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -886,121 +808,6 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           </button>
         ))}
       </div>
-
-      {/* Security Users Tab */}
-      {activeTab === 'users' && (
-        <div className="space-y-6 animate-in fade-in duration-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-black text-white tracking-tight uppercase">System Nodes</h3>
-              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60">Security Personnel Directory</p>
-            </div>
-            <button
-              onClick={() => setShowCreateUser(!showCreateUser)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg hover:shadow-indigo-500/20 border border-indigo-400/30"
-            >
-              <UserPlus size={14} />
-              Create Node
-            </button>
-          </div>
-
-          {showCreateUser && (
-            <form onSubmit={handleCreateSecurityUser} className="rico-glass-card p-8 rounded-3xl border-white/10 shadow-2xl space-y-6 animate-in fade-in slide-in-from-top-4">
-              <div className="grid md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Username</label>
-                  <input
-                    type="text"
-                    required
-                    value={newUser.username}
-                    onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder-gray-600"
-                    placeholder="e.g. jdoe_admin"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Password</label>
-                  <input
-                    type="password"
-                    required
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder-••••••••"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Full Identity</label>
-                  <input
-                    type="text"
-                    required
-                    value={newUser.full_name}
-                    onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder-gray-600"
-                    placeholder="Full Legal Name"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 justify-end pt-4 border-t border-white/5">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateUser(false)}
-                  className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
-                >
-                  Terminate
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <div className="flex items-center gap-2">
-                      <Loader2 size={12} className="animate-spin" /> Initializing...
-                    </div>
-                  ) : 'Initialize Node'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {securityUsers.length === 0 ? (
-            <div className="rico-glass-card p-12 text-center rounded-3xl border-white/10 opacity-60">
-              <Users size={32} className="mx-auto text-gray-500 mb-4" />
-              <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Zero security nodes detected in the matrix</p>
-            </div>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {securityUsers.map((user) => (
-                <div key={user.id} className="rico-glass-card p-5 rounded-2xl border-white/10 shadow-xl flex items-center justify-between hover:bg-white/5 transition-all group relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/10 transition-colors" />
-                  <div className="relative z-10 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-black text-indigo-400 shadow-inner group-hover:scale-105 transition-transform">
-                      {user.full_name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-white font-black text-sm tracking-tight leading-tight">{user.full_name}</p>
-                      <p className="text-indigo-400 text-[10px] font-bold uppercase tracking-widest opacity-80 mt-0.5">@{user.username}</p>
-                      <div className="mt-2 flex items-center gap-1.5">
-                        <span className={`w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-emerald-500' : 'bg-red-500'} animate-pulse`} />
-                        <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${user.is_active ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {user.is_active ? 'Active Node' : 'Suspended'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteSecurityUser(user.id, user.username)}
-                    className="relative z-10 p-2 text-gray-500 hover:text-red-400 transition-colors bg-white/5 rounded-lg opacity-0 group-hover:opacity-100"
-                    title="Purge Node"
-                  >
-                    <Trash className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Pass Registrations Tab */}
       {activeTab === 'passes' && (
@@ -1571,93 +1378,8 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                  </div>
                </div>
 
-               <div className="space-y-4 relative z-10 pt-8 border-t border-white/5">
-                 <h4 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-3">
-                   <Lock className="text-amber-400" size={18} />
-                   Security Overrides
-                 </h4>
-                 <div className="grid md:grid-cols-2 gap-4">
-                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10 shadow-inner">
-                      <h5 className="text-white font-bold text-sm tracking-tight mb-2">Council Access Key</h5>
-                      <div className="flex gap-2">
-                        <input
-                          type="password"
-                          value={councilPassword}
-                          onChange={(e) => setCouncilPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="flex-1 bg-black/40 text-white text-sm px-4 py-2 rounded-xl border border-white/10 focus:border-indigo-500 outline-none transition-all shadow-inner"
-                        />
-                        <button
-                          onClick={updateCouncilPassword}
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95"
-                        >
-                          Sync
-                        </button>
-                      </div>
-                    </div>
-                 </div>
-               </div>
+
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Council Access Tab */}
-      {activeTab === 'council' && (
-        <div className="space-y-8 animate-in fade-in duration-500">
-          <div>
-            <h3 className="text-xl font-black text-white tracking-tight uppercase">Council Authority</h3>
-            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60">Dashboard Credentials & Access Keys</p>
-          </div>
-
-          <div className="rico-glass-card p-10 rounded-3xl border-white/10 shadow-2xl relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2" />
-             
-             <div className="max-w-2xl space-y-6 relative z-10">
-               <div className="flex items-start gap-5">
-                 <div className="p-4 bg-purple-500/10 rounded-2xl border border-purple-500/20 text-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
-                   <Lock size={24} />
-                 </div>
-                 <div className="space-y-1">
-                   <h4 className="text-white font-black text-lg tracking-tight">Main Terminal Password</h4>
-                   <p className="text-gray-400 text-xs font-medium leading-relaxed opacity-80">
-                     This key authorizes Student Council members to access their dedicated management terminal.
-                     Update this if rotation protocols require fresh credentials.
-                   </p>
-                 </div>
-               </div>
-
-               <div className="pt-4 flex flex-col sm:flex-row gap-4">
-                 <div className="flex-1 relative">
-                    <input 
-                      type="password" 
-                      value={councilPassword}
-                      onChange={e => setCouncilPassword(e.target.value)}
-                      placeholder="ENTER NEW PROTOCOL KEY"
-                      className="w-full bg-black/40 text-white text-sm font-mono tracking-widest px-6 py-4 rounded-2xl border border-white/10 focus:border-purple-500 outline-none transition-all shadow-inner placeholder:text-gray-700 placeholder:text-[10px]"
-                    />
-                 </div>
-                 <button 
-                   onClick={updateCouncilPassword}
-                   disabled={loading}
-                   className="bg-purple-600 hover:bg-purple-500 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl hover:shadow-purple-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
-                 >
-                   {loading ? (
-                     <RefreshCw size={16} className="animate-spin" />
-                   ) : (
-                     <CheckCircle2 size={16} />
-                   )}
-                   Synchronize Key
-                 </button>
-               </div>
-               
-               <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-center gap-3">
-                 <AlertTriangle className="text-amber-500/60" size={16} />
-                 <p className="text-[10px] text-amber-500/60 font-bold uppercase tracking-widest">
-                   Changing this key will terminate current active sessions on the Council Terminal.
-                 </p>
-               </div>
-             </div>
           </div>
         </div>
       )}

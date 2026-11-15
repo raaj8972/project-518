@@ -1,91 +1,52 @@
-import React from 'react';
-import { Trophy, Flame } from 'lucide-react';
+import React, { useId } from 'react';
+import { ArrowTopRightIcon, StarIcon } from '@radix-ui/react-icons';
 import { yearLabelFor } from '../../utils/eventUtils';
+import { eventCategory } from '../../utils/eventPresentation';
+import { BRAND_YEAR } from '../../constants/brand';
 
 interface WinnersSectionProps {
   eventWinners: any[];
+  events?: { id: string | number; title: string; category?: unknown }[];
+  onOpenProfile?: (userId: string) => void;
+  onOpenEvent?: (eventId: string | number) => void;
 }
 
-export const WinnersSection: React.FC<WinnersSectionProps> = ({ eventWinners }) => {
-  if (!eventWinners || eventWinners.length === 0) return null;
+function HonoursCrest() {
+  return <svg className="honours-crest" viewBox="0 0 80 80" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M29 19h22v12c0 9-5 15-11 15S29 40 29 31V19ZM40 46v12m-9 5h18m-16-5h14M29 23h-9v5c0 8 5 12 12 12m19-17h9v5c0 8-5 12-12 12" /><path d="M22 63C9 53 7 36 15 23m-1 17-6-6m7 16-8-2m13 11-8 1m1-27 1-9m44 39c13-10 15-27 7-40m1 17 6-6m-7 16 8-2m-13 11 8 1m-1-27-1-9" /><path d="m40 25 2 4 4 .6-3 3 .7 4.4-3.7-2-3.7 2 .7-4.4-3-3 4-.6 2-4Z" /></svg>;
+}
 
-  // Group winners by event
-  const eventsWithWinners = eventWinners.reduce((acc: any, winner: any) => {
-    if (!acc[winner.event_id]) {
-      acc[winner.event_id] = {
-        title: winner.event_title || 'Event',
-        winners: []
-      };
-    }
-    acc[winner.event_id].winners.push(winner);
-    return acc;
-  }, {});
-
-  return (
-    <section className="relative py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col items-center mb-16 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-600/10 border border-violet-600/20 text-violet-400 text-sm font-bold tracking-widest uppercase mb-4 animate-bounce">
-            <Trophy size={14} /> Event Champions
-          </div>
-          <h2 className="text-4xl md:text-6xl font-black text-white nebula-title-text mb-6">
-            HALL OF <span className="text-cyan-500">FAME</span>
-          </h2>
-          <div className="w-24 h-1 bg-cyan-500 rounded-full mb-8 shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {Object.entries(eventsWithWinners).map(([eventId, data]: [string, any]) => (
-            <div 
-              key={eventId}
-              className="group relative bg-[#0a0a0a]/80 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-600/50 transition-all duration-500 hover:shadow-[0_0_30px_rgba(139,92,246,0.15)] scroll-animate"
-            >
-              <div className="absolute -top-3 -right-3 w-12 h-12 bg-violet-600 rounded-xl flex items-center justify-center shadow-lg transform rotate-12 group-hover:rotate-0 transition-transform duration-500">
-                <Flame className="text-white" size={24} />
-              </div>
-
-              <h3 className="text-xl font-bold text-white mb-6 pr-8 group-hover:text-cyan-400 transition-colors">
-                {data.title}
-              </h3>
-
-              <div className="space-y-4">
-                {[1, 2, 3].map((pos) => {
-                  const winnersAtPos = data.winners.filter((w: any) => Number(w.position) === pos);
-                  if (winnersAtPos.length === 0) return null;
-
-                  return (
-                    <div key={pos} className="flex items-start gap-3">
-                      <div className={`
-                        w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shrink-0
-                        ${pos === 1 ? 'bg-violet-600 text-white shadow-[0_0_12px_rgba(139, 92, 246, 0.5)]' : 
-                          pos === 2 ? 'bg-zinc-400 text-black' : 
-                          'bg-amber-600 text-black'}
-                      `}>
-                        {pos === 1 ? '1' : pos === 2 ? '2' : '3'}
-                      </div>
-                      <div className="pt-1">
-                        {winnersAtPos.map((w: any, idx: number) => {
-                          const year = yearLabelFor(w.registration_year || w.year);
-                          return (
-                            <div key={w.id} className="text-gray-300 font-medium">
-                              <span className="text-white">{w.name}</span>
-                              {year && <span className="text-gray-500 text-xs ml-2">({year})</span>}
-                              {idx < winnersAtPos.length - 1 && <div className="h-px w-full my-2 bg-white/5" />}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Decorative corner accent */}
-              <div className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-br from-transparent to-violet-600/10 rounded-br-2xl pointer-events-none" />
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+export const WinnersSection: React.FC<WinnersSectionProps> = ({ eventWinners, events = [], onOpenProfile, onOpenEvent }) => {
+  const titleId = useId();
+  const groups = new Map<string, { title: string; category?: string; eventId?: string | number; winners: any[] }>();
+  for (const winner of eventWinners || []) {
+    if (!String(winner.name || '').trim()) continue;
+    const key = String(winner.event_id);
+    const event = events.find(event => String(event.id) === key);
+    if (!groups.has(key)) groups.set(key, { title: event?.title || winner.event_title || 'Event name unavailable', category: event ? eventCategory(event.category) : undefined, eventId: event?.id, winners: [] });
+    groups.get(key)!.winners.push(winner);
+  }
+  if (!groups.size) return null;
+  const rankLabel = (rank: number) => rank === 1 ? 'Winner' : rank === 2 ? 'Runner-up' : rank === 3 ? 'Third place' : 'Special mention';
+  return <section className="arena-champions arena-honours" aria-labelledby={titleId}>
+    <header className="honours-heading"><span className="honours-heading-rule" aria-hidden="true" /><HonoursCrest /><p className="honours-eyebrow">THE HONOURS / RICORRENZA {BRAND_YEAR}</p><h2 id={titleId}>Hall of <em>Fame</em></h2><p className="honours-intro">Celebrating the winners of the arena.</p><span className="honours-heading-diamond" aria-hidden="true" /></header>
+    <div className={`honours-grid ${groups.size === 1 ? 'honours-grid--single' : ''}`}>
+      {[...groups].map(([eventId, group], index) => {
+        const ranks = [...new Set(group.winners.map(winner => Number(winner.position) || 4))].sort((a, b) => a - b);
+        return <article className="honours-card" key={eventId} style={{ '--honours-index': Math.min(index, 5) } as React.CSSProperties}>
+          <header className="honours-card-header"><div><p className="honours-eyebrow">{group.category || 'RICORRENZA'} <span aria-hidden="true">/</span> RESULTS</p><span className="honours-event-label">EVENT</span><h3>{group.title}</h3></div>{group.eventId !== undefined && onOpenEvent ? <button type="button" className="honours-event-link" onClick={() => onOpenEvent(group.eventId!)}>Event details<ArrowTopRightIcon /></button> : <StarIcon className="honours-event-star" aria-hidden="true" />}</header>
+          <ol className="honours-placements" aria-label={`${group.title} winners`}>
+            {ranks.map(rank => <li className={`honours-placement ${rank === 1 ? 'honours-placement--first' : ''}`} key={rank}><div className="honours-rank" aria-hidden="true">{rank < 4 ? <span>{String(rank).padStart(2, '0')}</span> : <StarIcon />}</div><div className="honours-placement-body"><p className="honours-placement-label">{rankLabel(rank)}</p>{group.winners.filter(winner => (Number(winner.position) || 4) === rank).map((winner, winnerIndex) => {
+              const year = yearLabelFor(winner.registration_year || winner.year);
+              return <div className="honours-person" key={winner.id || `${rank}-${winnerIndex}`}>
+                {winner.user_id && onOpenProfile ? <button type="button" className="honours-name" onClick={() => onOpenProfile(winner.user_id)} aria-label={`View ${winner.name}'s profile`}>{winner.name}<ArrowTopRightIcon /></button> : <span className="honours-name">{winner.name}</span>}
+                {year && <span className="honours-year">{year}</span>}
+              </div>;
+            })}</div>{rank === 1 && <span className="honours-laureate" aria-hidden="true"><HonoursCrest /></span>}</li>)}
+          </ol>
+          <footer className="honours-card-footer"><span>RICORRENZA {BRAND_YEAR}</span><span>HONOUR ROLL <span aria-hidden="true">/</span> {String(index + 1).padStart(2, '0')}</span></footer>
+        </article>;
+      })}
+    </div>
+    <p className="honours-closing"><span aria-hidden="true" />A place in the story. A name in the arena.<span aria-hidden="true" /></p>
+  </section>;
 };

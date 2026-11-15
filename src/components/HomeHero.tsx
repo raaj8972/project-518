@@ -1,13 +1,13 @@
+import { resolveHomepageMedia } from '../utils/homepageMedia';
 import React, { useEffect, useState, useRef } from 'react';
 import { heroMediaService, HeroMediaV2 } from '../services/heroMediaService';
 import { useTheme } from '../context/ThemeContext';
-import { CyberpunkHeroContent } from './ui/CyberpunkHeroContent';
-import { FluidBackground } from './ui/FluidBackground';
+import { SpiderHeroContent } from './ui/SpiderHeroContent';
+const CyberpunkHeroContent = React.lazy(() => import('./ui/CyberpunkHeroContent').then(module => ({ default: module.CyberpunkHeroContent })));
 
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-const Canvas3D = React.lazy(() => import('./ui/Canvas3D').then(m => ({ default: m.Canvas3D })));
 
 export const HomeHero: React.FC = React.memo(() => {
   const { theme } = useTheme();
@@ -33,7 +33,7 @@ export const HomeHero: React.FC = React.memo(() => {
       setVideoError(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [theme]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -51,6 +51,7 @@ export const HomeHero: React.FC = React.memo(() => {
   }, [media, isMobile]);
 
   useEffect(() => {
+    if (theme === 'spiderman') return;
     gsap.registerPlugin(ScrollTrigger);
     
     // All themes now use standard scrolling (no pinning)
@@ -74,31 +75,14 @@ export const HomeHero: React.FC = React.memo(() => {
     };
   }, [media, isMobile, theme]);
 
+  if (theme === 'spiderman') return <SpiderHeroContent media={media} mobile={isMobile} />;
+
   const renderBackground = () => {
-    if (!media || !media.enabled) {
-      if (theme === 'bollywood') {
-        return (
-          <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.1), rgba(0,0,0,0.02) 40%, rgba(0,0,0,0.00) 70%)' }}>
-            <div className="absolute inset-0 bg-black z-0"></div>
-          </div>
-        );
-      }
-      return (
-        <div className="absolute inset-0 bg-[#000000] z-0">
-          <FluidBackground />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-950/20 via-[#050505] to-[#000000]" />
-        </div>
-      );
-    }
+    if (!media || !media.enabled) return null;
 
     const {
-      background_type,
-      video_url,
-      mobile_video_url,
       image_url,
       mobile_image_url,
-      poster_url,
-      mobile_poster_url,
       overlay_color,
       overlay_opacity,
       desktop_zoom,
@@ -120,11 +104,12 @@ export const HomeHero: React.FC = React.memo(() => {
       willChange: 'transform'
     };
 
-    const activeVideo = isMobile && mobile_video_url ? mobile_video_url : video_url;
-    const activeImage = isMobile && mobile_image_url ? mobile_image_url : image_url;
-    const activePoster = isMobile && mobile_poster_url ? mobile_poster_url : poster_url;
+    const background = resolveHomepageMedia(media, isMobile);
+    const activeVideo = background.kind === 'video' ? background.src : '';
+    const activeImage = background.kind === 'image' ? background.src : (isMobile ? mobile_image_url || image_url : image_url);
+    const activePoster = background.poster;
     
-    const videoToRender = (background_type === 'video' || background_type === 'auto') && activeVideo && !videoError;
+    const videoToRender = !!activeVideo && !videoError;
     const imageToRender = !videoToRender && activeImage;
 
     let mediaElement = null;
@@ -162,7 +147,7 @@ export const HomeHero: React.FC = React.memo(() => {
     } else {
       mediaElement = (
         <div className="absolute inset-0 bg-gradient-to-br from-[#030712] via-[#111827] to-[#030712]">
-          <FluidBackground />
+
         </div>
       );
     }
@@ -187,14 +172,10 @@ export const HomeHero: React.FC = React.memo(() => {
       <section ref={containerRef} className="hero-section relative h-screen flex items-center justify-center overflow-hidden bg-[#000000]">
         {renderBackground()}
 
-        {(!media || !media.enabled) && (
-          <React.Suspense fallback={null}>
-            <Canvas3D />
-          </React.Suspense>
-        )}
+
 
         <div ref={textContainerRef} className="relative z-10 w-full flex justify-center items-center h-full">
-          <CyberpunkHeroContent />
+          <React.Suspense fallback={null}><CyberpunkHeroContent showBackground={!media} /></React.Suspense>
         </div>
       </section>
     </div>

@@ -1,149 +1,83 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Mail, ArrowLeft, Send, CheckCircle2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Mail, Lock, Send, ShieldCheck, ArrowRight, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { FestivalAccessLayout } from '../components/FestivalAccessLayout';
 
+type Step = 'email' | 'otp' | 'password' | 'success';
 const ForgotPassword = () => {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [message, setMessage] = useState('');
+  const location = useLocation();
+  const recoveryQuery=new URLSearchParams(location.search);
+  const handoff = (location.state || (recoveryQuery.get('email') ? { email:recoveryQuery.get('email'),codeSent:recoveryQuery.get('codeSent')==='1' } : null)) as { email?: string; codeSent?: boolean } | null;
+  const [email, setEmail] = useState(handoff?.email || '');
+  const [step, setStep] = useState<Step>(handoff?.codeSent && handoff.email ? 'otp' : 'email');
+  const [code, setCode] = useState('');
+  const [token, setToken] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [cooldown, setCooldown] = useState(step === 'otp' ? 60 : 0);
+  useEffect(() => {
+    if (!cooldown) return;
+    const timer = window.setTimeout(() => setCooldown(value => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [cooldown]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
-    setStatus('loading');
-    try {
-      const response = await fetch('/.netlify/functions/request-password-reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setStatus('success');
-        setMessage(data.message || 'If an account exists with this email, you will receive a reset link shortly.');
-      } else {
-        setStatus('error');
-        setMessage(data.error || 'Failed to request password reset. Please try again.');
-      }
-    } catch (error) {
-      console.error('Request password reset error:', error);
-      setStatus('error');
-      setMessage('An unexpected error occurred. Please check your connection.');
-    }
+  const request = async (endpoint: string, body: object) => {
+    const response = await fetch(`/api/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Unable to complete the request. Please try again.');
+    return data;
   };
-
-  if (status === 'success') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6">
-        <div className="max-w-md w-full">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rico-glass-card rounded-3xl p-10 text-center border border-white/10"
-          >
-            <div className="w-20 h-20 bg-indigo-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="w-10 h-10 text-cyan-400" />
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-4">Email Sent</h1>
-            <p className="text-gray-400 mb-8 leading-relaxed">
-              {message}
-            </p>
-            <Link
-              to="/login"
-              className="inline-flex items-center text-cyan-400 hover:text-indigo-300 transition-colors font-medium"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Return to Login
-            </Link>
-          </motion.div>
-        </div>
-      </div>
-    );
-  }
+  const sendCode = async () => {
+    if (loading || cooldown > 0) return;
+    setLoading(true); setError(''); setNotice('');
+    try {
+      const result = await request('request-password-reset', { email: email.trim().toLowerCase() });
+      setStep('otp'); setCode(''); setCooldown(60); setNotice(result.message);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to send code.'); }
+    finally { setLoading(false); }
+  };
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (loading) return;
+    if (step === 'email') { await sendCode(); return; }
+    setError(''); setNotice('');
+    if (step === 'password' && password !== confirmPassword) { setError('Passwords do not match.'); return; }
+    setLoading(true);
+    try {
+      if (step === 'otp') {
+        const result = await request('verify-password-reset-otp', { email: email.trim().toLowerCase(), code });
+        setToken(result.token); setCode(''); setStep('password');
+      } else if (step === 'password') {
+        const result=await request('confirm-password-reset', { token, newPassword: password });
+        if(result.warning)setNotice(result.warning);
+        setToken(''); setPassword(''); setConfirmPassword(''); setStep('success');
+      }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Please try again.'); }
+    finally { setLoading(false); }
+  };
+  const restart = () => { setStep('email'); setToken(''); setCode(''); setPassword(''); setConfirmPassword(''); setError(''); setNotice(''); };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6 relative overflow-hidden">
-      {/* Background Glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none" />
-
-      <div className="max-w-md w-full relative z-10">
-        <Link 
-          to="/login" 
-          className="inline-flex items-center text-gray-400 hover:text-white transition-colors mb-8 group"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
-          Back to Login
-        </Link>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rico-glass-card rounded-3xl p-10 border border-white/10 shadow-2xl"
-        >
-          <div className="mb-10 text-center">
-            <div className="w-16 h-16 bg-indigo-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6 rotate-3">
-              <Mail className="w-8 h-8 text-cyan-400" />
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-3">Forgot Password?</h1>
-            <p className="text-gray-400">
-              Enter email address and we'll send you a link to reset your password.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-2 ml-1">
-                Email Address
-              </label>
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-cyan-400 transition-colors" />
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-600/50 focus:ring-4 focus:ring-indigo-600/10 transition-all"
-                  placeholder="admin@rioco.site"
-                  disabled={status === 'loading'}
-                />
-              </div>
-            </div>
-
-            {status === 'error' && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm"
-              >
-                {message}
-              </motion.div>
-            )}
-
-            <button
-              type="submit"
-              disabled={status === 'loading'}
-              className="w-full bg-indigo-600 hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98]"
-            >
-              {status === 'loading' ? (
-                <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Send className="w-5 h-5" />
-                  Send Reset Link
-                </>
-              )}
-            </button>
-          </form>
-        </motion.div>
-      </div>
-    </div>
+    <FestivalAccessLayout title={step === 'success' ? 'Password updated.' : step === 'password' ? 'Set a new password.' : step === 'otp' ? 'Verify your email.' : 'Forgot password?'} eyebrow="RICORRENZA · ACCOUNT RECOVERY" description={step === 'success' ? 'You can now sign in with your new password.' : step === 'password' ? 'Email verified. Choose a new password for your account.' : step === 'otp' ? `Enter the 6-digit code sent to ${email}.` : 'We’ll email you a verification code to reset your password.'} sectionLabel={step === 'password' ? 'Create your new password' : 'Email verification'} accessLabel="Admin & owner" footerLabel="SECURE ACCOUNT RECOVERY" icon={step === 'success' ? CheckCircle2 : Mail}>
+      {step === 'success' ? <>{notice && <p className="council-message" role="status">{notice}</p>}<Link className="council-submit recovery-sign-in" to="/login">Return to login<ArrowRight size={18} /></Link></> : (
+        <form onSubmit={handleSubmit} className="council-form" aria-busy={loading}>
+          {step === 'email' && <><div className="council-field-heading"><label htmlFor="recovery-email">Email address</label></div><div className="council-password"><Mail size={18} aria-hidden="true" /><input id="recovery-email" type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="Enter your admin email" required disabled={loading} /></div><p className="council-help">Use the email registered for your admin or owner account.</p></>}
+          {step === 'otp' && <><div className="council-field-heading"><label htmlFor="recovery-code">Verification code</label><span>Valid for 10 minutes</span></div><div className="council-password"><ShieldCheck size={18} aria-hidden="true" /><input id="recovery-code" className="recovery-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" required disabled={loading} aria-describedby="recovery-code-help" /></div><p id="recovery-code-help" className="council-help">Check your inbox and spam folder. Only the latest code works.</p></>}
+          {step === 'password' && <>{[{ id: 'recovery-password', label: 'New password', value: password, update: setPassword }, { id: 'recovery-confirm', label: 'Confirm password', value: confirmPassword, update: setConfirmPassword }].map(field => <div key={field.id} className="recovery-password-field"><div className="council-field-heading"><label htmlFor={field.id}>{field.label}</label></div><div className="council-password"><Lock size={18} aria-hidden="true" /><input id={field.id} type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={8} value={field.value} onChange={event => field.update(event.target.value)} placeholder="At least 8 characters" required disabled={loading} /><button type="button" aria-label={showPassword ? 'Hide passwords' : 'Show passwords'} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></div>)}</>}
+          {notice && <p className="recovery-notice" role="status">{notice}</p>}
+          {error && <p className="council-error" role="alert">{error}</p>}
+          <button type="submit" className="council-submit" disabled={loading || (step === 'email' && (!email.trim() || cooldown > 0)) || (step === 'otp' && code.length !== 6) || (step === 'password' && (!password || !confirmPassword))}><span>{loading ? 'Please wait…' : step === 'email' ? (cooldown > 0 ? `Send code in ${cooldown}s` : 'Send verification code') : step === 'otp' ? 'Verify code' : 'Update password'}</span>{step === 'email' ? <Send size={18} /> : <ArrowRight size={18} />}</button>
+          {step === 'otp' && <div className="recovery-actions"><button type="button" onClick={() => void sendCode()} disabled={loading || cooldown > 0}>{cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}</button><button type="button" onClick={restart} disabled={loading}>Change email</button></div>}
+          {step === 'password' && <div className="recovery-actions"><button type="button" onClick={restart} disabled={loading}>Start again with a new code</button></div>}
+          <span className="council-sr-only" role="status">{loading ? 'Processing your recovery request' : ''}</span>
+        </form>
+      )}
+      <div className="council-access-note"><ShieldCheck size={20} /><p>Secure account recovery<span>Never share your verification code or password.</span></p></div>
+    </FestivalAccessLayout>
   );
 };
-
 export default ForgotPassword;

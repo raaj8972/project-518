@@ -1,68 +1,16 @@
 import type { Handler } from '@netlify/functions';
 import { supabase } from './lib/supabase';
-import { verifyAdmin } from './lib/auth-verify';
-
-export const handler: Handler = async (event) => {
-  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
-  
-  const authHeader = event.headers['authorization'] || event.headers['Authorization'];
-
-  const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key']
-  const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
-
-  const isMasterAuthorized = (masterKey === process.env.MASTER_BYPASS_KEY) || 
-                              (masterKey === process.env.MASTER_BYPASS_KEY) || 
-                              (MASTER_KEY && masterKey === MASTER_KEY);
-  if (!isMasterAuthorized) {
-    if (!authHeader) {
-      return { statusCode: 401, body: 'Missing authorization header' }
-    }
-
-    const { isOwner, user } = await verifyAdmin(authHeader.toString(), supabase);
-
-    if (!user) {
-      return { statusCode: 401, body: 'Invalid or expired session' }
-    }
-
-    if (!isOwner) {
-      return { statusCode: 403, body: 'Only owners can delete admin accounts' }
-    }
-
-  }
-
-  const { user_id } = JSON.parse(event.body || '{}')
-  if (!user_id) return { statusCode: 400, body: 'Missing user_id' }
-
-  try {
-    // Prevent removing the owner?
-    // The UI checks this, but good to be safe.
-    // However, we are bypassing, so we assume the caller (Mock Owner) knows what they are doing.
-    // But we should probably check if the target is the owner.
-    
-    const { data: target } = await supabase.from('admin_users').select('role').eq('user_id', user_id).single()
-    if (target?.role === 'owner') {
-      return { statusCode: 403, body: 'Cannot remove owner' }
-    }
-
-    // Delete from admin_users table first (to revoke access immediately)
-    const { error: dbError } = await supabase.from('admin_users').delete().eq('user_id', user_id)
-    if (dbError) throw dbError
-
-    // Also delete from Supabase Auth to prevent login
-    const { error: authError } = await supabase.auth.admin.deleteUser(user_id)
-    if (authError) {
-      console.warn('Failed to delete from Auth (might already be deleted):', authError)
-      // We don't throw here, because database access is revoked anyway
-    }
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ success: true, message: 'Admin user and auth deleted' })
-    }
-  } catch (err: any) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: err.message })
-    }
-  }
-}
+import { invitationReply as reply,ownerForInvitation } from './lib/admin-invitations';
+export const handler:Handler=async event=>{
+  if(event.httpMethod!=='POST')return reply(405,{error:'Method not allowed'});
+  try{
+    const owner=await ownerForInvitation(event,supabase);
+    if(!owner)return reply(403,{error:'Only owners can remove admin accounts.'});
+    let body;try{body=JSON.parse(event.body||'{}');}catch{return reply(400,{error:'Invalid request'});}
+    if(typeof body?.user_id!=='string'||body.user_id===owner.id)return reply(400,{error:'Choose another admin account to remove.'});
+    const {error}=await supabase.rpc('revoke_admin_account',{p_user_id:body.user_id});
+    if(error)return reply(400,{error:'Could not remove this account. Owner accounts are protected.'});
+    const {error:authError}=await supabase.auth.admin.deleteUser(body.user_id);
+    return reply(200,{success:true,identityCleanupPending:!!authError,message:'Admin access and sessions revoked.'});
+  }catch{return reply(500,{error:'Could not revoke admin access. Please try again.'});}
+};

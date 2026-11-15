@@ -137,7 +137,7 @@ const ParticipantCarousel: React.FC = () => {
   );
 
   return (
-    <div className="relative overflow-visible">
+    <div className="student-festival-stars relative overflow-visible">
       <AnimatePresence>
         {bursts.map(burst => <HypeParticles key={burst.id} x={burst.x} y={burst.y} color={burst.color} />)}
       </AnimatePresence>
@@ -176,7 +176,17 @@ const ParticipantCarousel: React.FC = () => {
               key={star.id}
               whileHover={{ y: -8, scale: 1.01 }}
               onClick={() => setSelectedProfile(star)}
-              className={`relative w-[230px] shrink-0 p-5 rounded-[2.5rem] border backdrop-blur-3xl group cursor-pointer transition-all duration-500 overflow-hidden snap-center ${
+              tabIndex={0}
+              role="button"
+              aria-label={`View ${star.full_name}'s profile, rank ${rank}`}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  setSelectedProfile(star);
+                }
+              }}
+              className={`student-festival-star relative w-[230px] shrink-0 p-5 rounded-[2.5rem] border backdrop-blur-3xl group cursor-pointer transition-all duration-500 overflow-hidden snap-center ${
                 isLegendary ? rankGradients[idx] : 'border-white/10 bg-black/40 hover:bg-black/60 shadow-xl'
               }`}
               style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
@@ -194,6 +204,8 @@ const ParticipantCarousel: React.FC = () => {
               {/* Like Button */}
               <button
                 onClick={(e) => { e.stopPropagation(); handleLike(star.id, e, isLegendary ? idx : undefined); }}
+                aria-label={`${myLikes.includes(star.id) ? 'Unlike' : 'Like'} ${star.full_name}'s profile`}
+                aria-pressed={myLikes.includes(star.id)}
                 className={`absolute top-3.5 right-4 p-2 rounded-2xl transition-all z-40 border ${
                   myLikes.includes(star.id) 
                     ? 'bg-red-500 border-red-400 text-white shadow-lg shadow-red-500/30 scale-105' 
@@ -222,7 +234,7 @@ const ParticipantCarousel: React.FC = () => {
                   {star.full_name}
                 </h4>
                 <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">
-                  {star.batch || (isLegendary ? 'LEGENDRY' : 'STAR')}
+                  {star.batch || (isLegendary ? 'RICO STAR' : 'STAR')}
                 </p>
               </div>
 

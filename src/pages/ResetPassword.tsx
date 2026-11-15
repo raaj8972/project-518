@@ -39,7 +39,7 @@ const ResetPassword = () => {
 
     setStatus('loading');
     try {
-      const response = await fetch('/.netlify/functions/confirm-password-reset', {
+      const response = await fetch('/api/confirm-password-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newPassword: password }),

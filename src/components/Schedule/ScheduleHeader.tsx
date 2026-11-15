@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, Search, Filter } from 'lucide-react';
+import '../../styles/FestivalSections.css';
 
 interface ScheduleHeaderProps {
   searchQuery: string;
@@ -17,7 +18,7 @@ const ScheduleHeader: React.FC<ScheduleHeaderProps> = ({
   allCategories,
 }) => {
   return (
-    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+    <div className="festival-schedule-header flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
       <div className="space-y-2">
         <div className="flex items-center gap-3 text-[#ff3333] mb-2">
           <Calendar className="w-5 h-5" />
@@ -35,7 +36,8 @@ const ScheduleHeader: React.FC<ScheduleHeaderProps> = ({
         <div className="relative group flex-1 sm:min-w-[300px]">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-[#ff3333] transition-colors" />
           <input
-            type="text"
+            type="search"
+            aria-label="Search events and venues"
             placeholder="Search events, venues..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -46,6 +48,7 @@ const ScheduleHeader: React.FC<ScheduleHeaderProps> = ({
         <div className="relative flex items-center bg-white/5 border border-white/10 rounded-2xl p-1">
           <Filter className="w-5 h-5 text-gray-400 ml-3 mr-2" />
           <select 
+            aria-label="Filter schedule by category"
             value={activeFilter}
             onChange={(e) => setActiveFilter(e.target.value)}
             className="bg-transparent text-white py-3 pr-8 focus:outline-none appearance-none cursor-pointer"

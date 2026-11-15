@@ -1,6 +1,5 @@
 import React from 'react';
 import DOMPurify from 'dompurify';
-import { ScrollReveal } from '../ui/ScrollReveal';
 import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 
 interface AboutSettings {
@@ -11,6 +10,8 @@ interface AboutSettings {
   tracks?: string[];
   zones?: string[];
   stats?: { value: string; label: string }[];
+  tracksLabel?: string | null;
+  zonesLabel?: string | null;
 }
 
 interface AboutSectionProps {
@@ -44,7 +45,7 @@ const AboutSection: React.FC<AboutSectionProps> = ({ aboutSettings }) => {
                   {(aboutSettings?.hero_paragraphs && aboutSettings.hero_paragraphs.length > 0
                     ? aboutSettings.hero_paragraphs
                     : [
-                        "{BRAND_NAME} {BRAND_YEAR} is not just a festival—it's a revolution that merges the boundaries between healthcare innovation, cutting-edge technology, and creative expression.",
+                        `${BRAND_NAME} ${BRAND_YEAR} brings our campus together through culture, creativity and competition.`,
                         'Born from the vision of creating a platform where digital dreams meet reality, RICORRENZA has evolved into the most anticipated festival experience, attracting visionaries, innovators, and creators from across the digital landscape.',
                         'Our festival celebrates the convergence of disciplines—where medical students become tech innovators, where artists code their creativity, and where the future of human potential is explored through immersive experiences.'
                       ]).map((para, i) => {
@@ -56,7 +57,7 @@ const AboutSection: React.FC<AboutSectionProps> = ({ aboutSettings }) => {
                 {/* Key Features */}
                 <div className="mt-8 grid md:grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <h4 className="text-lg font-bold text-indigo-400 mb-3">FESTIVAL TRACKS</h4>
+                    <h4 className="text-lg font-bold text-indigo-400 mb-3">{aboutSettings?.tracksLabel || 'FESTIVAL TRACKS'}</h4>
                     <div className="space-y-2">
                       {(aboutSettings?.tracks?.length ? aboutSettings.tracks : [
                         'Healthcare Technology','Digital Arts & Media','Music','Interactive Experiences'
@@ -74,7 +75,7 @@ const AboutSection: React.FC<AboutSectionProps> = ({ aboutSettings }) => {
                   </div>
                   
                   <div className="space-y-3">
-                    <h4 className="text-lg font-bold text-violet-400 mb-3">EXPERIENCE ZONES</h4>
+                    <h4 className="text-lg font-bold text-violet-400 mb-3">{aboutSettings?.zonesLabel || 'EXPERIENCE ZONES'}</h4>
                     <div className="space-y-2">
                       {(aboutSettings?.zones?.length ? aboutSettings.zones : [
                         'Virtual Reality Labs','AI Demonstration Pods','Art Galleries','Future Tech Showcases'
@@ -101,10 +102,7 @@ const AboutSection: React.FC<AboutSectionProps> = ({ aboutSettings }) => {
                   {/* Animated Stats */}
                   <div className="grid grid-cols-2 gap-8 mb-12">
                     {(aboutSettings?.stats?.length ? aboutSettings.stats : [
-                      { value: BRAND_YEAR, label: 'FESTIVAL YEAR' },
-                      { value: '3+', label: 'DAYS OF EVENTS' },
-                      { value: '1000+', label: 'PARTICIPANTS' },
-                      { value: '∞', label: 'POSSIBILITIES' }
+                      { value: BRAND_YEAR, label: 'FESTIVAL YEAR' }
                     ]).map((s, i) => (
                       <div key={i} className="text-center group">
                         <div className={`text-4xl md:text-5xl font-black mb-3 transition-transform duration-500 group-hover:scale-110 stranger-title-glow`}>{s.value}</div>

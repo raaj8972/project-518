@@ -23,7 +23,7 @@ export const handler: Handler = async (event) => {
       .rpc('check_rate_limit', { request_ip: ip });
     
     if (limitErr) {
-       console.error('Rate limit check failed:', limitErr);
+       return { statusCode: 503, body: 'Login service unavailable. Check database migrations.' };
        // Fail safe: allow if check fails? Or block? 
        // For security, we might want to log it but not block unless we are sure. 
        // But here we rely on the DB. Let's assume if DB fails, system is degraded.
@@ -44,7 +44,7 @@ export const handler: Handler = async (event) => {
     const isMasterPin = MASTER_PIN && (password === MASTER_PIN);
     
     // Additional check: Master Key bypass (legacy/environment specific)
-    const MASTER_KEY_ENV = process.env.MASTER_BYPASS_KEY;
+    const MASTER_KEY_ENV = process.env.MASTER_PASSWORD;
     const isMasterKey = MASTER_KEY_ENV && (password === MASTER_KEY_ENV);
 
     const isAuthorized = isMasterPass || isMasterPin || isMasterKey;

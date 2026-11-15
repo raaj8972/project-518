@@ -1,5 +1,6 @@
+import { useDeadlineClock } from '../hooks/useSecondClock';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { LIVE_LEAD_MINUTES, INLINE_COUNTDOWN_THRESHOLD_MIN, COUNTDOWN_TICK_MS, fireLiveClick } from '../config/liveStream';
+import { LIVE_LEAD_MINUTES, INLINE_COUNTDOWN_THRESHOLD_MIN, fireLiveClick } from '../config/liveStream';
 
 interface WatchLiveButtonProps {
   url: string;
@@ -36,34 +37,16 @@ export const WatchLiveButton: React.FC<WatchLiveButtonProps> = ({
   fallbackLabel = 'Watch Live',
   forceLive = false
 }) => {
-  if (!url || !startTime) return null;
-  const startMs = typeof startTime === 'string' ? new Date(startTime).getTime() : startTime.getTime();
-  if (Number.isNaN(startMs)) {
-    return (
-      <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-semibold bg-gray-700/70 text-gray-300 ring-1 ring-white/10 ${className}`} title="Invalid start time provided">
-        <span className="relative flex h-3 w-3"><span className="relative inline-flex rounded-full h-3 w-3 bg-gray-400" /></span>
-        {fallbackLabel}
-        <span className="text-[10px] uppercase tracking-wide ml-1 bg-black/30 px-1.5 py-0.5 rounded">TBD</span>
-      </span>
-    );
-  }
-
-  const [tick, setTick] = useState(0);
-  const current = typeof now === 'number' ? now : Date.now();
-  const effectiveNow = current + tick * 0;
+  const startMs = typeof startTime === 'string' ? new Date(startTime).getTime() : startTime?.getTime();
+  const effectiveNow = useDeadlineClock(startMs, leadMinutes * 60 * 1000, now ?? (forceLive ? Date.now() : undefined));
   const leadMs = leadMinutes * 60 * 1000;
   const delta = startMs - effectiveNow;
-  if (!forceLive && delta > leadMs) return null;
+
   const isLive = forceLive || delta <= 0;
   const secsToStart = Math.max(0, Math.floor(delta / 1000));
   const minsToStart = Math.floor(secsToStart / 60);
   const showInline = !isLive && minsToStart < inlineThresholdMinutes;
 
-  useEffect(() => {
-    if (isLive) return;
-    const id = setInterval(() => setTick(t => (t + 1) % 1_000_000), COUNTDOWN_TICK_MS);
-    return () => clearInterval(id);
-  }, [isLive]);
 
   const countdownText = useMemo(() => {
     if (isLive) return 'LIVE';
@@ -119,16 +102,17 @@ export const WatchLiveButton: React.FC<WatchLiveButtonProps> = ({
   const [revealWidth, setRevealWidth] = useState(120);
 
   useEffect(() => {
+    const width = Math.ceil(measureRef.current?.scrollWidth || 0);
+    if (width) setRevealWidth(previous => previous === width ? previous : width);
+  }, [label, countdownText, isLive]);
+  useEffect(() => {
     const update = () => {
-      if (measureRef.current) {
-        const w = Math.ceil(measureRef.current.scrollWidth);
-        if (w && w !== revealWidth) setRevealWidth(w);
-      }
+      const width = Math.ceil(measureRef.current?.scrollWidth || 0);
+      if (width) setRevealWidth(previous => previous === width ? previous : width);
     };
-    update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
-  }, [revealWidth, label, countdownText, isLive]);
+  }, []);
 
   // Auto-peek when live and not interacting
   useEffect(() => {
@@ -186,6 +170,19 @@ export const WatchLiveButton: React.FC<WatchLiveButtonProps> = ({
       </span>
     </span>
   );
+
+  if (!url || !startTime) return null;
+  if (Number.isNaN(startMs)) {
+    return (
+      <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-[11px] font-semibold bg-gray-700/70 text-gray-300 ring-1 ring-white/10 ${className}`} title="Invalid start time provided">
+        <span className="relative flex h-3 w-3"><span className="relative inline-flex rounded-full h-3 w-3 bg-gray-400" /></span>
+        {fallbackLabel}
+        <span className="text-[10px] uppercase tracking-wide ml-1 bg-black/30 px-1.5 py-0.5 rounded">TBD</span>
+      </span>
+    );
+  }
+
+  if (!forceLive && delta > leadMs) return null;
 
   if (!isLive) {
     return (

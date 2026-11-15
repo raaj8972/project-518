@@ -17,12 +17,6 @@ interface ShoutOut {
   author_rank?: number;
 }
 
-const DUMMY_SHOUTOUTS: ShoutOut[] = [
-  { id: '1', message: 'Best of luck to all the participants! 🚀', is_anonymous: false, created_at: new Date().toISOString(), user_id: 'dummy1' },
-  { id: '2', message: 'This fest is going to be legendary! 🔥', is_anonymous: true, created_at: new Date().toISOString(), user_id: 'dummy2' },
-  { id: '3', message: 'Kudos to the organizing team! ❤️', is_anonymous: false, created_at: new Date().toISOString(), user_id: 'dummy3' },
-];
-
 const ShoutOutBoard: React.FC = () => {
   const { user } = useStudentAuth();
   const { awardXP } = useXPEngine();
@@ -157,8 +151,7 @@ const ShoutOutBoard: React.FC = () => {
       }
     } catch (err) {
       console.error('Error fetching shoutouts:', err);
-      // Fallback only on critical error to keep UI alive
-      setShoutouts(DUMMY_SHOUTOUTS);
+      toast.error('Messages could not load. Please retry.');
     } finally {
       setLoading(false);
     }
@@ -216,8 +209,8 @@ const ShoutOutBoard: React.FC = () => {
       const { error } = await supabase.from('shoutouts').insert({
         user_id: user.id,
         message: newMessage.trim(),
-        is_anonymous: isAnonymous
-        // is_approved now defaults to true in DB
+        is_anonymous: isAnonymous,
+        is_approved: true
       });
 
       if (error) throw error;

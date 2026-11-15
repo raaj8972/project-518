@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Command, Sparkles, ChevronRight, X, UserCheck, Calendar, Image, Shield } from 'lucide-react';
+import { Search, Sparkles, ChevronRight, UserCheck, Calendar, Image } from 'lucide-react';
 
 interface CommandPaletteProps {
   isOpen: boolean;

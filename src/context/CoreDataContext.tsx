@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase, SUPABASE_HOST } from '../lib/supabase';
-import { dualRead, dualUpsert, dualInsert, dualUpdate, dualDelete } from '../lib/dualDb';
+import { dualRead, dualUpsert, dualInsert, dualUpdate, dualDelete, invalidateTableCache } from '../lib/dualDb';
 import { useAuth } from './AuthContext';
+import { getPublicSecuritySettings } from '../services/publicSecuritySettings';
 import { 
   SiteSettings, HeroMedia, AboutSettings, HomeboundSettings, 
   HomepageSettings, FormSettings, SocialMediaSettings, SecuritySettings, PageKey, RoadmapMilestone,
@@ -72,7 +73,7 @@ export const useCoreData = () => {
   return context;
 };
 
-export function CoreDataProvider({ children }: { children: ReactNode }) {
+export function CoreDataProvider({ children, pathname = '/' }: { children: ReactNode; pathname?: string }) {
   const { user } = useAuth();
 
 
@@ -123,7 +124,8 @@ export function CoreDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateHeroMedia = async (pageKey: PageKey, patch: Partial<HeroMedia>) => {
-    await dualUpsert('hero_media', { page_key: pageKey, ...patch });
+    const { data: existing } = await dualRead({ table: 'hero_media', eq: ['page_key', pageKey], maybeSingle: true });
+    await dualUpsert('hero_media', { ...(existing?.id ? { id: existing.id } : {}), page_key: pageKey, ...patch });
     await fetchHeroMedia(pageKey);
   };
 
@@ -215,71 +217,33 @@ export function CoreDataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshAll = useCallback(async (silent: boolean = false) => {
-    // Determine if we should show the full-page loader
-    const shouldShowLoader = !silent && (refreshTrigger === 0 || !siteSettings);
-    if (shouldShowLoader) setLoading(true);
-    console.log('[CoreContext] refreshAll started (silent:', silent, ')');
-    console.time('refreshAll_total');
-    try {
-      // Increment trigger to signal all sub-contexts to re-fetch
-      setRefreshTrigger(prev => prev + 1);
-      
-      // Fetch core-specific data using dualRead for Firestore prioritization
-      console.log('[CoreContext] Fetching settings...');
-      const startQueries = Date.now();
-      
-      const [siteRes, aboutRes, homeboundRes, homepageRes, formRes, socialRes, securityRes] = await Promise.all([
-        dualRead({ 
-          table: 'site_settings', 
-          select: '*', // simplified: * handles all columns including new ones
-          eq: ['id', 1], 
-          maybeSingle: true,
-          forceRefresh: true // Bypass cache on manual refresh
-        }).then(r => { console.log('✔ site_settings'); return r; }),
-        dualRead({ 
-          table: 'about_settings', 
-          eq: ['id', 1], 
-          maybeSingle: true 
-        }).then(r => { console.log('✔ about_settings'); return r; }),
-        dualRead({ 
-          table: 'homebound_settings', 
-          eq: ['id', 1], 
-          maybeSingle: true 
-        }).then(r => { console.log('✔ homebound_settings'); return r; }),
-        dualRead({ 
-          table: 'homepage_settings', 
-          eq: ['id', 1], 
-          maybeSingle: true 
-        }).then(r => { console.log('✔ homepage_settings'); return r; }),
-        dualRead({ table: 'form_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ form_settings'); return r; }),
-        dualRead({ table: 'social_media_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ social_settings'); return r; }),
-        dualRead({ table: 'security_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ security_settings'); return r; })
-      ]);
-
-      console.log('[CoreContext] Settings fetched in ' + (Date.now() - startQueries) + 'ms');
-      console.log('[CoreContext] Site Settings Data:', siteRes.data);
-
-      setSiteSettings(siteRes.data);
-      setAboutSettings(aboutRes.data);
-      setHomeboundSettings(homeboundRes.data);
-      setHomepageSettings(homepageRes.data);
-      setFormSettings(formRes.data);
-      setSocialMediaSettings(socialRes.data as any);
-      setSecuritySettings(securityRes.data);
-
-    } catch (err: any) {
-      console.error('[CoreContext] refreshAll error:', err);
-      setLastError(err.message);
-    } finally {
-      console.timeEnd('refreshAll_total');
-      if (!silent) setLoading(false);
-      setIsLoaded(true);
-    }
-  }, []); // Removed siteSettings dependency to prevent redundant refreshes.
+  const refreshAll = useCallback(async (silent = false) => {
+    if (!silent) { setLoading(true); setRefreshTrigger(previous => previous + 1); }
+    setLastError(null);
+    const read = async (table: string, apply: (data: any) => void) => {
+      try {
+        const { data } = await dualRead({ table, eq: ['id', 1], maybeSingle: true });
+        apply(data);
+      } catch (error: any) {
+        setLastError(error.message || 'Some settings could not be loaded');
+      }
+    };
+    // Only branding/site access are prerequisites for the first usable screen.
+    const essential = Promise.all([
+      read('site_settings', setSiteSettings),
+      read('homepage_settings', setHomepageSettings),
+    ]).finally(() => { setLoading(false); setIsLoaded(true); });
+    const admin = pathname.startsWith('/admin');
+    const optional: Promise<unknown>[] = [read('social_media_settings', setSocialMediaSettings)];
+    if (admin || pathname === '/' || pathname === '/health') optional.push(read('about_settings', setAboutSettings));
+    if (admin || pathname === '/' || ['/events', '/dashboard', '/rico-family', '/home-bound'].some(p => pathname.startsWith(p))) optional.push(read('form_settings', setFormSettings));
+    if (admin || pathname.startsWith('/home-bound')) optional.push(read('homebound_settings', setHomeboundSettings));
+    optional.push(getPublicSecuritySettings().then(setSecuritySettings).catch((error: any) => setLastError(error.message)));
+    await Promise.all([essential, ...optional]);
+  }, [pathname]);
 
   useEffect(() => {
-    refreshAll();
+    void refreshAll(true);
   }, [refreshAll, user?.id]);
 
   // Real-time subscription for site_settings & homepage_settings
@@ -310,7 +274,13 @@ export function CoreDataProvider({ children }: { children: ReactNode }) {
       })
       .subscribe();
 
+    const aboutChannel = supabase.channel('homepage-about-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'about_settings', filter: 'id=eq.1' }, payload => { invalidateTableCache('about_settings'); setAboutSettings(payload.eventType === 'DELETE' ? null : payload.new as AboutSettings); }).subscribe();
+
+    const socialChannel=supabase.channel('homepage-social-changes').on('postgres_changes',{event:'*',schema:'public',table:'social_media_settings',filter:'id=eq.1'},payload=>{invalidateTableCache('social_media_settings');setSocialMediaSettings(payload.eventType==='DELETE'?null:payload.new as SocialMediaSettings);}).subscribe();
+
     return () => {
+      supabase.removeChannel(socialChannel);
+      supabase.removeChannel(aboutChannel);
       supabase.removeChannel(siteChannel);
       supabase.removeChannel(homeChannel);
     };

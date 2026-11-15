@@ -3,24 +3,24 @@ import { useAnnualSports } from '../../context/AnnualSportsContext';
 import { useSportsData } from '../../context/SportsContext';
 import { useData } from '../../context/DataContext';
 import { Calendar, Plus, Edit, Trash2, X } from 'lucide-react';
-import { SportsMatch } from '../../types/data';
+import { AnnualSportsMatch as SportsMatch } from '../../types/data';
 
 const inputCls = 'w-full bg-white/[0.05] border border-white/10 rounded-2xl py-3 px-4 text-sm text-white focus:border-gold-500/50 focus:ring-2 focus:ring-gold-500/20';
 const labelCls = 'block text-[11px] font-black text-gold-500/60 uppercase tracking-[0.2em] mb-2';
 
 export const AnnualSportsScheduleManagement: React.FC = () => {
   const { annualEvents, annualRegistrations } = useAnnualSports();
-  const { sportsMatches, addSportsMatch, updateSportsMatch, deleteSportsMatch } = useSportsData();
+  const { annualSportsMatches: sportsMatches, addAnnualSportsMatch: addSportsMatch, updateAnnualSportsMatch: updateSportsMatch, deleteAnnualSportsMatch: deleteSportsMatch } = useSportsData();
   const { isAdmin } = useData();
 
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const [form, setForm] = useState<Partial<SportsMatch>>({
-    annual_event_id: null,
-    team_a_id: null,
-    team_b_id: null,
+    event_id: '',
+    team_a_registration_id: null,
+    team_b_registration_id: null,
     match_date: new Date().toISOString().slice(0, 16),
     venue: '',
     status: 'upcoming',
@@ -29,18 +29,18 @@ export const AnnualSportsScheduleManagement: React.FC = () => {
   });
 
   // Filter out non-annual sports matches
-  const annualMatches = sportsMatches.filter(m => m.annual_event_id);
+  const annualMatches = sportsMatches.filter(m => m.event_id);
   const visibleMatches = selectedEventId 
-    ? annualMatches.filter(m => String(m.annual_event_id) === String(selectedEventId))
+    ? annualMatches.filter(m => String(m.event_id) === String(selectedEventId))
     : annualMatches;
 
   const eventTeams = annualRegistrations.filter(r => r.event_id === selectedEventId && r.status === 'approved');
 
   const resetForm = () => {
     setForm({
-      annual_event_id: selectedEventId || null,
-      team_a_id: null,
-      team_b_id: null,
+      event_id: selectedEventId || '',
+      team_a_registration_id: null,
+      team_b_registration_id: null,
       match_date: new Date().toISOString().slice(0, 16),
       venue: '',
       status: 'upcoming',
@@ -50,16 +50,18 @@ export const AnnualSportsScheduleManagement: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!form.annual_event_id || !form.match_date) {
+    if (!form.event_id || !form.match_date) {
       alert('Event and Date are required');
       return;
     }
 
     try {
+      const [match_date, match_time] = form.match_date.split('T');
+      const payload = { ...form, match_date, match_time };
       if (editingId) {
-        await updateSportsMatch(editingId as any, form);
+        await updateSportsMatch(editingId, payload);
       } else {
-        await addSportsMatch(form);
+        await addSportsMatch(payload);
       }
       setIsAdding(false);
       setEditingId(null);
@@ -70,7 +72,7 @@ export const AnnualSportsScheduleManagement: React.FC = () => {
   };
 
   const startEdit = (match: SportsMatch) => {
-    setForm({ ...match, match_date: new Date(match.match_date).toISOString().slice(0, 16) });
+    setForm({ ...match, match_date: match.match_date ? `${match.match_date.slice(0, 10)}T${match.match_time?.slice(0, 5) || '00:00'}` : '' });
     setEditingId(match.id as any);
     setIsAdding(true);
   };
@@ -98,7 +100,7 @@ export const AnnualSportsScheduleManagement: React.FC = () => {
             value={selectedEventId}
             onChange={(e) => {
               setSelectedEventId(e.target.value);
-              setForm(prev => ({ ...prev, annual_event_id: e.target.value }));
+              setForm(prev => ({ ...prev, event_id: e.target.value }));
             }}
             className={inputCls + ' w-64'}
           >
@@ -131,7 +133,7 @@ export const AnnualSportsScheduleManagement: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Match Date & Time *</label>
-              <input type="datetime-local" value={form.match_date} onChange={e => setForm({...form, match_date: e.target.value})} className={inputCls} />
+              <input type="datetime-local" value={form.match_date || ''} onChange={e => setForm({...form, match_date: e.target.value})} className={inputCls} />
             </div>
             <div>
               <label className={labelCls}>Venue</label>
@@ -142,13 +144,13 @@ export const AnnualSportsScheduleManagement: React.FC = () => {
               <label className={labelCls}>Teams / Participants (Optional for individual)</label>
             </div>
             <div>
-              <select value={form.team_a_id || ''} onChange={e => setForm({...form, team_a_id: e.target.value})} className={inputCls}>
+              <select value={form.team_a_registration_id || ''} onChange={e => setForm({...form, team_a_registration_id: e.target.value})} className={inputCls}>
                 <option value="">Select Participant 1 (Optional)</option>
                 {eventTeams.map(r => <option key={r.id} value={r.id}>{r.is_team_registration ? r.team_name : r.full_name}</option>)}
               </select>
             </div>
             <div>
-              <select value={form.team_b_id || ''} onChange={e => setForm({...form, team_b_id: e.target.value})} className={inputCls}>
+              <select value={form.team_b_registration_id || ''} onChange={e => setForm({...form, team_b_registration_id: e.target.value})} className={inputCls}>
                 <option value="">Select Participant 2 (Optional)</option>
                 {eventTeams.map(r => <option key={r.id} value={r.id}>{r.is_team_registration ? r.team_name : r.full_name}</option>)}
               </select>
@@ -190,14 +192,14 @@ export const AnnualSportsScheduleManagement: React.FC = () => {
             </thead>
             <tbody>
               {visibleMatches.map(match => {
-                const r1 = annualRegistrations.find(r => r.id === match.team_a_id);
-                const r2 = annualRegistrations.find(r => r.id === match.team_b_id);
-                const ev = annualEvents.find(e => String(e.id) === String(match.annual_event_id));
+                const r1 = annualRegistrations.find(r => r.id === match.team_a_registration_id);
+                const r2 = annualRegistrations.find(r => r.id === match.team_b_registration_id);
+                const ev = annualEvents.find(e => String(e.id) === String(match.event_id));
                 
                 return (
                   <tr key={match.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     <td className="p-4">
-                      <div className="font-medium text-white text-sm">{new Date(match.match_date).toLocaleString()}</div>
+                      <div className="font-medium text-white text-sm">{match.match_date ? `${new Date(match.match_date).toLocaleDateString()} ${match.match_time || ''}` : 'TBA'}</div>
                       <div className="text-xs text-white/40">{match.venue || 'TBA'}</div>
                       {!selectedEventId && <div className="text-[10px] text-emerald-400 mt-1 uppercase tracking-wider">{ev?.name}</div>}
                     </td>
@@ -209,7 +211,7 @@ export const AnnualSportsScheduleManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="p-4">
-                      <div className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase ${match.status === 'completed' ? 'bg-zinc-500/20 text-zinc-300' : match.status === 'ongoing' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                      <div className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase ${match.status === 'completed' ? 'bg-zinc-500/20 text-zinc-300' : 'bg-blue-500/20 text-blue-400'}`}>
                         {match.status}
                       </div>
                       {(match.score_a || match.score_b) && (

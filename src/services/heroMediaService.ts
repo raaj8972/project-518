@@ -1,5 +1,6 @@
+import { recordValue, textValue, finiteValue } from '../utils/studioData';
 import { supabase } from '../lib/supabase';
-import { dualRead, dualUpsert } from '../lib/dualDb';
+import { dualRead, dualUpsert, invalidateTableCache } from '../lib/dualDb';
 
 export type BackgroundType = 'image' | 'video' | 'auto';
 
@@ -41,6 +42,21 @@ const DEFAULT_HERO_MEDIA: HeroMediaV2 = {
   mobile_offset_y: 0,
 };
 
+/** Normalize at every boundary; nullable database columns must never escape as typed strings. */
+export function normalizeHeroMedia(value: unknown, baseline: HeroMediaV2 = DEFAULT_HERO_MEDIA): HeroMediaV2 {
+  const row = recordValue(value);
+  const result = { ...baseline };
+  for (const key of ['image_url','mobile_image_url','video_url','mobile_video_url','poster_url','mobile_poster_url','overlay_color'] as const) result[key] = textValue(row[key], baseline[key]);
+  if (row.background_type === 'image' || row.background_type === 'video' || row.background_type === 'auto') result.background_type = row.background_type;
+  if (typeof row.enabled === 'boolean') result.enabled = row.enabled;
+  for (const key of ['overlay_opacity','desktop_zoom','mobile_zoom','desktop_offset_x','desktop_offset_y','mobile_offset_x','mobile_offset_y'] as const) {
+    const min = key === 'overlay_opacity' ? 0 : key.endsWith('zoom') ? .25 : -.5;
+    const max = key === 'overlay_opacity' ? 1 : key.endsWith('zoom') ? 3 : .5;
+    result[key] = Math.min(max, Math.max(min, finiteValue(row[key], baseline[key])));
+  }
+  return result;
+}
+
 const COLLECTION_NAME = 'hero_media';
 
 export const heroMediaService = {
@@ -48,22 +64,24 @@ export const heroMediaService = {
    * Fetches the hero media configuration for a specific page.
    * If no configuration exists, it returns a default configuration.
    */
-  async getHeroMedia(pageKey: string): Promise<HeroMediaV2> {
+  async getHeroMedia(pageKey: string, options: { strict?: boolean } = {}): Promise<HeroMediaV2> {
     try {
       const { data } = await dualRead({ 
         table: COLLECTION_NAME, 
-        eq: ['id', pageKey], 
+        forceRefresh: options.strict,
+        eq: ['page_key', pageKey],
         maybeSingle: true 
       });
       
       if (data) {
-        return { ...DEFAULT_HERO_MEDIA, ...data } as HeroMediaV2;
+        return normalizeHeroMedia(data);
       }
       
-      return DEFAULT_HERO_MEDIA;
+      return normalizeHeroMedia(null);
     } catch (error) {
       console.error(`Error fetching hero media for page ${pageKey}:`, error);
-      return DEFAULT_HERO_MEDIA;
+      if (options.strict) throw error;
+      return normalizeHeroMedia(null);
     }
   },
 
@@ -73,8 +91,12 @@ export const heroMediaService = {
   subscribeHeroMedia(pageKey: string, callback: (data: HeroMediaV2) => void): () => void {
     const channelName = `hero_media:${pageKey}`;
     
-    // Initial fetch to ensure up-to-date data
-    this.getHeroMedia(pageKey).then(callback);
+    let active = true;
+    // Preserve the last good media on transient errors; refresh on focus and as a realtime fallback.
+    const refresh = () => { if (typeof document !== 'undefined' && document.hidden) return; void this.getHeroMedia(pageKey, { strict: true }).then(value => { if (active) callback(value); }).catch(() => {}); };
+    refresh();
+    const refreshTimer = setInterval(refresh, 60000);
+    if (typeof window !== 'undefined') window.addEventListener('focus', refresh);
 
     const subscription = supabase
       .channel(channelName)
@@ -84,19 +106,24 @@ export const heroMediaService = {
           event: '*',
           schema: 'public',
           table: COLLECTION_NAME,
-          filter: `id=eq.${pageKey}`
+          filter: `page_key=eq.${pageKey}`
         },
         async (payload) => {
-          if (payload.new) {
-            callback({ ...DEFAULT_HERO_MEDIA, ...(payload.new as any) } as HeroMediaV2);
-          } else if (payload.eventType === 'DELETE') {
-            callback(DEFAULT_HERO_MEDIA);
+          invalidateTableCache(COLLECTION_NAME);
+          if (!active) return;
+          if (payload.eventType === 'DELETE') {
+            callback(normalizeHeroMedia(null));
+          } else if (payload.new) {
+            callback(normalizeHeroMedia(payload.new));
           }
         }
       )
       .subscribe();
 
     return () => {
+      active = false;
+      clearInterval(refreshTimer);
+      if (typeof window !== 'undefined') window.removeEventListener('focus', refresh);
       supabase.removeChannel(subscription);
     };
   },
@@ -106,9 +133,11 @@ export const heroMediaService = {
    */
   async saveHeroMedia(pageKey: string, data: Partial<HeroMediaV2>): Promise<void> {
     try {
+      const { data: existing } = await dualRead({ table: COLLECTION_NAME, eq: ['page_key', pageKey], maybeSingle: true });
       await dualUpsert(COLLECTION_NAME, {
-        ...data,
-        id: pageKey,
+        ...(existing?.id ? { id: existing.id } : {}),
+        ...normalizeHeroMedia(data, normalizeHeroMedia(existing)),
+        page_key: pageKey,
         updated_at: new Date().toISOString()
       });
     } catch (error) {

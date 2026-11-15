@@ -9,12 +9,14 @@ interface UseMediaUploadProps {
   folder?: string;
   onImageSelect: (url: string) => void;
   maxImageBytes?: number;
+  preserveExistingMedia?: boolean;
 }
 
 export const useMediaUpload = ({ 
   bucket, 
   folder = '', 
-  onImageSelect
+  onImageSelect,
+  preserveExistingMedia = false
 }: UseMediaUploadProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -66,28 +68,24 @@ export const useMediaUpload = ({
       setUploadPercent(70);
       try { savingProgress.set(70); } catch {}
 
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(filePath);
-
-      const fileUrl = publicUrl;
-      
-      if (!fileUrl) {
-          throw new Error("Upload failed to return a valid URL.");
+      const result = supabase.storage.from(bucket).getPublicUrl(filePath);
+      const fileUrl = result?.data?.publicUrl;
+      if (typeof fileUrl !== 'string' || !fileUrl.trim()) {
+        throw new Error('Upload completed but no media URL was returned. Please retry.');
       }
 
       setUploadPercent(100);
       try { savingProgress.set(100); } catch {}
       
       // Cleanup previous pending image
-      if (pendingImage && pendingImage !== fileUrl) {
+      if (!preserveExistingMedia && pendingImage && pendingImage !== fileUrl) {
         await deleteStorageFileByPublicUrl(pendingImage);
       }
       
       setPendingImage(fileUrl);
       
       if (autoSave || hideControls) {
-        if (currentImage && currentImage !== fileUrl) {
+        if (!preserveExistingMedia && currentImage && currentImage !== fileUrl) {
           await deleteStorageFileByPublicUrl(currentImage);
         }
         onImageSelect(fileUrl);

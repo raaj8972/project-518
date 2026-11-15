@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
-import { Plus, Trash2, Edit2, Save, X, Calendar, Clock, MapPin, Link as LinkIcon, Mail, Loader2, BarChart2, ScanText } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, Calendar, Clock, MapPin, Link as LinkIcon, Mail, Loader2, BarChart2, ScanText } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 import { AIScheduleScanner } from './schedule/AIScheduleScanner';
@@ -12,7 +12,7 @@ export const ScheduleManagement = () => {
   const [activeTab, setActiveTab] = useState<'prelims' | 'mains'>(siteSettings?.default_schedule_type || 'prelims');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [isProcessingImport, setIsProcessingImport] = useState(false);
+  const [, setIsProcessingImport] = useState(false);
   const [emailStats, setEmailStats] = useState({ sent: 0, pending: 0, total: 0 });
 
   // Fetch email statistics

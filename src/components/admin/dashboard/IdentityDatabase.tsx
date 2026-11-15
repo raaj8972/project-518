@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import React from 'react';
 import { Clock, Hash, ArrowRight } from 'lucide-react';
 
@@ -16,6 +17,7 @@ interface IdentityDatabaseProps {
 }
 
 export const IdentityDatabase: React.FC<IdentityDatabaseProps> = ({ users, title = "Identity Database" }) => {
+  const navigate = useNavigate();
   return (
     <div className="hyper-glass rounded-[2rem] p-4 sm:p-8 relative overflow-hidden group">
       <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
@@ -31,8 +33,8 @@ export const IdentityDatabase: React.FC<IdentityDatabaseProps> = ({ users, title
               <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Neural Logs: V1.0.4</p>
             </div>
           </div>
-          <button className="px-5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase tracking-widest transition-all">
-            Full Archive
+          <button onClick={() => navigate("/admin/admin-users")} className="px-5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase tracking-widest transition-all">
+            Manage Users
           </button>
         </div>
 
@@ -84,8 +86,8 @@ export const IdentityDatabase: React.FC<IdentityDatabaseProps> = ({ users, title
                     </div>
                   </td>
                   <td className="px-6 py-5 whitespace-nowrap text-right">
-                    <button className="flex items-center gap-2 text-[10px] font-black text-white/40 group-hover/row:text-white transition-all uppercase tracking-widest">
-                      Protocol <ArrowRight size={12} className="group-hover/row:translate-x-1 transition-transform" />
+                    <button onClick={() => navigate("/admin/security")} className="flex items-center gap-2 text-[10px] font-black text-white/40 group-hover/row:text-white transition-all uppercase tracking-widest">
+                      Security Settings <ArrowRight size={12} className="group-hover/row:translate-x-1 transition-transform" />
                     </button>
                   </td>
                 </tr>

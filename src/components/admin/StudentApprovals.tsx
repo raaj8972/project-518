@@ -139,7 +139,7 @@ export const StudentApprovals: React.FC = () => {
     try {
       const { error } = await supabase.rpc('admin_approve_student_profiles', {
         p_student_ids: [id],
-        p_password: import.meta.env.VITE_MASTER_BYPASS_KEY || 'Raja@76023',
+        p_password: '',
         p_is_approved: !currentStatus
       });
 
@@ -162,7 +162,7 @@ export const StudentApprovals: React.FC = () => {
     try {
       const { error } = await supabase.rpc('admin_approve_student_profiles', {
         p_student_ids: Array.from(selectedProfileIds),
-        p_password: import.meta.env.VITE_MASTER_BYPASS_KEY || 'Raja@76023',
+        p_password: '',
         p_is_approved: true
       });
         

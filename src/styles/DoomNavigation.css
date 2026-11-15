@@ -1,0 +1,149 @@
+/* Cinematic navigation: original raster art, live controls and light-only motion. */
+.doom-menu-layer {
+  --doom-gold: #e6ca78;
+  --doom-green: #b2ff40;
+  --doom-cream: #f6f0d9;
+  position: fixed;
+  inset: 0;
+  z-index: 10080;
+  isolation: isolate;
+  perspective: 1000px;
+  color: var(--doom-cream);
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+.doom-menu-backdrop { position:absolute; inset:0; width:100%; height:100%; border:0; background:#010a07ba; backdrop-filter:blur(5px) brightness(.68); cursor:default; }
+.doom-drawer {
+  position:relative;
+  width:min(460px,88vw);
+  height:100dvh;
+  outline:none;
+  background:#04130c;
+  border:1px solid #c5b253;
+  border-left:0;
+  border-radius:0 30px 30px 0;
+  box-shadow:12px 0 80px #01080499, inset -5px 0 0 #102115, inset -6px 0 0 #aadf2b66;
+  clip-path:polygon(0 0,calc(100% - 28px) 0,100% 28px,100% calc(100% - 28px),calc(100% - 28px) 100%,0 100%);
+  isolation:isolate;
+  overflow:hidden;
+}
+.doom-scroll { height:100%; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#a5b64955 transparent; background:linear-gradient(#03140b33,#03140b99),url('/images/ricorrenza-emerald-environment.webp') center/auto 100% no-repeat; }
+.doom-close { position:absolute; right:3.2%; top:clamp(10px,1.8vw,16px); z-index:5; width:14%; aspect-ratio:1; display:grid; place-items:center; padding:9px; color:#ffe6a0; border:0; background:linear-gradient(145deg,#e4d380,#7c9336 55%,#bafa35); clip-path:polygon(26% 0,74% 0,100% 26%,100% 74%,74% 100%,26% 100%,0 74%,0 26%); cursor:pointer; }
+.doom-close:before { content:''; position:absolute; inset:1px; clip-path:inherit; background:radial-gradient(ellipse at 50% 90%,#76832033,transparent),#08140af5; z-index:-1; }
+.doom-close svg { width:100%; height:100%; stroke-width:.6; filter:drop-shadow(0 0 7px #f0d98566); transition:transform .3s; }
+.doom-close:hover svg { transform:rotate(90deg); }
+.doom-close:focus-visible { outline:none; background:#fff6c0; }
+.doom-artwork { position:relative; width:100%; aspect-ratio:590/395; overflow:hidden; flex-shrink:0; }
+.doom-artwork:after { content:''; position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; background:radial-gradient(ellipse at 32% 0%,#a2ff6b26,transparent 65%); animation:doom-spell-breathe 6.4s ease-in-out infinite; }
+.doom-artwork-image { display:block; width:100%; height:100%; }
+.doom-hand-spell { position:absolute; left:68.3%; top:58%; width:20%; aspect-ratio:1; transform:translate(-50%,-50%); color:#c8ff70; pointer-events:none; mix-blend-mode:screen; }
+.doom-spell-ring { position:absolute; inset:0; width:100%; height:100%; transform-origin:center; filter:drop-shadow(0 0 3px #a4ff6bcc); }
+.doom-spell-ring--outer { animation:doom-orbit 14s linear infinite; }
+.doom-spell-ring--inner { animation:doom-orbit 7s linear infinite reverse; color:#edff9f; }
+.doom-spell-core { position:absolute; inset:23%; border-radius:50%; background:radial-gradient(circle,#e7ffb922,#93ff5b44 35%,transparent 68%); box-shadow:0 0 20px #a7ff3755; animation:doom-spell-breathe 3.8s ease-in-out infinite; }
+.doom-spell-haze { position:absolute; inset:-14%; border-radius:50%; background:radial-gradient(ellipse,#afff3322,transparent 65%); animation:doom-spell-breathe 5s 1s ease-in-out infinite; }
+.doom-links { display:grid; gap:8px; position:relative; padding:0 8% 3px; z-index:1; }
+.doom-nav-link { position:relative; display:flex; align-items:center; gap:17px; width:100%; min-height:54px; padding:11px 20px 11px 29px; isolation:isolate; color:#f6f2e4; text-decoration:none; background:linear-gradient(120deg,#efd78d,#557253 50%,#234a30); clip-path:polygon(17px 0,calc(100% - 11px) 0,100% 13px,100% calc(100% - 12px),calc(100% - 11px) 100%,13px 100%,0 calc(100% - 12px),0 24px); animation:doom-link-reveal .45s cubic-bezier(.16,1,.3,1) both; animation-delay:calc(100ms + var(--doom-item,0)*35ms); transition:filter .25s,translate .3s cubic-bezier(.16,1,.3,1),scale .18s; }
+.doom-nav-link:before { content:''; position:absolute; inset:1px; clip-path:inherit; z-index:-1; background:linear-gradient(110deg,#09180fea,#071710eb 70%,#03130cf5); }
+.doom-nav-icon { display:grid; place-items:center; width:29px; flex-shrink:0; color:#ead789; }
+.doom-nav-icon svg { display:block; width:27px; height:27px; }
+.doom-nav-label { position:relative; font-size:19px; font-weight:500; line-height:1.3; color:#f6f2e4; overflow-wrap:anywhere; }
+.doom-link-end { position:relative; margin-left:auto; height:15px; width:15px; flex-shrink:0; color:#d9c77c; opacity:.8; }
+.doom-link-portrait { position:absolute; right:5px; top:-10px; bottom:-10px; width:32%; z-index:0; pointer-events:none; background:url('/images/doom-menu-reference.png') 40% -25px/600px 1066px no-repeat; opacity:.2; mask-image:linear-gradient(90deg,transparent,#000 55%,transparent); }
+.doom-nav-link.is-active { background:linear-gradient(120deg,#d9ff9c,#76f52c 58%,#aaff28); filter:drop-shadow(0 0 6px #a5ff4d88); }
+.doom-nav-link.is-active:before { inset:2px; background:radial-gradient(ellipse at 50% 110%,#a0ff2c27,transparent 70%),linear-gradient(105deg,#19391cd9,#0b2412d9); }
+.doom-nav-link.is-active:after { content:''; position:absolute; right:8px; top:4px; bottom:4px; width:14px; background:linear-gradient(90deg,#c1fa3f55,#dcff5a); clip-path:polygon(0 0,45% 0,100% 50%,45% 100%,0 100%,56% 50%); }
+.doom-nav-link.is-active .doom-link-end { opacity:0; }
+.doom-nav-link.is-active .doom-nav-icon { color:#fff0b5; }
+
+.doom-nav-link:focus-visible { outline:none; background:#f3ffb6; filter:brightness(1.15); }
+
+.doom-bottom-art { position:relative; width:100%; aspect-ratio:590/345; margin-top:-4px; pointer-events:none; mask-image:linear-gradient(0deg,#000 90%,transparent); }
+.doom-bottom-art svg { display:block; width:100%; height:100%; }
+.doom-bottom-art>span { position:absolute; inset:0; background:linear-gradient(0deg,#05160c,transparent 18%,transparent 83%,#05160c44); }
+.doom-menu-layer .doom-drawer .doom-menu-footer { position:relative; padding:0 6% max(25px,env(safe-area-inset-bottom)); margin-top:-4px; border:0; background:radial-gradient(ellipse at 20% 100%,#284e1d55,transparent),#05160c; text-align:center; }
+.doom-socials { display:flex; justify-content:center; gap:14px; margin:0 0 20px; }
+.doom-socials a { position:relative; isolation:isolate; display:grid; place-items:center; height:39px; width:39px; border:0; color:#f3e3a0; background:linear-gradient(145deg,#d8f764,#c2ac4f); clip-path:polygon(9px 0,calc(100% - 9px) 0,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0 calc(100% - 9px),0 9px); transition:filter .25s,transform .25s; }
+.doom-socials a:before { content:''; position:absolute; inset:1px; background:linear-gradient(135deg,#11230a,#172c10); clip-path:inherit; z-index:-1; }
+.doom-socials svg { height:21px; width:21px; }
+.doom-socials a:hover { transform:translateY(-2px); filter:brightness(1.2); }
+.doom-menu-footer>p { color:#ebeddc; font-size:10px; font-weight:400; letter-spacing:.06em; line-height:1.8; margin:0; }
+.doom-location { display:flex; align-items:center; justify-content:center; gap:16px; margin-top:8px; color:#e4e9cd; font-size:8px; letter-spacing:.38em; }
+.doom-location i { height:1px; width:62px; background:linear-gradient(90deg,transparent,#d2d6acaa); }
+.doom-location i:last-child { transform:rotate(180deg); }
+.doom-edge-light { position:absolute; inset:0 4px 0 auto; width:3px; pointer-events:none; z-index:3; background:linear-gradient(0deg,transparent 3%,#e8d17866 5%,#a7ff3730 40%,#e7ff7aaa 52%,#82e93366 80%,transparent); }
+.doom-edge-light:after { content:''; position:absolute; inset:0 -3px; background:linear-gradient(0deg,transparent 30%,#b9ff6b00 44%,#cfff90cc 48%,#eaffc6 50%,#9bff4200 56%,transparent 70%); animation:doom-edge-travel 7s ease-in-out infinite; }
+.doom-embers { position:absolute; inset:0; pointer-events:none; z-index:4; overflow:hidden; }
+.doom-embers i { position:absolute; left:calc(8% + var(--ember)*9%); bottom:calc(-20px - var(--ember)*3px); height:5px; width:2px; border-radius:50%; background:#ffc455; box-shadow:0 0 6px #ffac26aa; opacity:0; animation:doom-ember-drift calc(5s + var(--ember)*.42s) linear infinite; animation-delay:calc(var(--ember)*-.8s); }
+.doom-opening-wave { position:absolute; left:-260px; top:calc(40% - 300px); height:600px; width:600px; border:1px solid #b8ff5444; box-shadow:0 0 50px #a2ff3511,inset 0 0 40px #a2ff3511; border-radius:50%; pointer-events:none; animation:doom-opening-wave .9s ease-out both; }
+/* All public festival pages expose the same desktop/mobile drawer trigger. */
+.doom-navigation>div:first-child>nav { display:none!important; }
+.doom-navigation .arena-menu-toggle { display:flex!important; }
+.doom-navigation .arena-nav-actions>div.glass-pill { display:none!important; }
+body:has([data-doom-menu]) .arena-hero-foreground { opacity:0; }
+@keyframes doom-orbit { to { transform:rotate(360deg); } }
+@keyframes doom-spell-breathe { 0%,100% { opacity:.4; transform:scale(.9); } 50% { opacity:.85; transform:scale(1.07); } }
+@keyframes doom-edge-travel { 0%,100% { transform:translateY(-45%); opacity:.3; } 50% { transform:translateY(45%); opacity:.9; } }
+@keyframes doom-ember-drift { 0% { opacity:0; transform:translate3d(0,0,0) rotate(-25deg); } 15%,75% { opacity:.65; } 100% { opacity:0; transform:translate3d(23px,-500px,0) rotate(20deg); } }
+@keyframes doom-opening-wave { from { opacity:.8; transform:scale(.12); } to { opacity:0; transform:scale(2.2); } }
+@keyframes doom-link-reveal { from { opacity:0; transform:translate3d(-18px,0,0); } to { opacity:1; transform:translate3d(0,0,0); } }
+@media(max-width:520px) {
+  .doom-drawer { width:80vw; max-width:380px; border-radius:0 24px 24px 0; }
+  .doom-links { gap:7px; padding-inline:7.5%; }
+  .doom-nav-link { min-height:46px; padding:9px 17px 9px 22px; gap:14px; }
+  .doom-nav-icon { width:25px; }
+  .doom-nav-icon svg { width:24px; height:24px; }
+  .doom-nav-label { font-size:16px; }
+  .doom-menu-footer>p { font-size:8px; letter-spacing:.025em; }
+  .doom-location { font-size:7px; gap:12px; }
+  .doom-socials { gap:12px; margin-bottom:17px; }
+  .doom-socials a { width:34px; height:34px; }
+}
+@media(max-width:350px) { .doom-nav-label { font-size:14px; }.doom-nav-link { gap:11px; padding-left:19px; }.doom-nav-icon svg { width:22px; height:22px; }.doom-close { top:8px; } }
+@media(prefers-reduced-motion:reduce) {
+  .doom-artwork:after,.doom-spell-ring,.doom-spell-core,.doom-spell-haze,.doom-edge-light:after,.doom-embers i,.doom-opening-wave,.doom-nav-link { animation:none!important; }
+  .doom-embers,.doom-opening-wave { display:none; }
+  .doom-close svg,.doom-nav-link,.doom-socials a { transition:none; }
+  .doom-nav-link:hover,.doom-close:hover svg,.doom-socials a:hover { transform:none; }
+}
+.doom-socials a{display:inline-flex;justify-content:center;align-items:center;gap:7px;width:auto;min-width:39px;padding:8px 13px}
+.doom-socials a>span{font-size:10px;line-height:1.4;font-weight:500;letter-spacing:.04em}
+.doom-designer-credit{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid #bda96733}
+.doom-designer-credit>span{font-size:7px;letter-spacing:.23em;color:#aebba0}
+.doom-designer-credit a{display:inline-flex;align-items:center;gap:7px;padding:5px 0;color:#edd99a;text-decoration:none;transition:color .2s}
+.doom-designer-credit strong{font-size:11px;letter-spacing:.16em;font-weight:500}
+.doom-designer-credit svg{height:13px;width:13px}
+.doom-designer-credit a>svg:last-child{width:11px;height:11px;opacity:.75}
+.doom-designer-credit a:hover{color:#d1ff89}
+@media(max-width:520px){.doom-socials a{width:auto;min-width:34px;padding:7px 11px}.doom-socials a>span{font-size:9px}.doom-designer-credit{margin-top:17px;gap:9px}}
+@media(prefers-reduced-motion:reduce){.doom-designer-credit a{transition:none}}
+/* Hover motion uses translate separately from the entrance transform. */
+.doom-link-energy{position:absolute;inset:-15% -30%;z-index:0;pointer-events:none;opacity:0;transform:translateX(-115%);background:linear-gradient(105deg,transparent 30%,#b6ff4533 43%,#f0ffac66 50%,#91ed3a22 58%,transparent 70%)}
+.doom-nav-icon{transition:transform .3s cubic-bezier(.16,1,.3,1),filter .3s,color .3s}
+.doom-nav-label{transition:translate .3s cubic-bezier(.16,1,.3,1),color .25s}
+.doom-link-end{transition:translate .3s,color .25s}
+.doom-link-portrait{transition:opacity .35s,scale .35s}
+.doom-close{min-width:44px;min-height:44px}
+.doom-nav-link.is-active:after{animation:doom-active-chevron 2.8s ease-in-out infinite}
+.doom-nav-link:focus-visible .doom-link-energy{animation:doom-link-sweep .85s ease-out both}
+.doom-nav-link:focus-visible .doom-nav-icon{color:#e2ff9e;filter:drop-shadow(0 0 5px #b8ff5966)}
+@media(hover:hover) and (pointer:fine){
+  .doom-nav-link:hover{background:linear-gradient(120deg,#f0e1a0,#b2f757 58%,#77af3f);filter:brightness(1.12);translate:4px 0}
+  .doom-nav-link:hover .doom-link-energy{animation:doom-link-sweep .85s ease-out both}
+  .doom-nav-link:hover .doom-nav-icon{transform:rotate(-6deg) scale(1.08);color:#e2ff9e;filter:drop-shadow(0 0 5px #b8ff5977)}
+  .doom-nav-link:hover .doom-nav-label{translate:2px 0;color:#fff8d2}
+  .doom-nav-link:hover .doom-link-end{translate:3px 0;color:#e4ffab}
+  .doom-nav-link:hover .doom-link-portrait{opacity:.34;scale:1.04}
+}
+.doom-menu-layer .doom-nav-link:active{scale:.98;translate:1px 0;filter:brightness(1.18)}
+.doom-menu-layer .doom-nav-link:active .doom-link-energy{animation:none;transform:none;opacity:.6;background:radial-gradient(ellipse,#b9ff493b,transparent 75%)}
+@keyframes doom-link-sweep{0%{opacity:0;transform:translateX(-90%)}20%{opacity:.75}100%{opacity:0;transform:translateX(90%)}}
+@keyframes doom-active-chevron{0%,100%{transform:translateX(0);opacity:.65}50%{transform:translateX(2px);opacity:1}}
+@media(prefers-reduced-motion:reduce){
+  .doom-nav-icon,.doom-nav-label,.doom-link-end,.doom-link-portrait{transition:none}
+  .doom-link-energy,.doom-nav-link.is-active:after{animation:none!important}
+  .doom-link-energy{display:none}
+  .doom-nav-link:hover,.doom-nav-link:hover .doom-nav-label,.doom-nav-link:hover .doom-link-end,.doom-menu-layer .doom-nav-link:active{translate:none;scale:1}
+  .doom-nav-link:hover .doom-nav-icon{transform:none}
+  .doom-nav-link:hover .doom-link-portrait{scale:1}
+}
+@media(min-width:521px) and (max-width:640px){.doom-drawer{width:80vw;max-width:380px}}

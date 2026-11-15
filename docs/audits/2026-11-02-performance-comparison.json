@@ -1,0 +1,80 @@
+{
+  "scope": "local only; production is local build preview; initially empty normal cache; 25s captures; after home tests set rico_landed to hold the home route because configured initial landing is gallery",
+  "comparison": [
+    {
+      "case": "dev-home",
+      "before": {
+        "url": "http://localhost:8081/",
+        "requests": 1722,
+        "transferBytes": 25463224,
+        "dbGetRequests": 63,
+        "iconModuleRequests": 1439,
+        "loaderRemovedMs": 11685,
+        "jsErrors": [],
+        "failedHttpRequests": 4,
+        "adminChunks": 0
+      },
+      "after": {
+        "url": "http://localhost:8081/",
+        "requests": 269,
+        "transferBytes": 8801830,
+        "dbGetRequests": 30,
+        "iconModuleRequests": 0,
+        "loaderRemovedMs": 607.3000000119209,
+        "jsErrors": [],
+        "failedHttpRequests": 0,
+        "adminChunks": 0
+      }
+    },
+    {
+      "case": "production-home",
+      "before": {
+        "url": "http://127.0.0.1:8082/",
+        "requests": 184,
+        "transferBytes": 6433044,
+        "dbGetRequests": 50,
+        "iconModuleRequests": 0,
+        "loaderRemovedMs": 10812.59999999404,
+        "jsErrors": [],
+        "failedHttpRequests": 2,
+        "adminChunks": 1
+      },
+      "after": {
+        "url": "http://127.0.0.1:8082/",
+        "requests": 157,
+        "transferBytes": 1990912,
+        "dbGetRequests": 30,
+        "iconModuleRequests": 0,
+        "loaderRemovedMs": 1156.5999999940395,
+        "jsErrors": [],
+        "failedHttpRequests": 0,
+        "adminChunks": 0
+      }
+    },
+    {
+      "case": "production-events",
+      "before": {
+        "url": "http://127.0.0.1:8082/events",
+        "requests": 146,
+        "transferBytes": 2211025,
+        "dbGetRequests": 45,
+        "iconModuleRequests": 0,
+        "loaderRemovedMs": 7140.299999982119,
+        "jsErrors": [],
+        "failedHttpRequests": 2,
+        "adminChunks": 1
+      },
+      "after": {
+        "url": "http://127.0.0.1:8082/events",
+        "requests": 90,
+        "transferBytes": 1035029,
+        "dbGetRequests": 15,
+        "iconModuleRequests": 0,
+        "loaderRemovedMs": 1937.699999988079,
+        "jsErrors": [],
+        "failedHttpRequests": 0,
+        "adminChunks": 0
+      }
+    }
+  ]
+}

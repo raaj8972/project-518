@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { dualInsert, dualUpdate, dualDelete, dualUpsert, dualRead } from '../lib/dualDb';
 import { supabase } from '../lib/supabase';
 import { 
@@ -9,6 +9,7 @@ import { useCoreData } from './CoreDataContext';
 import { useAuth } from './AuthContext';
 import { fetchAllRegistrations, fetchSupabaseBatch } from '../utils/dataUtils';
 import { AdminService } from '../lib/adminService';
+import { useDomainRealtime } from '../hooks/useDomainRealtime';
 
 interface ManagementContextType {
   sponsors: Sponsor[];
@@ -22,7 +23,7 @@ interface ManagementContextType {
   isLoaded: boolean;
   
   // Sponsors
-  addSponsor: (sponsor: Partial<Sponsor>) => Promise<void>;
+  addSponsor: (sponsor: Partial<Sponsor>) => Promise<Sponsor>;
   updateSponsor: (id: number, sponsor: Partial<Sponsor>) => Promise<void>;
   deleteSponsor: (id: number) => Promise<void>;
   toggleSponsorFeatured: (id: number) => Promise<void>;
@@ -49,7 +50,7 @@ interface ManagementContextType {
   addAdminUser: (userId: string, email: string, role?: 'owner' | 'admin') => Promise<void>;
   removeAdminUser: (userId: string) => Promise<void>;
   addAdminByEmail: (email: string) => Promise<void>;
-  createAdminAccount: (email: string, password: string, role?: 'owner' | 'admin', displayName?: string) => Promise<{ user_id: string; email: string } | null>;
+  createAdminAccount: (email: string, allowedPages: string[], role?: 'owner' | 'admin', displayName?: string) => Promise<{ success: boolean; invitation: { id: string; email: string }; delivery: string; message: string }>;
   updateAdminEmail: (userId: string, newEmail: string) => Promise<void>;
   listAdminPermissions: () => Promise<any[]>;
   setAdminPermission: (userId: string, flags: any) => Promise<void>;
@@ -87,9 +88,12 @@ export const useManagementData = () => {
   return context;
 };
 
-export function ManagementProvider({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) {
+export function ManagementProvider({ children, enabled = true, includePrivate = true }: { children: ReactNode, enabled?: boolean, includePrivate?: boolean }) {
   const { refreshTrigger } = useCoreData();
   const { user, getValidToken } = useAuth();
+  const privateScope = includePrivate ? `${user?.id}:${user?.user_metadata?.role}` : 'public';
+  const currentScope = useRef(privateScope);
+  currentScope.current = privateScope;
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [sponsorshipPackages, setSponsorshipPackages] = useState<SponsorshipPackage[]>([]);
   const [sponsorshipSettings, setSponsorshipSettings] = useState<SponsorshipSettings | null>(null);
@@ -107,31 +111,18 @@ export function ManagementProvider({ children, enabled = true }: { children: Rea
     const start = Date.now();
 
     try {
-      const results = await Promise.all([
-        fetchSupabaseBatch<Sponsor>('sponsors').then(r => { console.log('✔ sponsors'); return r; }),
-        fetchSupabaseBatch<SponsorshipPackage>('sponsorship_packages', { order: { column: 'order_position', ascending: true } }).then(r => { console.log('✔ sponsorship_packages'); return r; }),
-        dualRead({ table: 'sponsorship_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ sponsorship_settings'); return r; }),
-        fetchAllRegistrations().then(r => { console.log('✔ registrations'); return r; }),
-        dualRead({ table: 'auditions', order: ['created_at', { ascending: false }] }).then(r => { console.log('✔ auditions'); return r; }),
-        dualRead({ table: 'memberships', order: ['created_at', { ascending: false }] }).then(r => { console.log('✔ memberships'); return r; }),
-        dualRead({ table: 'admin_users' }).then(r => { console.log('✔ admin_users'); return r; }),
-        AdminService.getAllAdmins().then(r => { console.log('✔ full_admins'); return r; })
-      ]);
-
-      const [sponsorsRes, packagesRes, settingsRes, registrationsRes, auditionsRes, membershipsRes, adminRes, fullAdmins] = results;
-
-      if (sponsorsRes.data) setSponsors(sponsorsRes.data || []);
-      if (packagesRes.data) setSponsorshipPackages(packagesRes.data || []);
-      if (settingsRes.data) setSponsorshipSettings(settingsRes.data || null);
-      if (registrationsRes.data) setRegistrations(registrationsRes.data || []);
-      if (auditionsRes.data) setAuditions(auditionsRes.data || []);
-      if (membershipsRes.data) setMemberships(membershipsRes.data || []);
-      
-      if (fullAdmins && Array.isArray(fullAdmins)) {
-        setAdminUsers(fullAdmins);
-      } else if (adminRes.data) {
-        setAdminUsers(adminRes.data);
-      }
+      const reads: Promise<unknown>[] = [
+        fetchSupabaseBatch<Sponsor>('sponsors').then(r => setSponsors(r.data || [])),
+        fetchSupabaseBatch<SponsorshipPackage>('sponsorship_packages', { order: { column: 'order_position', ascending: true } }).then(r => setSponsorshipPackages(r.data || [])),
+        dualRead({ table: 'sponsorship_settings', eq: ['id', 1], maybeSingle: true }).then(r => setSponsorshipSettings(r.data)),
+      ];
+      if (includePrivate) reads.push(
+        fetchAllRegistrations().then(r => { if (currentScope.current === privateScope) setRegistrations(r.data || []); }),
+        dualRead({ table: 'auditions', order: ['created_at', { ascending: false }] }).then(r => { if (currentScope.current === privateScope) setAuditions(r.data || []); }),
+        dualRead({ table: 'memberships', order: ['created_at', { ascending: false }] }).then(r => { if (currentScope.current === privateScope) setMemberships(r.data || []); }),
+        AdminService.getAllAdmins().then(data => { if (currentScope.current === privateScope) setAdminUsers(data); }),
+      );
+      await Promise.allSettled(reads);
 
       console.log(`[ManagementContext] Data fetched in ${Date.now() - start}ms`);
     } catch (err) {
@@ -140,7 +131,7 @@ export function ManagementProvider({ children, enabled = true }: { children: Rea
       setLoading(false);
       setIsLoaded(true);
     }
-  }, [enabled]);
+  }, [enabled, includePrivate, privateScope]);
 
   useEffect(() => {
     if (enabled) {
@@ -148,24 +139,20 @@ export function ManagementProvider({ children, enabled = true }: { children: Rea
     }
   }, [refreshTrigger, user?.id, fetchManagementData, enabled]);
 
-  // Real-time: re-fetch when any management table changes
   useEffect(() => {
-    const channel = supabase
-      .channel('management-context-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsors' }, () => fetchManagementData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsorship_packages' }, () => fetchManagementData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsorship_settings' }, () => fetchManagementData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, () => fetchManagementData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'auditions' }, () => fetchManagementData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'memberships' }, () => fetchManagementData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_users' }, () => fetchManagementData())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchManagementData]);
+    if (!includePrivate) {
+      setRegistrations([]); setAuditions([]); setMemberships([]); setAdminUsers([]);
+    }
+  }, [includePrivate]);
+  useDomainRealtime('management-context-realtime', enabled,
+    includePrivate ? ['sponsors', 'sponsorship_packages', 'sponsorship_settings', 'registrations', 'auditions', 'memberships', 'admin_users', 'admin_permissions'] : ['sponsors', 'sponsorship_packages', 'sponsorship_settings'],
+    fetchManagementData);
 
   const addSponsor = async (sponsor: Partial<Sponsor>) => {
-    await dualInsert('sponsors', sponsor);
+    const created = await dualInsert('sponsors', sponsor);
+    if (!created?.id) throw new Error('Sponsor was not created. Please retry.');
     await fetchManagementData();
+    return created as Sponsor;
   };
 
   const updateSponsor = async (id: number, sponsor: Partial<Sponsor>) => {
@@ -241,9 +228,9 @@ export function ManagementProvider({ children, enabled = true }: { children: Rea
     await fetchManagementData();
   };
 
-  const refreshAdminUsers = async () => {
+  const refreshAdminUsers = useCallback(async () => {
     await fetchManagementData();
-  };
+  }, [fetchManagementData]);
 
   const addAdminUser = async (userId: string, email: string, role: 'owner' | 'admin' = 'admin') => {
     await AdminService.authorizeExistingUser(userId, email, role);
@@ -265,22 +252,10 @@ export function ManagementProvider({ children, enabled = true }: { children: Rea
     await fetchManagementData();
   };
 
-  const createAdminAccount = async (email: string, password: string, role: 'owner' | 'admin' = 'admin', displayName?: string) => {
-    try {
-      const token = await getValidToken();
-      const isMasterBypass = user?.id === 'master-admin-bypass' || (user as any)?.master_bypass;
-      
-      if (!token && !isMasterBypass) {
-        throw new Error('Authentication required to create admin accounts');
-      }
-      
-      const result = await AdminService.createPrimeAdmin(email, password, role, {}, token || '', displayName);
-      await fetchManagementData();
-      return { user_id: result.user_id, email: result.email };
-    } catch (err: any) {
-      console.error('[ManagementContext] createAdminAccount failed:', err);
-      throw err;
-    }
+  const createAdminAccount = async (email: string, allowedPages: string[], role: 'owner' | 'admin' = 'admin', displayName = '') => {
+    const token = await getValidToken();
+    if (!token) throw new Error('Sign in as an owner to invite an admin.');
+    return AdminService.inviteAdmin(email, displayName, role, allowedPages, token);
   };
 
   const updateAdminEmail = async (userId: string, newEmail: string) => {
@@ -289,7 +264,7 @@ export function ManagementProvider({ children, enabled = true }: { children: Rea
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json', 
-        'X-Master-Key': import.meta.env.VITE_MASTER_BYPASS_KEY || '',
+
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ userId, newEmail })

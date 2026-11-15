@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import SponsorSpotlight from './Sponsors/SponsorSpotlight';
+import { createPartnerLighting } from './Sponsors/partnerLighting';
 import './LogoLoop.css';
 
 export type LogoItem =
@@ -36,6 +38,9 @@ export interface LogoLoopProps {
   scaleOnHover?: boolean;
   // Optional glowing card container around each logo
   glow?: boolean;
+  /** Fixed stage lights aim at the moving partners. */
+  spotlight?: boolean;
+  showTitles?: boolean;
   glowColor?: string;
   glowSpreadColor?: string;
   cardBackground?: string;
@@ -125,13 +130,15 @@ const useImageLoader = (
 };
 
 const useAnimationLoop = (
+  containerRef: React.RefObject<HTMLDivElement | null>,
   trackRef: React.RefObject<HTMLDivElement | null>,
   targetVelocity: number,
   seqWidth: number,
   isHovered: boolean,
   pauseOnHover: boolean,
   pauseInstantOnHover: boolean,
-  smoothTauSec: number
+  smoothTauSec: number,
+  spotlight: boolean
 ) => {
   const rafRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
@@ -140,23 +147,29 @@ const useAnimationLoop = (
 
   useEffect(() => {
     const track = trackRef.current;
-    if (!track) return;
+    const container = containerRef.current;
+    if (!track || !container || seqWidth <= 0) return;
+    const lighting = spotlight ? createPartnerLighting(container, track) : null;
+    const motionPreference = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    let visible = true;
 
     if (seqWidth > 0) {
       offsetRef.current = ((offsetRef.current % seqWidth) + seqWidth) % seqWidth;
       track.style.transform = `translate3d(${-offsetRef.current}px, 0, 0)`;
     }
+    lighting?.update(offsetRef.current, 0);
 
     const animate = (timestamp: number) => {
       if (lastTimestampRef.current === null) {
         lastTimestampRef.current = timestamp;
       }
 
-      const deltaTime = Math.max(0, timestamp - lastTimestampRef.current) / 1000;
+      const deltaTime = Math.min(.05, Math.max(0, timestamp - lastTimestampRef.current) / 1000);
       lastTimestampRef.current = timestamp;
 
       const isPausing = pauseOnHover && isHovered;
-      const target = isPausing ? 0 : targetVelocity;
+      const mobileFactor = spotlight && container.clientWidth < 480 ? .9 : 1;
+      const target = isPausing ? 0 : targetVelocity * mobileFactor;
 
       // If instant pause requested, snap velocity to target while hovered
       if (isPausing && pauseInstantOnHover) {
@@ -174,12 +187,34 @@ const useAnimationLoop = (
 
         const translateX = -offsetRef.current;
         track.style.transform = `translate3d(${translateX}px, 0, 0)`;
+        lighting?.update(offsetRef.current, deltaTime);
       }
 
       rafRef.current = requestAnimationFrame(animate);
     };
 
-    rafRef.current = requestAnimationFrame(animate);
+    const syncActivity = () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      lastTimestampRef.current = null;
+      const active = visible && !document.hidden && !motionPreference?.matches;
+      container.dataset.running = String(active);
+      if (spotlight && container.parentElement) container.parentElement.dataset.running = String(active);
+      if (motionPreference?.matches) {
+        offsetRef.current = 0;
+        track.style.transform = 'translate3d(0, 0, 0)';
+        lighting?.update(0, 0);
+      }
+      if (active) rafRef.current = requestAnimationFrame(animate);
+    };
+    const visibilityObserver = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      syncActivity();
+    }, { rootMargin: '80px' });
+    visibilityObserver?.observe(container);
+    document.addEventListener('visibilitychange', syncActivity);
+    motionPreference?.addEventListener('change', syncActivity);
+    syncActivity();
 
     return () => {
       if (rafRef.current !== null) {
@@ -187,8 +222,12 @@ const useAnimationLoop = (
         rafRef.current = null;
       }
       lastTimestampRef.current = null;
+      visibilityObserver?.disconnect();
+      lighting?.dispose();
+      document.removeEventListener('visibilitychange', syncActivity);
+      motionPreference?.removeEventListener('change', syncActivity);
     };
-  }, [targetVelocity, seqWidth, isHovered, pauseOnHover, pauseInstantOnHover, smoothTauSec]);
+  }, [containerRef, trackRef, targetVelocity, seqWidth, isHovered, pauseOnHover, pauseInstantOnHover, smoothTauSec, spotlight]);
 };
 
 export const LogoLoop = React.memo<LogoLoopProps>(
@@ -201,11 +240,13 @@ export const LogoLoop = React.memo<LogoLoopProps>(
     gap = 32,
     pauseOnHover = true,
     pauseInstantOnHover = false,
-  smoothTauSec = ANIMATION_CONFIG.DEFAULT_SMOOTH_TAU,
+    smoothTauSec = ANIMATION_CONFIG.DEFAULT_SMOOTH_TAU,
     fadeOut = false,
     fadeOutColor,
     scaleOnHover = false,
     glow = false,
+    spotlight = false,
+    showTitles = false,
     glowColor,
     glowSpreadColor,
     cardBackground,
@@ -246,7 +287,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
 
     useImageLoader(seqRef, updateDimensions, [logos, gap, logoHeight]);
 
-  useAnimationLoop(trackRef, targetVelocity, seqWidth, isHovered, pauseOnHover, pauseInstantOnHover, smoothTauSec);
+    useAnimationLoop(containerRef, trackRef, targetVelocity, seqWidth, isHovered, pauseOnHover, pauseInstantOnHover, smoothTauSec, spotlight);
 
     const cssVariables = useMemo(
       () =>
@@ -271,12 +312,13 @@ export const LogoLoop = React.memo<LogoLoopProps>(
           fadeOut && 'logoloop--fade',
           scaleOnHover && 'logoloop--scale-hover',
           glow && 'logoloop--glow',
+          spotlight && 'logoloop--spotlight',
           /* keep glow container but no glass/pulse unless explicitly requested */
           className,
         ]
           .filter(Boolean)
           .join(' '),
-      [fadeOut, scaleOnHover, glow, className]
+      [fadeOut, scaleOnHover, glow, spotlight, className]
     );
 
     const handleMouseEnter = useCallback(() => {
@@ -314,6 +356,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
       const itemAriaLabel = isNodeItem ? ((item as any).ariaLabel ?? (item as any).title) : ((item as any).alt ?? (item as any).title);
 
       const href = (item as any).href as string | undefined;
+      const caption = showTitles && item.title ? <span className="logoloop__title">{item.title}</span> : null;
       const baseContent = href ? (
         <a
           className="logoloop__link"
@@ -323,14 +366,16 @@ export const LogoLoop = React.memo<LogoLoopProps>(
           rel="noreferrer noopener"
         >
           {content}
+          {caption}
         </a>
       ) : (
-        content
+        <span className="logoloop__content">{content}{caption}</span>
       );
 
       const itemContent = glow ? (
         <div className="logoloop__card">
           {baseContent}
+          {spotlight && <span className="partner-spotlight__wash" aria-hidden="true" />}
         </div>
       ) : baseContent;
 
@@ -339,7 +384,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
           {itemContent}
         </li>
       );
-    }, []);
+    }, [glow, spotlight, showTitles]);
 
     const logoLists = useMemo(
       () =>
@@ -375,6 +420,10 @@ export const LogoLoop = React.memo<LogoLoopProps>(
         aria-label={ariaLabel}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onFocusCapture={handleMouseEnter}
+        onBlurCapture={event => {
+          if (!event.currentTarget.contains(event.relatedTarget)) handleMouseLeave();
+        }}
       >
         <div
           className="logoloop__track"
@@ -383,6 +432,9 @@ export const LogoLoop = React.memo<LogoLoopProps>(
         >
           {logoLists}
         </div>
+        {spotlight && <div className="partner-light-rig" aria-hidden="true">
+          <SponsorSpotlight slot={0} /><SponsorSpotlight slot={1} /><SponsorSpotlight slot={2} /><SponsorSpotlight slot={3} /><SponsorSpotlight slot={4} />
+        </div>}
       </div>
     );
   }

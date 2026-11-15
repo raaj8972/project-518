@@ -12,7 +12,7 @@ Your goal is to extract event slots from timetable images or text provided by th
 
 MANDATORY FIELDS FOR EVERY SCHEDULE SLOT:
 - "title": Name of the event or activity.
-- "category": Type of event (e.g., Technical, Cultural, Sports).
+- "category": Type of event (e.g., Technical, Cultural, Academic).
 - "date": Date of the event (YYYY-MM-DD).
 - "start_time": Beginning time (e.g., 10:00 AM).
 - "end_time": Finishing time (e.g., 11:30 AM).

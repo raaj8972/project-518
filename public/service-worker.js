@@ -1,7 +1,7 @@
 // Service Worker for RICORRENZA
 // Provides comprehensive offline support with progressive caching
 
-const CACHE_NAME = 'ricorrenza-v7-2026-02-18';
+const CACHE_NAME = 'ricorrenza-v8-2026-11-15';
 const OFFLINE_URL = '/offline.html';
 
 // CRITICAL pages to preload immediately (don't slow down installation)
@@ -109,6 +109,10 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve with smart strategies
 self.addEventListener('fetch', (event) => {
+  // Let the browser/CDN handle byte ranges and media caching. Returning a cached
+  // whole-file 200 for a Range request can break iOS video seeking, and SW
+  // stale-while-revalidate would redownload the film on every cached request.
+  if (event.request.headers.has('range') || event.request.destination === 'video' || new URL(event.request.url).pathname.endsWith('.mp4')) return;
   // Check if request is same-origin
   if (new URL(event.request.url).origin !== self.location.origin) {
     return;

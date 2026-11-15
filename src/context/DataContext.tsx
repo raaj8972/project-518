@@ -1,3 +1,4 @@
+import { getBucketObjects, computeBucketUsage, deleteBucketObject, listStorageBuckets, computeAllBucketsUsage } from '../services/storageService';
 import React, { createContext, useContext, useMemo } from 'react';
 import { DataContextType } from '../types/data';
 import { useAuth } from './AuthContext';
@@ -9,6 +10,7 @@ import { usePersonnelData } from './PersonnelContext';
 import { useManagementData } from './ManagementContext';
 import { supabase } from '../lib/supabase';
 import { sanitizeUrl } from '../utils/dataUtils';
+import { useSystemStatus } from './CombinedDataProvider';
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
@@ -28,11 +30,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const sports = useSportsData();
   const personnel = usePersonnelData();
   const management = useManagementData();
+  const { scope } = useSystemStatus();
 
   const value: DataContextType = useMemo(() => ({
     // Core Domain
-    loading: core.loading || events.loading || gallery.loading || sports.loading || personnel.loading || management.loading,
-    isLoaded: core.isLoaded && events.isLoaded && gallery.isLoaded && sports.isLoaded && personnel.isLoaded && management.isLoaded,
+    loading: core.loading || (scope.events && events.loading) || (scope.gallery && gallery.loading) || (scope.sports && sports.loading) || (scope.personnel && personnel.loading) || (scope.management && management.loading),
+    isLoaded: core.isLoaded && (!scope.events || events.isLoaded) && (!scope.gallery || gallery.isLoaded) && (!scope.sports || sports.isLoaded) && (!scope.personnel || personnel.isLoaded) && (!scope.management || management.isLoaded),
     connectionStatus: core.connectionStatus,
     lastError: core.lastError,
     latencyMs: core.latencyMs,
@@ -48,7 +51,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     formSettings: core.formSettings,
     socialMediaSettings: core.socialMediaSettings,
     securitySettings: core.securitySettings,
-    roadmapMilestones: core.roadmapMilestones,
+    roadmapMilestones: events.roadmapMilestones,
     refreshAll: core.refreshAll,
     pingNow: core.pingNow,
     fetchHeroMedia: core.fetchHeroMedia,
@@ -118,15 +121,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateGallerySettings: gallery.updateGallerySettings,
     loadGalleryImages: gallery.loadGalleryImages,
     prefetchGalleryImages: gallery.prefetchGalleryImages,
-    indexGalleryImageFaces: async () => {},
+    indexGalleryImageFaces: gallery.indexGalleryImageFaces,
 
     // Sports Domain
     sportsRegistrations: sports.sportsRegistrations,
-    sportsSettings: sports.sportsSettings,
     addSportsRegistration: sports.addSportsRegistration,
-    updateSportsRegistrationStatus: sports.updateSportsRegistrationStatus,
+    updateSportsRegistrationStatus: (id: number, status: any) => sports.updateSportsRegistration(id, { status }),
     deleteSportsRegistration: sports.deleteSportsRegistration,
-    updateSportsSettings: sports.updateSportsSettings,
 
     // Personnel Domain
     facultyHeads: personnel.facultyHeads,
@@ -266,11 +267,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return { ok: true, clearedRefs };
     },
-    getBucketObjects: async () => ({ items: [], total: 0 }),
-    computeBucketUsage: async () => ({ totalBytes: 0, count: 0 }),
-    deleteBucketObject: async () => ({ ok: true, clearedRefs: 0 }),
-    listStorageBuckets: async () => [],
-    computeAllBucketsUsage: async () => ({ totalBytes: 0, count: 0 }),
+    getBucketObjects,
+    computeBucketUsage,
+    deleteBucketObject,
+    listStorageBuckets,
+    computeAllBucketsUsage,
 
     // Utils/Misc
     sanitizeUrl,
@@ -279,7 +280,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isOwner: () => auth.user?.user_metadata?.role === 'owner',
     hasPermission: (p: any) => auth.user?.user_metadata?.role === 'owner' || !!(auth.user?.user_metadata?.permissions?.[p]),
     myPermissions: auth.user?.user_metadata?.permissions || null
-  }), [auth, core, events, gallery, sports, personnel, management]);
+  }), [auth, core, events, gallery, sports, personnel, management, scope]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };

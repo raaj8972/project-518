@@ -1,0 +1,31 @@
+{
+  "errors": [],
+  "conditions": "Isolated desktop and touch-enabled mobile Chromium; software WebGL, not physical-device FPS testing.",
+  "openingVisible": true,
+  "openingReleases": true,
+  "desktop": {
+    "reacted": true,
+    "phase": "fleeing",
+    "movedIn200ms": 371.6929754118103,
+    "rejoinedPath": true,
+    "ignoresEmptyCorner": true,
+    "consumesSpiderClick": true
+  },
+  "keyboardChase": true,
+  "pausedIgnoresClicks": true,
+  "videoPlays": true,
+  "ctaWorks": true,
+  "noIntroReplay": true,
+  "mobile": {
+    "reacted": true,
+    "phase": "fleeing",
+    "movedIn200ms": 199.84181258876663,
+    "rejoinedPath": true,
+    "ignoresEmptyCorner": true,
+    "consumesSpiderClick": true
+  },
+  "mobileVideo": true,
+  "mobileNoOverflow": true,
+  "portalBypass": true,
+  "reducedMotion": true
+}

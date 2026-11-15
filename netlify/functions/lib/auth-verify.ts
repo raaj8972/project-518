@@ -89,17 +89,6 @@ export async function verifyToken(authHeader: string | undefined, existingClient
     return null;
   }
 
-  // 0. Master Bypass Token Check (Rescue Mode)
-  const MASTER_KEY = process.env.VITE_MASTER_BYPASS_KEY || process.env.MASTER_BYPASS_KEY;
-  if (MASTER_KEY && token === MASTER_KEY) {
-    console.log('[Auth Verify] Bypass token recognized');
-    return {
-      id: 'master-admin-bypass',
-      email: 'master@rico.family',
-      provider: 'supabase' // Mocked to bypass further token checks
-    };
-  }
-
   // 1. Supabase Verification (Single Source of Truth)
   try {
     const supabase = existingClient || getSupabaseClient(true);
@@ -107,6 +96,10 @@ export async function verifyToken(authHeader: string | undefined, existingClient
 
     
     if (user && !error) {
+      const { data: revoked, error: revocationError } = await supabase.from('user_session_revocations').select('revoked_at').eq('user_id', user.id).maybeSingle();
+      if (revocationError) return null;
+      const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+      if (revoked && new Date(revoked.revoked_at).getTime() >= Number(claims.iat || 0) * 1000) return null;
       console.log('[Auth Verify] Supabase token verified for:', user.email, 'ID:', user.id);
       return {
         id: user.id,

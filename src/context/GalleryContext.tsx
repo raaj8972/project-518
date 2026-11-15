@@ -1,9 +1,11 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { SITE_FEATURES, isSportsContent } from '../constants/siteFeatures';
+import { createContext, useContext, useState, useRef, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { dualRead, dualInsert, dualUpdate, dualDelete, dualUpsert } from '../lib/dualDb';
 import { 
   GalleryImage, GallerySettings
 } from '../types/data';
+import { useDomainRealtime } from '../hooks/useDomainRealtime';
 import { useCoreData } from './CoreDataContext';
 import { useAuth } from './AuthContext';
 import { DEFAULT_GALLERY_SETTINGS } from '../utils/dataUtils';
@@ -52,7 +54,7 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(DEFAULT_GALLERY_SETTINGS);
   const [loading, setLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [imagesFetched, setImagesFetched] = useState(false);
+  const imagesFetchedRef = useRef(false);
 
   const fetchGalleryData = useCallback(async (includeImages: boolean = false) => {
     if (!enabled) return;
@@ -71,28 +73,14 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
 
       // Only fetch the tens of thousands of images if explicitly requested 
       // (e.g., user is viewing the Gallery or Dashboard), to prevent network/memory lag across the site.
-      if (!includeImages && !imagesFetched) {
+      if (!includeImages && !imagesFetchedRef.current) {
         console.log('[GalleryContext] Deferring mass image fetch until requested.');
         setLoading(false);
         return;
       }
 
       // 2. Fetch total count first (using dualRead with head: true logic if supported, or just select all and count)
-      const countPromise = supabase
-        .from('gallery_images')
-        .select('*', { count: 'exact', head: true });
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT')), 25000)
-      );
-
-      console.log('[GalleryContext] Fetching image count...');
-      const { count, error: countError } = await Promise.race([countPromise, timeoutPromise]) as any;
-
-      if (countError) {
-        console.error('[GalleryContext] Failed to get image count:', countError.message);
-      }
-
+      const { count } = await dualRead({ table: 'gallery_images', select: 'id', limit: 1, count: 'exact' });
       const total = count || 0;
       const batchSize = 1000;
       const numBatches = Math.ceil(total / batchSize);
@@ -104,7 +92,7 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
         const from = i * batchSize;
         const to = Math.min((i + 1) * batchSize - 1, total - 1);
         batchPromises.push(
-          dualRead({
+          () => dualRead({
             table: 'gallery_images',
             order: ['created_at', { ascending: false }],
             range: [from, to]
@@ -112,7 +100,10 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
         );
       }
 
-      const results = await Promise.all(batchPromises);
+      const results = [];
+      for (let index = 0; index < batchPromises.length; index += 4) {
+        results.push(...await Promise.all(batchPromises.slice(index, index + 4).map(fetch => fetch())));
+      }
       console.log(`✔ ${numBatches} batches fetched`);
       
       let allImages: GalleryImage[] = [];
@@ -128,7 +119,7 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
 
       console.log(`[GalleryContext] Successfully fetched ${allImages.length} images in ${Date.now() - start}ms`);
       setGalleryImages(allImages);
-      setImagesFetched(true);
+      imagesFetchedRef.current = true;
 
     } catch (err) {
       console.error('[GalleryContext] Failed to fetch gallery data', err);
@@ -136,13 +127,15 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
       setLoading(false);
       setIsLoaded(true);
     }
-  }, [enabled, imagesFetched]);
+  }, [enabled]);
 
   useEffect(() => {
     if (enabled) {
       fetchGalleryData(false); // Only fetch settings initially; images are deferred or manual
     }
   }, [refreshTrigger, fetchGalleryData, enabled]);
+
+  useDomainRealtime('gallery-context-realtime', enabled, ['gallery_settings', 'gallery_images'], () => fetchGalleryData(imagesFetchedRef.current));
 
   const addGalleryImage = async (image: Partial<GalleryImage>) => {
     await dualInsert('gallery_images', image);
@@ -242,10 +235,10 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
   };
 
   const loadGalleryImages = useCallback(async () => {
-    if (!imagesFetched && !loading) {
+    if (!imagesFetchedRef.current && !loading) {
       await fetchGalleryData(true);
     }
-  }, [imagesFetched, loading, fetchGalleryData]);
+  }, [loading, fetchGalleryData]);
 
   const prefetchGalleryImages = async () => {
     // Placeholder for future edge function/caching logic
@@ -258,7 +251,7 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
   };
 
   const value: GalleryContextType = {
-    galleryImages,
+    galleryImages: SITE_FEATURES.sports ? galleryImages : galleryImages.filter(image => !isSportsContent(image.category)),
     gallerySettings,
     loading,
     isLoaded,

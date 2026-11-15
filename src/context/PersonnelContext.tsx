@@ -1,6 +1,7 @@
+import { normalizeGuestArtists } from '../utils/guestArtists';
+import { useDomainRealtime } from '../hooks/useDomainRealtime';
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { dualInsert, dualUpdate, dualDelete } from '../lib/dualDb';
-import { supabase } from '../lib/supabase';
 import { 
   FacultyHead, CoreCommittee, CoreTeamMember, SportsCommittee, 
   SportsTeamMember, BandMember, GuestArtist
@@ -126,7 +127,7 @@ export function PersonnelProvider({ children, enabled = true }: { children: Reac
       if (!sportsCommitteesRes.error) setSportsCommittees(sportsCommitteesRes.data || []);
       if (!sportsTeamRes.error) setSportsTeamMembers(sportsTeamRes.data || []);
       if (!bandRes.error) setBandMembers(bandRes.data || []);
-      if (!guestRes.error) setGuestArtists(guestRes.data || []);
+      if (!guestRes.error) setGuestArtists(normalizeGuestArtists(guestRes.data));
       if (!chiefRes.error) setChiefGuests(chiefRes.data || []);
 
       console.log(`[PersonnelContext] Data fetched in ${Date.now() - start}ms`);
@@ -144,21 +145,7 @@ export function PersonnelProvider({ children, enabled = true }: { children: Reac
     }
   }, [refreshTrigger, user?.id, fetchPersonnelData, enabled]);
 
-  // Real-time: re-fetch when any personnel table changes
-  useEffect(() => {
-    const channel = supabase
-      .channel('personnel-context-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'faculty_heads' }, () => fetchPersonnelData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'core_committees' }, () => fetchPersonnelData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'core_team_members' }, () => fetchPersonnelData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sports_committees' }, () => fetchPersonnelData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sports_team_members' }, () => fetchPersonnelData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'band_members' }, () => fetchPersonnelData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'guest_artists' }, () => fetchPersonnelData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chief_guests' }, () => fetchPersonnelData())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchPersonnelData]);
+  useDomainRealtime('personnel-context-realtime', enabled, ['faculty_heads', 'core_committees', 'core_team_members', 'sports_committees', 'sports_team_members', 'band_members', 'guest_artists', 'chief_guests'], fetchPersonnelData);
 
   // Faculty
   const addFacultyHead = async (head: Partial<FacultyHead>) => {
@@ -176,10 +163,6 @@ export function PersonnelProvider({ children, enabled = true }: { children: Reac
     await fetchPersonnelData();
   };
 
-  const deleteBandMember = async (id: number) => {
-    await dualDelete('band_members', id);
-    await fetchPersonnelData();
-  };
 
   // Toggle Implementation
   const toggleFacultyHeadEnabled = async (id: number) => {
@@ -257,7 +240,7 @@ export function PersonnelProvider({ children, enabled = true }: { children: Reac
   const toggleGuestArtistEnabled = async (id: number) => {
     const current = guestArtists.find(m => m.id === id);
     if (current) {
-      await dualUpdate('guest_artists', id, { enabled: !current.enabled });
+      await dualUpdate('guest_artists', id, { enabled: !current.enabled,is_featured:true });
       await fetchPersonnelData();
     }
   };
@@ -365,11 +348,11 @@ export function PersonnelProvider({ children, enabled = true }: { children: Reac
       await fetchPersonnelData();
     },
     addGuestArtist: async (artist) => {
-      await dualInsert('guest_artists', artist);
+      await dualInsert('guest_artists', {...artist,is_featured:true});
       await fetchPersonnelData();
     },
     updateGuestArtist: async (id, artist) => {
-      await dualUpdate('guest_artists', id, artist);
+      await dualUpdate('guest_artists', id, {...artist,is_featured:true});
       await fetchPersonnelData();
     },
     deleteGuestArtist: async (id) => {

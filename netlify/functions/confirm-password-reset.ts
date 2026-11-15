@@ -1,5 +1,5 @@
 import { Handler } from '@netlify/functions';
-import { createClient } from '@supabase/supabase-js';
+import { hashResetToken } from './lib/admin-reset';
 
 // Load environment variables for local testing
 import 'dotenv/config';
@@ -21,7 +21,7 @@ export const handler: Handler = async (event) => {
 
   try {
     const { token, newPassword } = JSON.parse(event.body || '{}');
-    if (!token || !newPassword) {
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token) || typeof newPassword !== 'string' || newPassword.length < 8) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Token and new password are required' }) };
     }
 
@@ -31,32 +31,23 @@ export const handler: Handler = async (event) => {
 
     // 2. Find token session
     let email: string | null = null;
-    let foundInFirestore = false;
-
-    const { firebaseAdmin } = await import('./lib/auth-verify');
-    if (firebaseAdmin) {
-      const db = firebaseAdmin.firestore();
-      const tokensRef = db.collection('admin_reset_tokens');
-      const snapshot = await tokensRef.where('token', '==', token).get();
-      
-      if (!snapshot.empty) {
-        const docData = snapshot.docs[0].data();
-        const expiresAt = new Date(docData.expires_at);
-        if (expiresAt > new Date()) {
-          email = docData.email;
-          foundInFirestore = true;
-        }
-      }
-    }
-
+    let storedToken = hashResetToken(token);
     // Fallback/Check Supabase if not found in Firestore
     if (!email) {
-      const { data: sbToken, error: sbTokenErr } = await supabase
+      let { data: sbToken, error: sbTokenErr } = await supabase
         .from('admin_reset_tokens')
         .select('email, expires_at')
-        .eq('token', token)
+        .eq('token', storedToken)
         .maybeSingle();
-      
+      if (sbTokenErr) throw sbTokenErr;
+      // Honor unexpired links issued before the OTP rollout.
+      if (!sbToken) {
+        storedToken = token;
+        const legacy = await supabase.from('admin_reset_tokens').select('email, expires_at').eq('token', storedToken).maybeSingle();
+        if (legacy.error) throw legacy.error;
+        sbToken = legacy.data;
+      }
+
       if (sbToken) {
         const expiresAt = new Date(sbToken.expires_at);
         if (expiresAt > new Date()) {
@@ -69,16 +60,25 @@ export const handler: Handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid or expired token' }) };
     }
 
+    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Password must be at least 8 characters' }) };
+    }
     // 3. Resolve user UUID in Supabase
     // Using the resolveSupabaseUuid helper if possible, or direct query
-    const { data: sbUser } = await supabase.auth.admin.listUsers();
-    const matchedUser = sbUser?.users?.find(u => u.email?.toLowerCase() === email?.toLowerCase());
+    const { data: matchedUser, error: userError } = await supabase.from('admin_users').select('user_id').eq('email', email).in('role', ['admin', 'owner']).single();
+    if (userError) throw userError;
 
     if (!matchedUser) {
       return { statusCode: 404, headers, body: JSON.stringify({ error: 'User not found in system' }) };
     }
 
-    const userId = matchedUser.id;
+    const userId = matchedUser.user_id;
+
+    // Atomically claim this specific, unexpired token so concurrent requests cannot replay it.
+    const { data: consumed, error: consumeError } = await supabase.from('admin_reset_tokens')
+      .delete().eq('email', email).eq('token', storedToken).gt('expires_at', new Date().toISOString()).select('email');
+    if (consumeError) throw consumeError;
+    if (!consumed?.length) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid or expired token. Request a new verification code.' }) };
 
     // 4. Update Password in Supabase
     console.log(`[confirm-password-reset] Updating Supabase password for: ${email}`);
@@ -91,33 +91,11 @@ export const handler: Handler = async (event) => {
       return { statusCode: 500, headers, body: JSON.stringify({ error: updateErr.message }) };
     }
 
-    // 5. Update Password in Firebase (Bridged)
-    if (firebaseAdmin) {
-      try {
-        const fUser = await firebaseAdmin.auth().getUserByEmail(email);
-        if (fUser) {
-          console.log(`[confirm-password-reset] Syncing Firebase password for: ${email}`);
-          await firebaseAdmin.auth().updateUser(fUser.uid, { password: newPassword });
-        }
-      } catch (fError: any) {
-        console.warn('[confirm-password-reset] Firebase sync warning:', fError.message);
-      }
-    }
-
-    // 6. Delete used token
-    try {
-      if (foundInFirestore && firebaseAdmin) {
-        await firebaseAdmin.firestore().collection('admin_reset_tokens').doc(email).delete();
-      }
-      await supabase.from('admin_reset_tokens').delete().eq('email', email);
-    } catch (delErr) {
-      console.warn('[confirm-password-reset] Token cleanup warning:', delErr);
-    }
-
-    return { 
-      statusCode: 200, 
-      headers, 
-      body: JSON.stringify({ success: true, message: 'Password has been reset successfully. You can now log in.' }) 
+    const { error: revokeError } = await supabase.rpc('revoke_user_sessions', { p_user_id:userId });
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true, message: 'Password has been reset successfully. You can now log in.', ...(revokeError ? { warning:'Password reset succeeded, but existing sessions could not be revoked. Use Sessions & devices after signing in.' } : {}) })
     };
 
   } catch (err: any) {

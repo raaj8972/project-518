@@ -1,3 +1,4 @@
+import { SITE_FEATURES, isSportsContent } from '../constants/siteFeatures';
 import React, { useEffect, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { NetflixGallery } from '../components/gallery/NetflixGallery';
@@ -33,7 +34,7 @@ const AlternatingIcon = ({ icons, intervalMs, className }: { icons: string[], in
 
 const CulturalAnimated = () => (
   <div className="w-full h-full bg-gradient-to-br from-[#2a0845] to-[#6441A5] relative overflow-hidden flex items-center justify-center">
-    <div className="absolute inset-0 opacity-30 mix-blend-screen bg-[url('/noise.png')]"></div>
+    <div className="absolute inset-0 opacity-30 mix-blend-screen bg-[url('/noise.svg')]"></div>
     <div className="absolute w-[180%] h-[180%] bg-pink-500/30 blur-3xl rounded-full animate-spin-slow"></div>
     <div className="relative z-10 flex items-center justify-center text-4xl md:text-5xl">
       <AlternatingIcon icons={['🎭', '💃', '🎤', '🎸', '🥁', '🎆']} intervalMs={1500} />
@@ -68,11 +69,11 @@ const ProfileSelection = ({ onSelect }: { onSelect: (category: string | null) =>
       component: <CulturalAnimated />,
       colorClass: 'text-fuchsia-300 group-hover:text-fuchsia-400 group-hover:drop-shadow-[0_0_12px_rgba(232,121,249,0.9)]'
     },
-    {
+    ...(SITE_FEATURES.sports ? [{
       name: 'Sports',
       component: <SportsAnimated />,
       colorClass: 'text-emerald-300 group-hover:text-emerald-400 group-hover:drop-shadow-[0_0_12px_rgba(52,211,153,0.9)]'
-    },
+    }] : []),
     {
       name: 'Academic',
       component: <AcademicAnimated />,
@@ -135,7 +136,7 @@ export const Gallery: React.FC = () => {
 
   // Memoized filtered images
   const filteredImages = useMemo(() => {
-    return galleryImages.filter((img: any) => img.src && img.src.trim() !== '');
+    return galleryImages.filter((img: any) => img.src && img.src.trim() !== '' && (SITE_FEATURES.sports || !isSportsContent(img.category)));
   }, [galleryImages]);
 
   // Format images for NetflixGallery

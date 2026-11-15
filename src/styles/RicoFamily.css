@@ -251,3 +251,19 @@
 
 
 /* Hover Floats */
+/* Compact system designer credit at the top; faculty/council layouts stay full-size. */
+.rico-family-page .family-designer-strip{position:relative;padding:112px 24px 24px;border-bottom:1px solid #b69d4e29;background:linear-gradient(180deg,#06130c77,transparent)}
+.family-designers{max-width:880px;margin-inline:auto;display:grid;gap:14px}
+.family-designers--multiple{grid-template-columns:repeat(2,minmax(0,1fr))}
+.family-designer-credit{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:26px;align-items:center;padding:20px 26px 20px 20px;border:1px solid #b69d4e55;border-radius:3px 14px 3px 14px;background:linear-gradient(120deg,#14281bf0,#07150cf0);box-shadow:inset 0 1px 0 #eddda811}
+.family-designer-portrait{width:120px;height:140px;border:1px solid #c1ac6a66;border-radius:2px 8px;overflow:hidden;background:#142318;display:grid;place-items:center;color:#e3c987;font:italic 28px Georgia,serif}
+.family-designer-portrait img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 20%}
+.rico-family-page .family-designer-credit .family-designer-role{font:500 13px/1.5 'Poppins',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#d7d8b7;margin:0 0 10px;text-shadow:none;background:none;-webkit-text-fill-color:currentColor}
+.rico-family-page .family-designer-credit .family-designer-name{font:500 38px/1.2 'Poppins',sans-serif;letter-spacing:.015em;color:#f2dda5;margin:0;text-shadow:none;overflow-wrap:anywhere}
+.family-designer-socials{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;max-width:150px}
+.family-designer-socials a{display:grid;place-items:center;width:40px;height:40px;border:1px solid #bda56666;border-radius:3px 9px;color:#e3cf90;background:#20371b55;transition:color .2s,background .2s}
+.family-designer-socials svg{width:18px;height:18px}
+.family-designer-socials a:hover{background:#30492a;color:#e5ffbd}
+.family-designer-socials a:focus-visible{outline:2px solid #dddb9b;outline-offset:3px}
+@media(max-width:700px){.rico-family-page .family-designer-strip{padding:100px 18px 20px}.family-designers--multiple{grid-template-columns:minmax(0,1fr)}.family-designer-credit{grid-template-columns:84px minmax(0,1fr) auto;gap:14px;padding:15px}.family-designer-portrait{width:84px;height:102px}.rico-family-page .family-designer-credit .family-designer-role{font-size:11px;letter-spacing:.06em;margin-bottom:9px}.rico-family-page .family-designer-credit .family-designer-name{font-size:30px}.family-designer-socials{max-width:88px;gap:6px}.family-designer-socials a{height:38px;width:38px}}
+@media(prefers-reduced-motion:reduce){.family-designer-socials a{transition:none}}

@@ -46,6 +46,7 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
   return (
     <div
       ref={divRef}
+      data-spider-web
       onMouseMove={handleMouseMove}
       onFocus={handleFocus}
       onBlur={handleBlur}

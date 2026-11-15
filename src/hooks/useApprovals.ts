@@ -133,15 +133,16 @@ export const useApprovals = () => {
       const approval = pendingApprovals.find(a => a.id === approvalId);
       if (!approval) throw new Error('Approval not found');
 
-      // First, mark as approved
+      // Apply the reviewed values before recording a successful approval.
+      await applyApprovedChange({ ...approval, changes: modifiedChanges ?? approval.changes });
+
+      // Mark as approved after the change succeeds
       await dualUpdate('pending_approvals', approvalId, {
         status: 'approved',
         reviewed_by: user?.id,
         reviewed_at: new Date().toISOString()
       });
 
-      // Then, apply the actual change to the appropriate table
-      await applyApprovedChange(approval);
 
       return { success: true };
     } catch (err: any) {

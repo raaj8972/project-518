@@ -1,0 +1,1087 @@
+{
+  "collectedAt": "2026-11-02T17:45:01.005Z",
+  "build": "fresh production build; gzip/brotli estimated locally, not measured CDN transfer",
+  "topAssets": [
+    {
+      "file": "assets/crypto-browserify-41QgQ5Q9.js",
+      "rawBytes": 669844,
+      "gzipBytes": 194317,
+      "brotliBytes": 99694
+    },
+    {
+      "file": "assets/images/tech_bg.png",
+      "rawBytes": 630553,
+      "gzipBytes": 630766,
+      "brotliBytes": 630558
+    },
+    {
+      "file": "assets/lucide-react-x3t1UjVg.js",
+      "rawBytes": 475082,
+      "gzipBytes": 119158,
+      "brotliBytes": 93676
+    },
+    {
+      "file": "assets/xlsx-o92u75AQ.js",
+      "rawBytes": 429876,
+      "gzipBytes": 143191,
+      "brotliBytes": 118968
+    },
+    {
+      "file": "assets/jspdf.es.min-CT3b6Aqf.js",
+      "rawBytes": 411125,
+      "gzipBytes": 133636,
+      "brotliBytes": 112840
+    },
+    {
+      "file": "assets/index-AsYp00E1.css",
+      "rawBytes": 402917,
+      "gzipBytes": 49653,
+      "brotliBytes": 35489
+    },
+    {
+      "file": "assets/lottie-BTtpVlJ5.js",
+      "rawBytes": 307763,
+      "gzipBytes": 78855,
+      "brotliBytes": 65387
+    },
+    {
+      "file": "assets/SecurityManagement-sEogqXyZ.js",
+      "rawBytes": 214743,
+      "gzipBytes": 59402,
+      "brotliBytes": 51540
+    },
+    {
+      "file": "assets/html2canvas-CLc3sWMq.js",
+      "rawBytes": 201204,
+      "gzipBytes": 47465,
+      "brotliBytes": 38535
+    },
+    {
+      "file": "assets/supabase-E31tKUnb.js",
+      "rawBytes": 194437,
+      "gzipBytes": 51755,
+      "brotliBytes": 43943
+    },
+    {
+      "file": "assets/SecurityDashboard-Cwo6dW6w.js",
+      "rawBytes": 191401,
+      "gzipBytes": 63576,
+      "brotliBytes": 41121
+    },
+    {
+      "file": "assets/RegistrationManagement-C3Tq-ga2.js",
+      "rawBytes": 176293,
+      "gzipBytes": 49955,
+      "brotliBytes": 41189
+    },
+    {
+      "file": "assets/index-DZ5Ykkvy.js",
+      "rawBytes": 170971,
+      "gzipBytes": 55365,
+      "brotliBytes": 48518
+    },
+    {
+      "file": "assets/index.es-PKS9a79E.js",
+      "rawBytes": 152883,
+      "gzipBytes": 50278,
+      "brotliBytes": 44400
+    },
+    {
+      "file": "assets/EventsManagement-D-9dsXa1.js",
+      "rawBytes": 134865,
+      "gzipBytes": 30392,
+      "brotliBytes": 25091
+    },
+    {
+      "file": "assets/proxy-DMlA9-Jj.js",
+      "rawBytes": 112745,
+      "gzipBytes": 37396,
+      "brotliBytes": 33351
+    },
+    {
+      "file": "assets/CoordinatorDashboard-CxNty5qq.js",
+      "rawBytes": 101675,
+      "gzipBytes": 23258,
+      "brotliBytes": 19763
+    },
+    {
+      "file": "assets/offlineDB-TsFleqNC.js",
+      "rawBytes": 100609,
+      "gzipBytes": 33728,
+      "brotliBytes": 29928
+    }
+  ],
+  "buildTotals": {
+    "jsRawBytes": 6656963,
+    "cssRawBytes": 443997
+  },
+  "htmlEntry": {
+    "keys": [
+      "index.html"
+    ],
+    "chunks": [
+      {
+        "file": "assets/index-DZ5Ykkvy.js",
+        "rawBytes": 170971,
+        "gzipBytes": 55365,
+        "brotliBytes": 48518
+      },
+      {
+        "file": "assets/index-AsYp00E1.css",
+        "rawBytes": 402917,
+        "gzipBytes": 49653,
+        "brotliBytes": 35489
+      },
+      {
+        "file": "assets/chunk-51Az_VFG.js",
+        "rawBytes": 1208,
+        "gzipBytes": 666,
+        "brotliBytes": 582
+      },
+      {
+        "file": "assets/jsx-runtime-BNQehxKp.js",
+        "rawBytes": 7128,
+        "gzipBytes": 2766,
+        "brotliBytes": 2443
+      }
+    ],
+    "rawBytes": 582224,
+    "gzipBytes": 108450,
+    "brotliBytes": 87032
+  },
+  "appBoot": {
+    "keys": [
+      "index.html",
+      "src/App.tsx"
+    ],
+    "chunks": [
+      {
+        "file": "assets/index-DZ5Ykkvy.js",
+        "rawBytes": 170971,
+        "gzipBytes": 55365,
+        "brotliBytes": 48518
+      },
+      {
+        "file": "assets/index-AsYp00E1.css",
+        "rawBytes": 402917,
+        "gzipBytes": 49653,
+        "brotliBytes": 35489
+      },
+      {
+        "file": "assets/chunk-51Az_VFG.js",
+        "rawBytes": 1208,
+        "gzipBytes": 666,
+        "brotliBytes": 582
+      },
+      {
+        "file": "assets/jsx-runtime-BNQehxKp.js",
+        "rawBytes": 7128,
+        "gzipBytes": 2766,
+        "brotliBytes": 2443
+      },
+      {
+        "file": "assets/App-BCP8ZmNo.js",
+        "rawBytes": 56426,
+        "gzipBytes": 16412,
+        "brotliBytes": 13844
+      },
+      {
+        "file": "assets/dist-CX_0OjIK.js",
+        "rawBytes": 67113,
+        "gzipBytes": 22695,
+        "brotliBytes": 20120
+      },
+      {
+        "file": "assets/SEO-DgR8esuO.js",
+        "rawBytes": 15229,
+        "gzipBytes": 5774,
+        "brotliBytes": 5126
+      },
+      {
+        "file": "assets/brand-bxRNw0iR.js",
+        "rawBytes": 301,
+        "gzipBytes": 234,
+        "brotliBytes": 176
+      },
+      {
+        "file": "assets/lucide-react-x3t1UjVg.js",
+        "rawBytes": 475082,
+        "gzipBytes": 119158,
+        "brotliBytes": 93676
+      },
+      {
+        "file": "assets/ToastProvider-D0JWC1hR.js",
+        "rawBytes": 1641,
+        "gzipBytes": 934,
+        "brotliBytes": 803
+      },
+      {
+        "file": "assets/dist-C_RZVxMW.js",
+        "rawBytes": 12049,
+        "gzipBytes": 4848,
+        "brotliBytes": 4380
+      },
+      {
+        "file": "assets/ComingSoon-4hwBIRdF.js",
+        "rawBytes": 16405,
+        "gzipBytes": 4799,
+        "brotliBytes": 4175
+      },
+      {
+        "file": "assets/proxy-DMlA9-Jj.js",
+        "rawBytes": 112745,
+        "gzipBytes": 37396,
+        "brotliBytes": 33351
+      },
+      {
+        "file": "assets/AnimatePresence-CZ4vNTxZ.js",
+        "rawBytes": 3084,
+        "gzipBytes": 1482,
+        "brotliBytes": 1321
+      },
+      {
+        "file": "assets/CountdownTimer-CZEA3fhM.js",
+        "rawBytes": 3738,
+        "gzipBytes": 1528,
+        "brotliBytes": 1348
+      },
+      {
+        "file": "assets/DataContext-gb9Yo6cG.js",
+        "rawBytes": 37577,
+        "gzipBytes": 9554,
+        "brotliBytes": 8251
+      },
+      {
+        "file": "assets/supabase-E31tKUnb.js",
+        "rawBytes": 194437,
+        "gzipBytes": 51755,
+        "brotliBytes": 43943
+      },
+      {
+        "file": "assets/dist-DqWcN2EX.js",
+        "rawBytes": 27694,
+        "gzipBytes": 8566,
+        "brotliBytes": 7701
+      },
+      {
+        "file": "assets/dist-YYPj21g2.js",
+        "rawBytes": 101,
+        "gzipBytes": 114,
+        "brotliBytes": 105
+      },
+      {
+        "file": "assets/adminService-DP-WwLYL.js",
+        "rawBytes": 13818,
+        "gzipBytes": 4512,
+        "brotliBytes": 3962
+      },
+      {
+        "file": "assets/CoreDataContext-DpVWPWCd.js",
+        "rawBytes": 17113,
+        "gzipBytes": 6000,
+        "brotliBytes": 5323
+      },
+      {
+        "file": "assets/SportsContext-DyotuPqn.js",
+        "rawBytes": 5787,
+        "gzipBytes": 2075,
+        "brotliBytes": 1790
+      },
+      {
+        "file": "assets/EventCartContext-BLu3B4bT.js",
+        "rawBytes": 947,
+        "gzipBytes": 558,
+        "brotliBytes": 495
+      },
+      {
+        "file": "assets/SavingProgressContext-CWFfCPBk.js",
+        "rawBytes": 2203,
+        "gzipBytes": 1111,
+        "brotliBytes": 989
+      },
+      {
+        "file": "assets/StudentAuthContext-CIJipbAb.js",
+        "rawBytes": 3893,
+        "gzipBytes": 1772,
+        "brotliBytes": 1542
+      },
+      {
+        "file": "assets/ThemeContext-C5M7GTzE.js",
+        "rawBytes": 969,
+        "gzipBytes": 569,
+        "brotliBytes": 482
+      }
+    ],
+    "rawBytes": 1650576,
+    "gzipBytes": 410296,
+    "brotliBytes": 339935
+  },
+  "publicHome": {
+    "keys": [
+      "index.html",
+      "src/App.tsx",
+      "src/pages/Home.tsx",
+      "src/components/Navbar.tsx",
+      "src/components/Footer.tsx"
+    ],
+    "chunks": [
+      {
+        "file": "assets/index-DZ5Ykkvy.js",
+        "rawBytes": 170971,
+        "gzipBytes": 55365,
+        "brotliBytes": 48518
+      },
+      {
+        "file": "assets/index-AsYp00E1.css",
+        "rawBytes": 402917,
+        "gzipBytes": 49653,
+        "brotliBytes": 35489
+      },
+      {
+        "file": "assets/chunk-51Az_VFG.js",
+        "rawBytes": 1208,
+        "gzipBytes": 666,
+        "brotliBytes": 582
+      },
+      {
+        "file": "assets/jsx-runtime-BNQehxKp.js",
+        "rawBytes": 7128,
+        "gzipBytes": 2766,
+        "brotliBytes": 2443
+      },
+      {
+        "file": "assets/App-BCP8ZmNo.js",
+        "rawBytes": 56426,
+        "gzipBytes": 16412,
+        "brotliBytes": 13844
+      },
+      {
+        "file": "assets/dist-CX_0OjIK.js",
+        "rawBytes": 67113,
+        "gzipBytes": 22695,
+        "brotliBytes": 20120
+      },
+      {
+        "file": "assets/SEO-DgR8esuO.js",
+        "rawBytes": 15229,
+        "gzipBytes": 5774,
+        "brotliBytes": 5126
+      },
+      {
+        "file": "assets/brand-bxRNw0iR.js",
+        "rawBytes": 301,
+        "gzipBytes": 234,
+        "brotliBytes": 176
+      },
+      {
+        "file": "assets/lucide-react-x3t1UjVg.js",
+        "rawBytes": 475082,
+        "gzipBytes": 119158,
+        "brotliBytes": 93676
+      },
+      {
+        "file": "assets/ToastProvider-D0JWC1hR.js",
+        "rawBytes": 1641,
+        "gzipBytes": 934,
+        "brotliBytes": 803
+      },
+      {
+        "file": "assets/dist-C_RZVxMW.js",
+        "rawBytes": 12049,
+        "gzipBytes": 4848,
+        "brotliBytes": 4380
+      },
+      {
+        "file": "assets/ComingSoon-4hwBIRdF.js",
+        "rawBytes": 16405,
+        "gzipBytes": 4799,
+        "brotliBytes": 4175
+      },
+      {
+        "file": "assets/proxy-DMlA9-Jj.js",
+        "rawBytes": 112745,
+        "gzipBytes": 37396,
+        "brotliBytes": 33351
+      },
+      {
+        "file": "assets/AnimatePresence-CZ4vNTxZ.js",
+        "rawBytes": 3084,
+        "gzipBytes": 1482,
+        "brotliBytes": 1321
+      },
+      {
+        "file": "assets/CountdownTimer-CZEA3fhM.js",
+        "rawBytes": 3738,
+        "gzipBytes": 1528,
+        "brotliBytes": 1348
+      },
+      {
+        "file": "assets/DataContext-gb9Yo6cG.js",
+        "rawBytes": 37577,
+        "gzipBytes": 9554,
+        "brotliBytes": 8251
+      },
+      {
+        "file": "assets/supabase-E31tKUnb.js",
+        "rawBytes": 194437,
+        "gzipBytes": 51755,
+        "brotliBytes": 43943
+      },
+      {
+        "file": "assets/dist-DqWcN2EX.js",
+        "rawBytes": 27694,
+        "gzipBytes": 8566,
+        "brotliBytes": 7701
+      },
+      {
+        "file": "assets/dist-YYPj21g2.js",
+        "rawBytes": 101,
+        "gzipBytes": 114,
+        "brotliBytes": 105
+      },
+      {
+        "file": "assets/adminService-DP-WwLYL.js",
+        "rawBytes": 13818,
+        "gzipBytes": 4512,
+        "brotliBytes": 3962
+      },
+      {
+        "file": "assets/CoreDataContext-DpVWPWCd.js",
+        "rawBytes": 17113,
+        "gzipBytes": 6000,
+        "brotliBytes": 5323
+      },
+      {
+        "file": "assets/SportsContext-DyotuPqn.js",
+        "rawBytes": 5787,
+        "gzipBytes": 2075,
+        "brotliBytes": 1790
+      },
+      {
+        "file": "assets/EventCartContext-BLu3B4bT.js",
+        "rawBytes": 947,
+        "gzipBytes": 558,
+        "brotliBytes": 495
+      },
+      {
+        "file": "assets/SavingProgressContext-CWFfCPBk.js",
+        "rawBytes": 2203,
+        "gzipBytes": 1111,
+        "brotliBytes": 989
+      },
+      {
+        "file": "assets/StudentAuthContext-CIJipbAb.js",
+        "rawBytes": 3893,
+        "gzipBytes": 1772,
+        "brotliBytes": 1542
+      },
+      {
+        "file": "assets/ThemeContext-C5M7GTzE.js",
+        "rawBytes": 969,
+        "gzipBytes": 569,
+        "brotliBytes": 482
+      },
+      {
+        "file": "assets/Home-zwoQhvkV.js",
+        "rawBytes": 22045,
+        "gzipBytes": 6900,
+        "brotliBytes": 6047
+      },
+      {
+        "file": "assets/Home-D4zHdpqv.css",
+        "rawBytes": 5002,
+        "gzipBytes": 1473,
+        "brotliBytes": 1269
+      },
+      {
+        "file": "assets/gsap-FH4I6tRn.js",
+        "rawBytes": 70094,
+        "gzipBytes": 27579,
+        "brotliBytes": 24892
+      },
+      {
+        "file": "assets/ScrollTrigger-Bc5EEi8F.js",
+        "rawBytes": 43285,
+        "gzipBytes": 18050,
+        "brotliBytes": 16325
+      },
+      {
+        "file": "assets/MembershipModal-BPNBXiPC.js",
+        "rawBytes": 21898,
+        "gzipBytes": 5479,
+        "brotliBytes": 4692
+      },
+      {
+        "file": "assets/useLocalStorage-CuVGieoN.js",
+        "rawBytes": 866,
+        "gzipBytes": 452,
+        "brotliBytes": 394
+      },
+      {
+        "file": "assets/CyberpunkHeroContent-3Mv8uFEj.js",
+        "rawBytes": 7764,
+        "gzipBytes": 3201,
+        "brotliBytes": 2834
+      },
+      {
+        "file": "assets/lottie-BTtpVlJ5.js",
+        "rawBytes": 307763,
+        "gzipBytes": 78855,
+        "brotliBytes": 65387
+      },
+      {
+        "file": "assets/heroMediaService-BETsRk1N.js",
+        "rawBytes": 1230,
+        "gzipBytes": 664,
+        "brotliBytes": 543
+      },
+      {
+        "file": "assets/Navbar-BVz8ojc7.js",
+        "rawBytes": 9898,
+        "gzipBytes": 3830,
+        "brotliBytes": 3384
+      },
+      {
+        "file": "assets/BrandLogo3D-Wlc8QJmd.js",
+        "rawBytes": 13044,
+        "gzipBytes": 4807,
+        "brotliBytes": 4290
+      },
+      {
+        "file": "assets/CartDrawer-Kbuplych.js",
+        "rawBytes": 16288,
+        "gzipBytes": 5160,
+        "brotliBytes": 4544
+      },
+      {
+        "file": "assets/esm-C5vF_0Dy.js",
+        "rawBytes": 16474,
+        "gzipBytes": 6172,
+        "brotliBytes": 5556
+      },
+      {
+        "file": "assets/Footer-DYyJ5w9N.js",
+        "rawBytes": 3074,
+        "gzipBytes": 1221,
+        "brotliBytes": 1056
+      }
+    ],
+    "rawBytes": 2189301,
+    "gzipBytes": 574139,
+    "brotliBytes": 481148
+  },
+  "events": {
+    "keys": [
+      "index.html",
+      "src/App.tsx",
+      "src/pages/Events.tsx",
+      "src/components/Navbar.tsx",
+      "src/components/Footer.tsx"
+    ],
+    "chunks": [
+      {
+        "file": "assets/index-DZ5Ykkvy.js",
+        "rawBytes": 170971,
+        "gzipBytes": 55365,
+        "brotliBytes": 48518
+      },
+      {
+        "file": "assets/index-AsYp00E1.css",
+        "rawBytes": 402917,
+        "gzipBytes": 49653,
+        "brotliBytes": 35489
+      },
+      {
+        "file": "assets/chunk-51Az_VFG.js",
+        "rawBytes": 1208,
+        "gzipBytes": 666,
+        "brotliBytes": 582
+      },
+      {
+        "file": "assets/jsx-runtime-BNQehxKp.js",
+        "rawBytes": 7128,
+        "gzipBytes": 2766,
+        "brotliBytes": 2443
+      },
+      {
+        "file": "assets/App-BCP8ZmNo.js",
+        "rawBytes": 56426,
+        "gzipBytes": 16412,
+        "brotliBytes": 13844
+      },
+      {
+        "file": "assets/dist-CX_0OjIK.js",
+        "rawBytes": 67113,
+        "gzipBytes": 22695,
+        "brotliBytes": 20120
+      },
+      {
+        "file": "assets/SEO-DgR8esuO.js",
+        "rawBytes": 15229,
+        "gzipBytes": 5774,
+        "brotliBytes": 5126
+      },
+      {
+        "file": "assets/brand-bxRNw0iR.js",
+        "rawBytes": 301,
+        "gzipBytes": 234,
+        "brotliBytes": 176
+      },
+      {
+        "file": "assets/lucide-react-x3t1UjVg.js",
+        "rawBytes": 475082,
+        "gzipBytes": 119158,
+        "brotliBytes": 93676
+      },
+      {
+        "file": "assets/ToastProvider-D0JWC1hR.js",
+        "rawBytes": 1641,
+        "gzipBytes": 934,
+        "brotliBytes": 803
+      },
+      {
+        "file": "assets/dist-C_RZVxMW.js",
+        "rawBytes": 12049,
+        "gzipBytes": 4848,
+        "brotliBytes": 4380
+      },
+      {
+        "file": "assets/ComingSoon-4hwBIRdF.js",
+        "rawBytes": 16405,
+        "gzipBytes": 4799,
+        "brotliBytes": 4175
+      },
+      {
+        "file": "assets/proxy-DMlA9-Jj.js",
+        "rawBytes": 112745,
+        "gzipBytes": 37396,
+        "brotliBytes": 33351
+      },
+      {
+        "file": "assets/AnimatePresence-CZ4vNTxZ.js",
+        "rawBytes": 3084,
+        "gzipBytes": 1482,
+        "brotliBytes": 1321
+      },
+      {
+        "file": "assets/CountdownTimer-CZEA3fhM.js",
+        "rawBytes": 3738,
+        "gzipBytes": 1528,
+        "brotliBytes": 1348
+      },
+      {
+        "file": "assets/DataContext-gb9Yo6cG.js",
+        "rawBytes": 37577,
+        "gzipBytes": 9554,
+        "brotliBytes": 8251
+      },
+      {
+        "file": "assets/supabase-E31tKUnb.js",
+        "rawBytes": 194437,
+        "gzipBytes": 51755,
+        "brotliBytes": 43943
+      },
+      {
+        "file": "assets/dist-DqWcN2EX.js",
+        "rawBytes": 27694,
+        "gzipBytes": 8566,
+        "brotliBytes": 7701
+      },
+      {
+        "file": "assets/dist-YYPj21g2.js",
+        "rawBytes": 101,
+        "gzipBytes": 114,
+        "brotliBytes": 105
+      },
+      {
+        "file": "assets/adminService-DP-WwLYL.js",
+        "rawBytes": 13818,
+        "gzipBytes": 4512,
+        "brotliBytes": 3962
+      },
+      {
+        "file": "assets/CoreDataContext-DpVWPWCd.js",
+        "rawBytes": 17113,
+        "gzipBytes": 6000,
+        "brotliBytes": 5323
+      },
+      {
+        "file": "assets/SportsContext-DyotuPqn.js",
+        "rawBytes": 5787,
+        "gzipBytes": 2075,
+        "brotliBytes": 1790
+      },
+      {
+        "file": "assets/EventCartContext-BLu3B4bT.js",
+        "rawBytes": 947,
+        "gzipBytes": 558,
+        "brotliBytes": 495
+      },
+      {
+        "file": "assets/SavingProgressContext-CWFfCPBk.js",
+        "rawBytes": 2203,
+        "gzipBytes": 1111,
+        "brotliBytes": 989
+      },
+      {
+        "file": "assets/StudentAuthContext-CIJipbAb.js",
+        "rawBytes": 3893,
+        "gzipBytes": 1772,
+        "brotliBytes": 1542
+      },
+      {
+        "file": "assets/ThemeContext-C5M7GTzE.js",
+        "rawBytes": 969,
+        "gzipBytes": 569,
+        "brotliBytes": 482
+      },
+      {
+        "file": "assets/Events-C3dRexRb.js",
+        "rawBytes": 46893,
+        "gzipBytes": 14438,
+        "brotliBytes": 12712
+      },
+      {
+        "file": "assets/Events-C02IB2Yy.css",
+        "rawBytes": 15433,
+        "gzipBytes": 4095,
+        "brotliBytes": 3620
+      },
+      {
+        "file": "assets/CartDrawer-Kbuplych.js",
+        "rawBytes": 16288,
+        "gzipBytes": 5160,
+        "brotliBytes": 4544
+      },
+      {
+        "file": "assets/esm-C5vF_0Dy.js",
+        "rawBytes": 16474,
+        "gzipBytes": 6172,
+        "brotliBytes": 5556
+      },
+      {
+        "file": "assets/PreserveNewlines-aRHJmeFT.js",
+        "rawBytes": 1139,
+        "gzipBytes": 653,
+        "brotliBytes": 572
+      },
+      {
+        "file": "assets/WatchLiveButton-BFNGWBT2.js",
+        "rawBytes": 8532,
+        "gzipBytes": 3372,
+        "brotliBytes": 2989
+      },
+      {
+        "file": "assets/ProfileModal-B_LvLt1r.js",
+        "rawBytes": 9310,
+        "gzipBytes": 2827,
+        "brotliBytes": 2490
+      },
+      {
+        "file": "assets/DynamicBadge-C3Geix-W.js",
+        "rawBytes": 2036,
+        "gzipBytes": 1016,
+        "brotliBytes": 889
+      },
+      {
+        "file": "assets/CyberpunkHeroContent-3Mv8uFEj.js",
+        "rawBytes": 7764,
+        "gzipBytes": 3201,
+        "brotliBytes": 2834
+      },
+      {
+        "file": "assets/lottie-BTtpVlJ5.js",
+        "rawBytes": 307763,
+        "gzipBytes": 78855,
+        "brotliBytes": 65387
+      },
+      {
+        "file": "assets/SpotlightCard-GYsj_HeZ.js",
+        "rawBytes": 917,
+        "gzipBytes": 596,
+        "brotliBytes": 503
+      },
+      {
+        "file": "assets/rankingData-BRYMFNuF.js",
+        "rawBytes": 1568,
+        "gzipBytes": 840,
+        "brotliBytes": 727
+      },
+      {
+        "file": "assets/Navbar-BVz8ojc7.js",
+        "rawBytes": 9898,
+        "gzipBytes": 3830,
+        "brotliBytes": 3384
+      },
+      {
+        "file": "assets/BrandLogo3D-Wlc8QJmd.js",
+        "rawBytes": 13044,
+        "gzipBytes": 4807,
+        "brotliBytes": 4290
+      },
+      {
+        "file": "assets/Footer-DYyJ5w9N.js",
+        "rawBytes": 3074,
+        "gzipBytes": 1221,
+        "brotliBytes": 1056
+      }
+    ],
+    "rawBytes": 2110709,
+    "gzipBytes": 541379,
+    "brotliBytes": 451488
+  },
+  "manifestKeys": [
+    "_AIChatScanner-DEyjUJ8F.js",
+    "_AnimatePresence-CZ4vNTxZ.js",
+    "_AnnouncementsPanel-DzeBtsha.js",
+    "_BrandLogo3D-Wlc8QJmd.js",
+    "_CartDrawer-Kbuplych.js",
+    "_ChatPanel-DrOaWskT.js",
+    "_ComingSoon-4hwBIRdF.js",
+    "_CoreDataContext-DpVWPWCd.js",
+    "_CountdownTimer-CZEA3fhM.js",
+    "_CoverflowCarousel-BboVUIHU.js",
+    "_CyberpunkHeroContent-3Mv8uFEj.js",
+    "_DataContext-gb9Yo6cG.js",
+    "_DynamicBadge-C3Geix-W.js",
+    "_EventCartContext-BLu3B4bT.js",
+    "_Facebook3DButtonLink-CYCGXEx-.js",
+    "_ImageUpload-EK_jTthV.js",
+    "_InlineDescriptionAI-Bxm9rryB.js",
+    "_KineticText-BZ0WdV3U.js",
+    "_MembershipModal-BPNBXiPC.js",
+    "_ParticipantCarousel-DuKBau1u.js",
+    "_PaymentStep-ZeUoHmkk.js",
+    "_Phone3DButtonLink-B7TqQzYf.js",
+    "_PreserveNewlines-aRHJmeFT.js",
+    "_ProfileModal-B_LvLt1r.js",
+    "_QRCodeGenerator-B55U1gyX.js",
+    "_SEO-DgR8esuO.js",
+    "_SavingProgressContext-CWFfCPBk.js",
+    "_ScrollReveal-CRXJYcmk.js",
+    "_ScrollTrigger-Bc5EEi8F.js",
+    "_SportsContext-DyotuPqn.js",
+    "_SpotlightCard-GYsj_HeZ.js",
+    "_StudentAuthContext-CIJipbAb.js",
+    "_ThemeContext-C5M7GTzE.js",
+    "_ToastProvider-D0JWC1hR.js",
+    "_WalletPassModal-TOgRCNpD.js",
+    "_WatchLiveButton-BFNGWBT2.js",
+    "_YouTube3DButtonLink-DiG273PR.js",
+    "_adminService-DP-WwLYL.js",
+    "_brand-bxRNw0iR.js",
+    "_browser-BOeLtRMy.js",
+    "_chunk-51Az_VFG.js",
+    "_confetti.module-BzIROH6x.js",
+    "_crypto-browserify-41QgQ5Q9.js",
+    "_dist-CGI5MUyp.js",
+    "_dist-CX_0OjIK.js",
+    "_dist-C_RZVxMW.js",
+    "_dist-DqWcN2EX.js",
+    "_dist-YYPj21g2.js",
+    "_en-US-BCABLrOg.js",
+    "_esm-C5vF_0Dy.js",
+    "_eventActions-CZKc06Vh.js",
+    "_excelExport-BJuW3akZ.js",
+    "_format-Bu81AWyf.js",
+    "_gsap-FH4I6tRn.js",
+    "_heroMediaService-BETsRk1N.js",
+    "_index.module-BaUk6cwl.js",
+    "_jspdf.es.min-CT3b6Aqf.js",
+    "_jspdf.plugin.autotable-Cievwu2v.js",
+    "_jsx-runtime-BNQehxKp.js",
+    "_lottie-BTtpVlJ5.js",
+    "_lucide-react-x3t1UjVg.js",
+    "_offlineDB-TsFleqNC.js",
+    "_pdfExport-BDFrckWo.js",
+    "_proxy-DMlA9-Jj.js",
+    "_rankingData-BRYMFNuF.js",
+    "_supabase-E31tKUnb.js",
+    "_typeof-B_81D1-N.js",
+    "_uploadUtils-CEfn9B3M.js",
+    "_useApprovals-C5sxnQci.js",
+    "_useBodyScrollLock-B9cD00Po.js",
+    "_useLocalStorage-CuVGieoN.js",
+    "_useRegistrationMutations-UaZ7OBPu.js",
+    "_useRegistrations-7d9U-_-H.js",
+    "_useTopStars-pz610A9J.js",
+    "_useXPEngine-BDsZTZJn.js",
+    "_validationRules-BX4-hGAd.js",
+    "index.html",
+    "node_modules/canvg/lib/index.es.js",
+    "node_modules/dompurify/dist/purify.es.mjs",
+    "node_modules/html2canvas/dist/html2canvas.js",
+    "node_modules/jspdf/dist/jspdf.es.min.js",
+    "node_modules/otplib/index.js",
+    "node_modules/xlsx/xlsx.mjs",
+    "src/App.tsx",
+    "src/components/AutoCarousel.tsx",
+    "src/components/CoverflowCarousel.tsx",
+    "src/components/FacultyProfileModal.tsx",
+    "src/components/Footer.tsx",
+    "src/components/GuestArtistDetailModal.tsx",
+    "src/components/GuestArtistVideoModal.tsx",
+    "src/components/Home/AboutSection.tsx",
+    "src/components/Home/ArtistCarousel.tsx",
+    "src/components/Home/CTASection.tsx",
+    "src/components/Home/ChiefGuestModal.tsx",
+    "src/components/Home/ChiefGuestSection.tsx",
+    "src/components/Home/FeaturedEventsSection.tsx",
+    "src/components/Home/FeaturedSponsors.tsx",
+    "src/components/Home/LeadershipSection.tsx",
+    "src/components/Home/TopLegendsSection.tsx",
+    "src/components/InfiniteMarquee.tsx",
+    "src/components/InstagramTrailerSection.tsx",
+    "src/components/LogoLoop.tsx",
+    "src/components/Navbar.tsx",
+    "src/components/PremiumGenerativeEffect.tsx",
+    "src/components/Roadmap.tsx",
+    "src/components/TechVideoBackground.tsx",
+    "src/components/WinnersSection.tsx",
+    "src/components/admin/AboutSettings.tsx",
+    "src/components/admin/AdminPasscodesPanel.tsx",
+    "src/components/admin/AdminUsersPanel.tsx",
+    "src/components/admin/AnnualEventsManagement.tsx",
+    "src/components/admin/AnnualRegistrationModalSettings.tsx",
+    "src/components/admin/AnnualRegistrationsManagement.tsx",
+    "src/components/admin/AnnualSportsScheduleManagement.tsx",
+    "src/components/admin/AuditLogPanel.tsx",
+    "src/components/admin/AuditionManagement.tsx",
+    "src/components/admin/BandManagement.tsx",
+    "src/components/admin/ChiefGuestManagement.tsx",
+    "src/components/admin/ConnectionOverview.tsx",
+    "src/components/admin/CoordinatorPasswordManagement.tsx",
+    "src/components/admin/EventCategoriesManagement.tsx",
+    "src/components/admin/EventsManagement.tsx",
+    "src/components/admin/FormSettingsManagement.tsx",
+    "src/components/admin/GalleryFaceIndexer.tsx",
+    "src/components/admin/GalleryManagement.tsx",
+    "src/components/admin/GuestArtistManagement.tsx",
+    "src/components/admin/HeroMediaManagement.tsx",
+    "src/components/admin/HomeBoundSettings.tsx",
+    "src/components/admin/HomepageManagement.tsx",
+    "src/components/admin/MembershipManagement.tsx",
+    "src/components/admin/NotificationsManagement.tsx",
+    "src/components/admin/OwnerApprovalCenter.tsx",
+    "src/components/admin/ProtectionCenter.tsx",
+    "src/components/admin/RegistrationManagement.tsx",
+    "src/components/admin/RegistrationModalSettings.tsx",
+    "src/components/admin/RegistrationPhotosPanel.tsx",
+    "src/components/admin/RicoFamilyManagement.tsx",
+    "src/components/admin/RoadmapMilestonesAdmin.tsx",
+    "src/components/admin/ScheduleManagement.tsx",
+    "src/components/admin/SecurityManagement.tsx",
+    "src/components/admin/SecuritySettings.tsx",
+    "src/components/admin/ShoutoutManagement.tsx",
+    "src/components/admin/SiteSettingsPanel.tsx",
+    "src/components/admin/SocialMediaManagement.tsx",
+    "src/components/admin/SponsorsManagement.tsx",
+    "src/components/admin/SportsAuctionAdmin.tsx",
+    "src/components/admin/SportsMatchesAdmin.tsx",
+    "src/components/admin/SportsRegistrationAdmin.tsx",
+    "src/components/admin/SportsRegistrationModalSettings.tsx",
+    "src/components/admin/SportsSeasonAdmin.tsx",
+    "src/components/admin/SportsTeamManagement.tsx",
+    "src/components/admin/SportsTeamsAdmin.tsx",
+    "src/components/admin/StorageOverview.tsx",
+    "src/components/admin/StudentManagement.tsx",
+    "src/components/admin/StudentPassManagement.tsx",
+    "src/components/admin/ThemeManagement.tsx",
+    "src/components/coordinator/CoordinatorDashboard.tsx",
+    "src/layouts/DashboardLayout.tsx",
+    "src/lib/adminService.ts",
+    "src/lib/supabase.ts",
+    "src/pages/AdminDashboard.tsx",
+    "src/pages/CRDashboard.tsx",
+    "src/pages/CRLogin.tsx",
+    "src/pages/ComingSoon.tsx",
+    "src/pages/CoordinatorLogin.tsx",
+    "src/pages/CouncilDashboard.tsx",
+    "src/pages/CouncilLogin.tsx",
+    "src/pages/Events.tsx",
+    "src/pages/ForgotPassword.tsx",
+    "src/pages/Gallery.tsx",
+    "src/pages/Home.tsx",
+    "src/pages/HomeBound.tsx",
+    "src/pages/Login.tsx",
+    "src/pages/MasterGate.tsx",
+    "src/pages/NotFound.tsx",
+    "src/pages/ResetPassword.tsx",
+    "src/pages/RicoFamily.tsx",
+    "src/pages/Schedule.tsx",
+    "src/pages/SecurityDashboard.tsx",
+    "src/pages/SecurityLogin.tsx",
+    "src/pages/Sponsors.tsx",
+    "src/pages/Sports.tsx",
+    "src/pages/SportsLogin.tsx",
+    "src/pages/StudentForgotPassword.tsx",
+    "src/pages/StudentLogin.tsx",
+    "src/pages/StudentResetPassword.tsx",
+    "src/pages/dashboard/ActiveEvents.tsx",
+    "src/pages/dashboard/Announcements.tsx",
+    "src/pages/dashboard/Community.tsx",
+    "src/pages/dashboard/Events.tsx",
+    "src/pages/dashboard/Messages.tsx",
+    "src/pages/dashboard/Overview.tsx",
+    "src/pages/dashboard/Passes.tsx",
+    "src/pages/dashboard/Settings.tsx",
+    "src/pages/dashboard/SocialFeed.tsx",
+    "src/pages/dashboard/Sports.tsx",
+    "src/pages/dashboard/Teams.tsx",
+    "src/pages/dashboard/Vibes.tsx",
+    "src/utils/offlineDB.ts",
+    "src/utils/preloadBrand.ts",
+    "src/utils/r2Utils.ts",
+    "src/utils/safePlay.ts"
+  ],
+  "topPublic": [
+    {
+      "file": "public/epiminds.mp4",
+      "rawBytes": 8696427
+    },
+    {
+      "file": "public/models/face_recognition_model.bin",
+      "rawBytes": 6444032
+    },
+    {
+      "file": "public/models/ssd_mobilenetv1_model.bin",
+      "rawBytes": 5616957
+    },
+    {
+      "file": "public/login_page_video.mp4",
+      "rawBytes": 3779551
+    },
+    {
+      "file": "public/storage/uploads/raaj_founder.png",
+      "rawBytes": 772426
+    },
+    {
+      "file": "public/hero-preview.mp4",
+      "rawBytes": 736146
+    },
+    {
+      "file": "public/assets/images/tech_bg.png",
+      "rawBytes": 630553
+    },
+    {
+      "file": "public/ambulance-side.png",
+      "rawBytes": 500935
+    },
+    {
+      "file": "public/models/face_landmark_68_model.bin",
+      "rawBytes": 356840
+    },
+    {
+      "file": "public/sounds/click.mp3",
+      "rawBytes": 298001
+    },
+    {
+      "file": "public/sounds/hover.mp3",
+      "rawBytes": 298000
+    },
+    {
+      "file": "public/favicon.png",
+      "rawBytes": 290974
+    }
+  ]
+}

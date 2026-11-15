@@ -1,0 +1,234 @@
+[
+  {
+    "name": "home-desktop",
+    "route": "/",
+    "width": 1440,
+    "height": 1000,
+    "errors": [],
+    "theme": "spiderman",
+    "bodyClass": "theme-spiderman",
+    "bodyBackground": "rgb(5, 5, 6)",
+    "text": "rgb(245, 245, 247)",
+    "accent": "#c5223a",
+    "overflow": false,
+    "headings": [
+      {
+        "text": "RICORRENZA — IQ City Medical College Cultural Festival",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "RICORRENZA",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "RICO STARS",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "FEATURED EVENTS",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      }
+    ],
+    "videos": 0
+  },
+  {
+    "name": "events-desktop",
+    "route": "/events",
+    "width": 1440,
+    "height": 1000,
+    "errors": [],
+    "theme": "spiderman",
+    "bodyClass": "theme-spiderman",
+    "bodyBackground": "rgb(5, 5, 6)",
+    "text": "rgb(245, 245, 247)",
+    "accent": "#c5223a",
+    "overflow": false,
+    "headings": [
+      {
+        "text": "RICORRENZA — IQ City Medical College Cultural Festival",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "EVENT CATEGORIES",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "HALL OF FAME",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      }
+    ],
+    "videos": 0
+  },
+  {
+    "name": "gallery-desktop",
+    "route": "/gallery",
+    "width": 1440,
+    "height": 1000,
+    "errors": [],
+    "theme": "spiderman",
+    "bodyClass": "theme-spiderman",
+    "bodyBackground": "rgb(5, 5, 6)",
+    "text": "rgb(245, 245, 247)",
+    "accent": "#c5223a",
+    "overflow": false,
+    "headings": [
+      {
+        "text": "RICORRENZA — IQ City Medical College Cultural Festival",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "Which memories will you relive?",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      }
+    ],
+    "videos": 0
+  },
+  {
+    "name": "login-desktop",
+    "route": "/student/login",
+    "width": 1440,
+    "height": 1000,
+    "errors": [],
+    "theme": "spiderman",
+    "bodyClass": "theme-spiderman",
+    "bodyBackground": "rgb(5, 5, 6)",
+    "text": "rgb(245, 245, 247)",
+    "accent": "#c5223a",
+    "overflow": false,
+    "headings": [
+      {
+        "text": "RICORRENZA — IQ City Medical College Cultural Festival",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "Sign Up",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "Log In",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "Join the  Story",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      }
+    ],
+    "videos": 0
+  },
+  {
+    "name": "home-mobile",
+    "route": "/",
+    "width": 390,
+    "height": 844,
+    "errors": [],
+    "theme": "spiderman",
+    "bodyClass": "theme-spiderman",
+    "bodyBackground": "rgb(5, 5, 6)",
+    "text": "rgb(245, 245, 247)",
+    "accent": "#c5223a",
+    "overflow": false,
+    "headings": [
+      {
+        "text": "RICORRENZA — IQ City Medical College Cultural Festival",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "RICORRENZA",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "RICO STARS",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "FEATURED EVENTS",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      }
+    ],
+    "videos": 0
+  },
+  {
+    "name": "events-mobile",
+    "route": "/events",
+    "width": 390,
+    "height": 844,
+    "errors": [],
+    "theme": "spiderman",
+    "bodyClass": "theme-spiderman",
+    "bodyBackground": "rgb(5, 5, 6)",
+    "text": "rgb(245, 245, 247)",
+    "accent": "#c5223a",
+    "overflow": false,
+    "headings": [
+      {
+        "text": "RICORRENZA — IQ City Medical College Cultural Festival",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "EVENT CATEGORIES",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "HALL OF FAME",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      }
+    ],
+    "videos": 0
+  },
+  {
+    "name": "login-mobile",
+    "route": "/student/login",
+    "width": 390,
+    "height": 844,
+    "errors": [],
+    "theme": "spiderman",
+    "bodyClass": "theme-spiderman",
+    "bodyBackground": "rgb(5, 5, 6)",
+    "text": "rgb(245, 245, 247)",
+    "accent": "#c5223a",
+    "overflow": false,
+    "headings": [
+      {
+        "text": "RICORRENZA — IQ City Medical College Cultural Festival",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "Sign Up",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "Log In",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      },
+      {
+        "text": "Join the  Story",
+        "colour": "rgb(245, 245, 247)",
+        "font": "Anton, Poppins, sans-serif"
+      }
+    ],
+    "videos": 0
+  }
+]

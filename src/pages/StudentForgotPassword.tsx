@@ -1,3 +1,4 @@
+import '../styles/StudentFestival.css';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, ArrowLeft, Send, CheckCircle2, Loader2, Sparkles, LockKeyhole } from 'lucide-react';
@@ -76,7 +77,7 @@ export const StudentForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6 relative overflow-hidden font-inter">
+    <div className="student-festival-auth student-auth-page min-h-[100dvh] flex items-center justify-center bg-[#050505] p-6 relative overflow-hidden font-inter">
       {/* Background Animated Elements */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 blur-[120px] rounded-full animate-pulse" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '1s' }} />

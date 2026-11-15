@@ -21,7 +21,7 @@ const DUMMY_LIKERS: Liker[] = [
 
 const LikesReceivedList: React.FC = () => {
   const { user } = useStudentAuth();
-  const [likers, setLikers] = useState<Liker[]>(DUMMY_LIKERS);
+  const [, setLikers] = useState<Liker[]>(DUMMY_LIKERS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

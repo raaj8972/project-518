@@ -67,3 +67,10 @@ scratch/
 
 # Supabase CLI Temp
 supabase/.temp/
+
+# Reproducible repair verification and deployment preparation
+!scripts/check-repair-migration.mjs
+!scripts/generate-vercel-api.mjs
+!scripts/generate-cinematic-character.mjs
+!scripts/generate-cinematic-textures.mjs
+!scripts/seed-family-lighting-demo.mjs

@@ -1,3 +1,5 @@
+import { getSupabaseClient } from './lib/supabase';
+import { verifyAdmin } from './lib/auth-verify';
 
 import { Handler } from '@netlify/functions';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
@@ -29,6 +31,8 @@ const handler: Handler = async (event) => {
   }
 
   try {
+    const { isAdmin } = await verifyAdmin(event.headers.authorization, getSupabaseClient(true));
+    if (!isAdmin) return { statusCode: 403, body: JSON.stringify({ error: 'Administrator access required' }) };
     const { fileKey } = JSON.parse(event.body || '{}');
 
     if (!fileKey) {

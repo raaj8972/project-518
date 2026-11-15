@@ -1,0 +1,50 @@
+{
+  "errors": [],
+  "desktopShot": {
+    "phase": "shooting",
+    "path": "/events",
+    "silkLayers": 3,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900,
+      "top": 0,
+      "right": 1440,
+      "bottom": 900,
+      "left": 0
+    },
+    "background": "url(\"http://localhost:8081/images/effects/real-silk-web.webp\")",
+    "frozenFrameMs": 480
+  },
+  "mobileShot": {
+    "phase": "shooting",
+    "path": "/events",
+    "silkLayers": 3,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 844,
+      "top": 0,
+      "right": 390,
+      "bottom": 844,
+      "left": 0
+    },
+    "background": "url(\"http://localhost:8081/images/effects/real-silk-web.webp\")",
+    "frozenFrameMs": 480
+  },
+  "desktopNavigation": true,
+  "mobileNavigation": true,
+  "eventDetailsImmediateWithoutWeb": true,
+  "mobileMenuImmediateWithoutWeb": true,
+  "mobileOverflow": false,
+  "reducedMotionSkipsWeb": true,
+  "conditions": "Isolated desktop1440×900 and touch-enabled mobile390×844 Chromium. Silk screenshots freeze Web Animations at480ms; navigation resumes afterward. Software WebGL, physical-device FPS not measured.",
+  "finalMobileRetest": {
+    "errors": [],
+    "overflow": false,
+    "menuImmediate": true,
+    "navigationAfterSilk": true
+  }
+}

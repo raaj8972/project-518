@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { useReducedMotion } from 'framer-motion';
+import '../../styles/FestivalSections.css';
 import { createPortal } from 'react-dom';
 import { Zap } from 'lucide-react';
 import { HeroBackground } from '../HeroBackground';
@@ -35,6 +37,9 @@ export const EventsHero: React.FC<EventsHeroProps> = ({
   rulesModalOpen 
 }) => {
   const [glitchActive] = useState(false);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const visibleRef = useRef(true);
+  const reducedMotion = useReducedMotion();
   
   // Motion poster carousel for Hero Section (True 3D Vertical Ring)
   const motionPosterEvents = useMemo(() => {
@@ -54,11 +59,12 @@ export const EventsHero: React.FC<EventsHeroProps> = ({
   const [transitionDuration, setTransitionDuration] = useState(3000); // Dynamic duration
 
   useEffect(() => {
-    if (motionPosterEvents.length === 0) return;
-    
+    if (motionPosterEvents.length === 0 || reducedMotion || registrationModalOpen || rulesModalOpen) return;
+    let zoomTimeout: ReturnType<typeof setTimeout> | undefined;
     const cycleDuration = 10000;
     
     const rotateInterval = setInterval(() => {
+      if (document.hidden || !visibleRef.current) return;
       // 1. Prepare for Spin (Zoom Out ensured, Slow Duration)
       setIsZoomed(false);
       setTransitionDuration(3000);
@@ -68,7 +74,7 @@ export const EventsHero: React.FC<EventsHeroProps> = ({
       setRotationIndex(prev => prev + randomSteps);
 
       // 2. Schedule Zoom In after rotation finishes
-      setTimeout(() => {
+      zoomTimeout = setTimeout(() => {
         setTransitionDuration(1500); // Faster for the "punch" in
         setIsZoomed(true);
       }, 3200); 
@@ -84,8 +90,9 @@ export const EventsHero: React.FC<EventsHeroProps> = ({
     return () => {
       clearInterval(rotateInterval);
       clearTimeout(initialZoomTimeout);
+      clearTimeout(zoomTimeout);
     };
-  }, [motionPosterEvents.length]);
+  }, [motionPosterEvents.length, reducedMotion, registrationModalOpen, rulesModalOpen]);
 
   // Effect to manage Hero Video Playback: Only play the ACTIVE face, pause others
   useEffect(() => {
@@ -96,14 +103,30 @@ export const EventsHero: React.FC<EventsHeroProps> = ({
        const vid = document.getElementById(`hero-video-${ev.id}-${idx}`) as HTMLVideoElement;
        if (!vid) return;
        
-       if (idx === activeIdx) {
+       if (idx === activeIdx && !reducedMotion && !registrationModalOpen && !rulesModalOpen && visibleRef.current) {
           vid.play().catch(() => {});
        } else {
           vid.pause();
        }
     });
 
-  }, [rotationIndex, motionPosterEvents]);
+  }, [rotationIndex, motionPosterEvents, reducedMotion, registrationModalOpen, rulesModalOpen]);
+
+  useEffect(() => {
+    const element = heroRef.current;
+    if (!element || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => {
+      visibleRef.current = entry.isIntersecting;
+      element.classList.toggle('paused-animations', !entry.isIntersecting);
+      element.querySelectorAll('video').forEach(video => {
+        if (entry.isIntersecting && video.dataset.active === 'true' && !reducedMotion && !registrationModalOpen && !rulesModalOpen) {
+          void video.play().catch(() => {});
+        } else video.pause();
+      });
+    }, { threshold: 0.1 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [reducedMotion, registrationModalOpen, rulesModalOpen]);
 
   // Cylinder Math
   const faceCount = motionPosterEvents.length;
@@ -112,24 +135,10 @@ export const EventsHero: React.FC<EventsHeroProps> = ({
   const radius = Math.round(((faceHeight / 2) / Math.tan(Math.PI / faceCount)) * 1.5); 
 
   return (
-    <div ref={(el) => {
-      // Pausal Observer for Hero Animation
-      if (!el || typeof IntersectionObserver === 'undefined') return;
-      const observer = new IntersectionObserver(([entry]) => {
-         const isVisible = entry.isIntersecting;
-         if (isVisible) {
-           el.classList.remove('paused-animations');
-           el.querySelectorAll('video').forEach(v => { const p = v.play(); if (p) p.catch(() => {}); });
-         } else {
-           el.classList.add('paused-animations');
-           el.querySelectorAll('video').forEach(v => { try { v.pause() } catch {} });
-         }
-      }, { threshold: 0.1 }); 
-      observer.observe(el);
-    }} className="hero-section-wrapper">
+    <div ref={heroRef} className="festival-events-hero hero-section-wrapper">
       <HeroMediaPreloader events={motionPosterEvents} />
       
-      <section className="hero-section relative h-[80vh] md:min-h-screen flex items-center justify-center overflow-hidden" style={{ perspective: '1000px' }}>
+      <section className="hero-section relative min-h-[80dvh] md:min-h-[90dvh] flex items-center justify-center overflow-hidden" style={{ perspective: '1000px' }}>
           <div className="absolute inset-0 z-0 bg-black">
           
           <div className={`absolute inset-0 transition-opacity duration-1000 ${motionPosterEvents.length > 0 ? 'opacity-0' : 'opacity-100'}`}>
@@ -192,7 +201,8 @@ export const EventsHero: React.FC<EventsHeroProps> = ({
                           id={`hero-video-${ev.id}-${idx}`}
                           className={`w-full h-full object-cover shadow-2xl transition-all duration-1000 ${isItemZoomed ? 'rounded-none border-0' : 'rounded-xl border-2 border-white/40'}`}
                           src={ev.motion_poster_url}
-                          autoPlay
+                          autoPlay={isActive && !reducedMotion}
+                          data-active={isActive}
                           muted
                           loop
                           playsInline
@@ -223,7 +233,7 @@ export const EventsHero: React.FC<EventsHeroProps> = ({
         </div>
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
           <div className="scroll-animate opacity-0 transform translate-y-20">
-            <div className="inline-flex items-center bg-red-950/20 border border-red-600/30 text-red-500 px-6 py-3 rounded-full text-sm font-black tracking-widest mb-8 backdrop-blur-sm stranger-pulse-glow">
+            <div className="festival-events-eyebrow inline-flex items-center bg-red-950/20 border border-red-600/30 text-red-500 px-6 py-3 rounded-full text-sm font-black tracking-widest mb-8 backdrop-blur-sm stranger-pulse-glow">
               <Zap className="w-4 h-4 mr-2 animate-pulse text-red-600" /> OFFICIAL EVENTS
             </div>
             <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 nebula-title-text ${glitchActive ? 'glitch-active' : ''}`}>

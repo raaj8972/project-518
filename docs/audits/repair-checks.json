@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-02",
+  "typechecks": [
+    "application",
+    "vite/server config"
+  ],
+  "unitTests": 25,
+  "moduleRequests": 379,
+  "moduleFailures": [],
+  "backendEntrypoints": 60,
+  "backendBuildFailures": [],
+  "privilegedClientKeys": 0,
+  "databaseTests": "isolated PostgreSQL via PGlite; repair migration and security/checkout/scan regressions passed",
+  "liveDatabaseChanged": false
+}

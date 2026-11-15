@@ -1,0 +1,105 @@
+/* The rail moves beneath a stationary lighting rig. */
+.festival-partner-belt { isolation: isolate; padding-block: 0 20px; }
+.festival-partner-belt .festival-partner-logos {
+  --ll-card-w: clamp(240px, 25vw, 310px);
+  --ll-card-h: clamp(224px, 22vw, 268px);
+  --ll-card-bg: #091b1033;
+  --ll-card-border-w: 0px;
+  --ll-rim-alpha: 0;
+  --ll-floor-opacity: 0;
+  --ll-glow-color: transparent;
+  --ll-glow-spread-color: transparent;
+  --ll-depth-shadow-fn: none;
+  --ll-logo-filter: none;
+  --ll-logo-filter-hover: none;
+  --ll-card-scale-hover: 1;
+  --ll-hover-outer-color: transparent;
+  z-index: 1;
+}
+.festival-partner-logos .logoloop__list { padding-block: 144px 74px; }
+.festival-partner-logos .logoloop__item { position: relative; isolation: isolate; }
+.festival-partner-logos .logoloop__card { border: 0; padding: 16px 18px 0; box-shadow: none; }
+.festival-partner-logos :is(.logoloop__link, .logoloop__content) {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px; width: 100%; height: 100%; min-width: 0; min-height: 0;
+}
+.festival-partner-logos .logoloop__imgwrap {
+  display: flex; flex: 1; align-items: center; justify-content: center;
+  width: 100%; min-width: 0; min-height: 0;
+}
+/* Override the shared loop's 20–28px logo cap, including its mobile rules. */
+.festival-partner-logos .logoloop__card img {
+  width: 100%; height: 100%; max-width: 100%; max-height: 100%;
+  object-fit: contain; border-radius: 0; filter: none; transform: none;
+}
+.festival-partner-logos .logoloop__title {
+  display: block; flex-shrink: 0; position: relative; z-index: 4;
+  width: 100%; min-height: 44px; padding: 0 4px 12px;
+  color: #f1e7bf; text-align: center; font: 600 clamp(15px, 1.3vw, 19px)/1.45 'Poppins', system-ui, sans-serif;
+  letter-spacing: .04em; overflow-wrap: anywhere; white-space: normal;
+  text-shadow: 0 2px 8px #051008;
+}
+.festival-partner-logos .logoloop__item:hover .logoloop__card { transform: none; }
+.festival-partner-logos .logoloop__item:hover .logoloop__card img { transform: none; filter: none; }
+.festival-partner-logos .logoloop__link:hover { opacity: 1; }
+.festival-partner-logos .logoloop__link:focus-visible { outline-offset: -3px; border-radius: 12px; }
+
+.partner-light-rig { position: absolute; inset: 0; display: flex; justify-content: space-around; align-items: flex-start; padding-inline: 4%; pointer-events: none; z-index: 3; overflow: hidden; }
+.partner-spotlight { position: relative; top: 12px; flex: 0 0 68px; width: 68px; height: 92px; pointer-events: none; }
+.partner-spotlight--3, .partner-spotlight--4 { display: none; }
+.partner-spotlight__mount {
+  position: absolute; z-index: 2; top: 0; left: calc(50% - 4px); width: 8px; height: 18px;
+  border-radius: 3px; background: linear-gradient(90deg, #121914, #768075 45%, #202a22);
+}
+.partner-spotlight__head { position: absolute; inset: 0; transform-origin: 50% 22%; }
+.partner-spotlight__fixture {
+  position: relative; display: block; z-index: 1; width: 100%; height: 100%; max-width: none;
+  object-fit: contain; filter: hue-rotate(18deg) drop-shadow(0 4px 4px #030b06a0);
+}
+.partner-spotlight__beam {
+  position: absolute; top: 79%; left: 50%; width: 244px; height: var(--partner-beam-length, 350px);
+  transform: translateX(-50%); transform-origin: 50% 0; overflow: visible; opacity: .8;
+}
+.partner-spotlight__wash {
+  position: absolute; z-index: 3; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at var(--partner-hit-x, 50%) 20%, #e3ebb536, #bdce8314 42%, transparent 76%);
+  opacity: var(--partner-lit, 0); transition: opacity 180ms ease;
+}
+
+/* Procedural puffs dissolve and curl independently; no translated image edges. */
+.festival-partner-smoke {
+  position: absolute; z-index: 2; left: 0; bottom: -20px; width: 100%; height: 230px;
+  pointer-events: none;
+  mask-image: linear-gradient(transparent, #fff 28%, #fff 82%, transparent);
+  -webkit-mask-image: linear-gradient(transparent, #fff 28%, #fff 82%, transparent);
+}
+.festival-partner-web {
+  position: absolute; z-index: 2; width: clamp(110px, 14vw, 210px); height: auto;
+  color: #c4dba9; stroke: currentColor; stroke-width: .8; pointer-events: none; opacity: .24;
+}
+.festival-partner-web circle { fill: #d8e8bc; stroke: none; }
+.festival-partner-web--left { left: -12px; top: 44%; }
+.festival-partner-web--right { right: -12px; bottom: 12px; transform: rotate(180deg); }
+@media (min-width: 1400px) { .partner-spotlight--3 { display: block; } }
+@media (min-width: 1900px) { .partner-spotlight--4 { display: block; } }
+@media (min-width: 480px) and (max-width: 899px) { .partner-spotlight--2 { display: none; } }
+@media (max-width: 479px) { .partner-spotlight--1, .partner-spotlight--2 { display: none; } }
+@media (max-width: 639px) {
+  .festival-partner-belt .festival-partner-logos {
+    --ll-card-w: min(78vw, 310px); --ll-card-h: 246px;
+  }
+  .festival-partner-logos .logoloop__list { padding-block: 130px 64px; }
+  .festival-partner-logos .logoloop__card { padding: 12px 12px 0; }
+  .festival-partner-logos .logoloop__title { font-size: 17px; min-height: 44px; }
+  .partner-spotlight { flex-basis: 62px; width: 62px; height: 84px; top: 10px; }
+  .partner-spotlight__beam { width: 220px; }
+  .festival-partner-smoke { height: 190px; }
+  .festival-partner-web { width: 110px; opacity: .18; }
+}
+@media (max-width: 359px) {
+  .festival-partner-belt .festival-partner-logos { --ll-card-w: 82vw; --ll-card-h: 220px; }
+  .festival-partner-logos .logoloop__title { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .partner-spotlight__wash { transition: none; }
+}

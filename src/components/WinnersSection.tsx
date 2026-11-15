@@ -70,7 +70,7 @@ const WinnersSection: React.FC = () => {
     <section className="pt-4 pb-16 relative overflow-hidden">
       {/* Background Ambience */}
       <div className="absolute inset-0 bg-gradient-to-b from-black via-gray-900 to-black"></div>
-      <div className="absolute inset-0 bg-[url('/noise.png')] opacity-5 mix-blend-overlay"></div>
+      <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-5 mix-blend-overlay"></div>
       
       {/* Glow Orbs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-600/20 rounded-full blur-[100px] pointer-events-none animate-pulse"></div>

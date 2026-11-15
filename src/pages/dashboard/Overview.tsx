@@ -1,3 +1,4 @@
+import { SITE_FEATURES } from '../../constants/siteFeatures';
 import React from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -6,14 +7,7 @@ import {
   Trophy, 
   ChevronRight,
   Zap,
-  TrendingUp,
   Award,
-  Layers,
-  ArrowRight,
-  User,
-  ShieldCheck,
-  QrCode,
-  Settings,
 } from 'lucide-react';
 import NextUpTimeline from '../../components/dashboard/NextUpTimeline';
 import ParticipantCarousel from '../../components/dashboard/ParticipantCarousel';
@@ -62,13 +56,10 @@ const Overview: React.FC = () => {
   const { 
     registrations, 
     sportsRegistrations, 
-    entryPasses,
     xpData, 
     dataLoading, 
     rankInfo,
     tierColor,
-    firstName,
-    setSelectedPass,
   } = useOutletContext<DashboardContextType>();
   const navigate = useNavigate();
 
@@ -85,7 +76,7 @@ const Overview: React.FC = () => {
       glowClass: 'neu-accent-indigo',
       bgIcon: 'bg-indigo-500/10',
     },
-    {
+    ...(SITE_FEATURES.sports ? [{
       label: 'Sports Events',
       value: sportsRegistrations.length,
       sub: sportsRegistrations.length === 1 ? '1 sport registered' : `${sportsRegistrations.length} sports registered`,
@@ -93,7 +84,7 @@ const Overview: React.FC = () => {
       accent: '#22d3ee',
       glowClass: 'neu-accent-cyan',
       bgIcon: 'bg-cyan-500/10',
-    },
+    }] : []),
     {
       label: 'My Points',
       value: totalXP,
@@ -114,13 +105,6 @@ const Overview: React.FC = () => {
     },
   ];
 
-  const handleShowPass = () => {
-    if (entryPasses && entryPasses.length > 0) {
-      setSelectedPass(entryPasses[0]);
-    } else {
-      navigate('/dashboard/passes');
-    }
-  };
 
   return (
     <motion.div
@@ -128,12 +112,12 @@ const Overview: React.FC = () => {
       initial="hidden"
       animate="show"
       variants={containerVariants}
-      className="space-y-6"
+      className="student-festival-overview space-y-6"
     >
       {/* ── Stat Cards Grid ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="student-festival-stats grid grid-cols-1 sm:grid-cols-3 gap-4">
         {dataLoading
-          ? [0, 1, 2, 3].map(i => (
+          ? stats.map((_, i) => (
               <div key={i} className="neu-stat-card p-6 animate-pulse">
                 <div className="w-10 h-10 rounded-xl bg-white/5 mb-4" />
                 <div className="h-7 w-16 bg-white/5 rounded-lg mb-2" />
@@ -141,13 +125,13 @@ const Overview: React.FC = () => {
               </div>
             ))
           : stats.map((s) => (
-              <motion.div key={s.label} variants={itemVariants} className={`neu-stat-card ${s.glowClass} p-5`}>
+              <motion.div key={s.label} variants={itemVariants} className={`neu-stat-card student-festival-stat ${s.glowClass} p-5`}>
                 <div className={`w-10 h-10 ${s.bgIcon} rounded-xl flex items-center justify-center mb-4`}>
                   <s.icon className="w-5 h-5" style={{ color: s.accent }} />
                 </div>
-                <p className="text-2xl font-black text-white leading-none mb-1">{s.value}</p>
+                <p className="student-festival-stat-value text-2xl font-black text-white leading-none mb-1">{s.value}</p>
                 <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{s.label}</p>
-                {s.sub && <p className="text-[9px] text-gray-700 mt-1 truncate font-bold">{s.sub}</p>}
+                {s.sub && <p className="text-[11px] text-gray-400 mt-1 font-medium">{s.sub}</p>}
               </motion.div>
             ))}
       </div>
@@ -163,7 +147,7 @@ const Overview: React.FC = () => {
           </motion.div>
           
           <motion.section variants={itemVariants} className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="student-festival-stars-heading flex flex-wrap gap-3 items-center justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-black text-white tracking-tight">RICO STARS</h2>
                 <span className="px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-black uppercase tracking-widest text-indigo-400">

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapPin } from 'lucide-react';
 import { useData } from '../context/DataContext';
-import { BRAND_YEAR } from '../constants/brand';
+import { publicRoadmapMilestones,roadGeometry } from '../utils/homepageRoadmap';
 
 /*
   New Roadmap (Diagonal Zig‑Zag + Moving Rickshaw) 
@@ -21,21 +21,6 @@ import { BRAND_YEAR } from '../constants/brand';
   - Equal spacing of milestones along path
   - Provide optional vehicleImage prop (PNG / SVG). If not supplied, fallback.
 */
-
-type Milestone = {
-  year: string;
-  lines: string[];
-};
-
-// Local fallback if DB empty
-const FALLBACK_MILESTONES: Milestone[] = [
-  { year: '2015', lines: ['Biggest ever in History of RICORRENZA', 'Radiant Glow Bands', 'National Artists', 'Indo Western Band'] },
-  { year: '2017', lines: ['20+ events', '500+ participants', '3 days of cultural extravaganza'] },
-  { year: '2019', lines: ['Bollywood Artist Mohammad Irfan', 'Bengals Favourite Anupam Roy', 'Waves in Town Band', '10000+ Footfall'] },
-  { year: '2022', lines: ['Develop branding & marketing campaigns', '1000+ Footfall', 'DJ Night', 'Guest Artists'] },
-  { year: '2023', lines: ['Bollywood Artist Amit Mishra', 'Ehsaas India Band', 'DJ Nights', 'College Band Homeground'] },
-  { year: BRAND_YEAR, lines: ['Commencement of Ricorrenza'] }
-];
 
 interface RoadmapProps {
   vehicleImage?: string; // path to vehicle image or video
@@ -90,18 +75,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
   textNormalDistance = 130
 }) => {
   const { roadmapMilestones } = useData();
-  const MILESTONES: Milestone[] = useMemo(() => {
-    if (roadmapMilestones && roadmapMilestones.length) {
-      return roadmapMilestones
-        .filter(m => m.enabled !== false)
-        .sort((a,b) => a.order_position - b.order_position)
-        .map(m => ({
-          year: String(m.year),
-          lines: m.points && m.points.length ? m.points : [m.title || String(m.year)]
-        }));
-    }
-    return FALLBACK_MILESTONES;
-  }, [roadmapMilestones]);
+  const MILESTONES = useMemo(() => publicRoadmapMilestones(roadmapMilestones || []),[roadmapMilestones]);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pathRef = useRef<SVGPathElement | null>(null);
@@ -137,9 +111,10 @@ const Roadmap: React.FC<RoadmapProps> = ({
   const revealedRef = useRef<boolean[]>([]);
   const prevProgressRef = useRef(0);
   const lengthRef = useRef(0);
+  const geometryRef = useRef<ReturnType<typeof roadGeometry> | null>(null);
   const scaleRef = useRef({ x: 1, y: 1 });
   const startRef = useRef<number | null>(null);
-  const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reducedMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Animate only when in view
   const [inView, setInView] = useState(false);
 
@@ -149,12 +124,13 @@ const Roadmap: React.FC<RoadmapProps> = ({
     const vehicle = vehicleRef.current;
     if (!path || !vehicle) return;
 
-    const length = lengthRef.current || path.getTotalLength();
+    const length = lengthRef.current || geometryRef.current?.total || 0;
+    const pointAt = (distance:number) => {try{if(typeof path.getPointAtLength==='function')return path.getPointAtLength(distance);}catch{/* Use the static polyline geometry. */}return geometryRef.current?.pointAt(distance)||{x:0,y:0};};
     const l = progress * length;
-    const pt = path.getPointAtLength(l);
+    const pt = pointAt(l);
     
     // Efficiency: get a point slightly ahead for rotation
-    const ahead = path.getPointAtLength(Math.min(l + 2, length));
+    const ahead = pointAt(Math.min(l + 2, length));
     const dx = ahead.x - pt.x; 
     const dy = ahead.y - pt.y;
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
@@ -170,7 +146,11 @@ const Roadmap: React.FC<RoadmapProps> = ({
   // Precompute milestone positions along path
   useEffect(() => {
     const path = pathRef.current; if (!path) return;
-    const totalLength = path.getTotalLength();
+    const fallback = roadGeometry(viewWidth,roadHeight,segmentCount,dynamicEdgePad);
+    geometryRef.current = fallback;
+    let totalLength = fallback.total;
+    try {if(typeof path.getTotalLength==='function'){const measured=path.getTotalLength();if(Number.isFinite(measured)&&measured>0)totalLength=measured;}}catch{/* The static road is still readable when SVG measurement is unavailable. */}
+    const pointAt = (distance:number) => {try{if(typeof path.getPointAtLength==='function')return path.getPointAtLength(distance);}catch{/* Static geometry fallback. */}return fallback.pointAt(distance);};
     lengthRef.current = totalLength;
     
     // We only want milestones to sit on the first ~85% of the path
@@ -182,16 +162,16 @@ const Roadmap: React.FC<RoadmapProps> = ({
       // Linear distribution within the zone
       const t = MILESTONES.length > 1 ? i / (MILESTONES.length - 1) : 0;
       const l = t * milestoneZoneLimit;
-      const pt = path.getPointAtLength(l);
+      const pt = pointAt(l);
       
       const delta = 1;
-      const ahead = path.getPointAtLength(Math.min(l + delta, totalLength));
+      const ahead = pointAt(Math.min(l + delta, totalLength));
       const angle = Math.atan2(ahead.y - pt.y, ahead.x - pt.x) * (180 / Math.PI);
       arr.push({ x: pt.x, y: pt.y, angle });
     });
     setPositions(arr);
     // initialize reveal state for new milestones
-    const init = Array(MILESTONES.length).fill(false) as boolean[];
+    const init = Array(MILESTONES.length).fill(true) as boolean[];
     revealedRef.current = init;
     setRevealed(init);
   }, [pathD, MILESTONES.length]);
@@ -217,16 +197,17 @@ const Roadmap: React.FC<RoadmapProps> = ({
   // Observe visibility to gate animation
   useEffect(() => {
     const el = containerRef.current; if (!el) return;
+    if(typeof IntersectionObserver==='undefined'){setInView(true);return;}
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         setInView(entry.isIntersecting);
       },
-      { root: null, threshold: 0.1, rootMargin: '20% 0px 20% 0px' }
+      { root: null, threshold: 0, rootMargin: '20% 0px 20% 0px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [MILESTONES.length]);
 
   // Audio playback control
   useEffect(() => {
@@ -302,6 +283,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
     return () => cancelAnimationFrame(raf);
   }, [durationMs, reducedMotion, inView, offsetAlong, offsetNormal, MILESTONES.length]);
 
+  if(!MILESTONES.length)return null;
   return (
   <section id="roadmap" className="relative w-full overflow-hidden pt-24 pb-48 bg-[#0a0a0a]" aria-label="Ricorrenza Roadmap">
       <DigitalGrid />
@@ -337,10 +319,10 @@ const Roadmap: React.FC<RoadmapProps> = ({
               </filter>
             </defs>
             {/* Road base */}
-            <path d={pathD} ref={pathRef} stroke="#101827" strokeWidth={ROAD_WIDTH} fill="none" strokeLinecap="round" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" />
+            <path d={pathD} ref={pathRef} stroke="#263343" strokeWidth={ROAD_WIDTH} fill="none" strokeLinecap="round" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" />
             
             {/* Inner lane */}
-            <path d={pathD} stroke="rgba(255,255,255,0.05)" strokeWidth={ROAD_WIDTH - 16} fill="none" strokeLinecap="round" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" />
+            <path d={pathD} stroke="rgba(255,255,255,0.08)" strokeWidth={ROAD_WIDTH - 16} fill="none" strokeLinecap="round" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" />
             
             {/* Neon Pulse Line */}
             <path d={pathD} stroke="url(#pulseGrad)" strokeWidth={4} fill="none" strokeLinecap="round" className="neon-pulse-anim" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" filter="url(#neonGlow)" />
@@ -374,7 +356,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
             const margin = 24; // minimal horizontal margin from screen edge
             
             // Determine forced side from DB metadata if available
-            const sideSetting = roadmapMilestones?.[i]?.side; // 'left' | 'right' | 'auto'
+            const sideSetting = milestone.side; // 'left' | 'right' | 'auto'
             const forceLeft = sideSetting === 'left';
             const forceRight = sideSetting === 'right';
             let leftSide = forceLeft ? true : (forceRight ? false : baseLeftSide);

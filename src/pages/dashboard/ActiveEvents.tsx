@@ -1,3 +1,4 @@
+import { getRankingData, subscribeRankingData } from '../../services/rankingData';
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOutletContext, useNavigate } from 'react-router-dom';
@@ -79,20 +80,7 @@ const ActiveEvents: React.FC = () => {
   useEffect(() => {
     const fetchRanks = async () => {
       try {
-        const { data: allProfiles } = await supabase
-          .from('profiles')
-          .select('id, username, likes_count, student_xp(tier, xp_total)')
-          .eq('is_approved', true);
-
-        const [regsResponse, roundsResponse, eventRoundsResponse] = await Promise.all([
-          supabase.from('registrations').select('id, user_id, status, is_active, event_id, event:events(id, title)'),
-          supabase.from('registration_rounds').select('id, registration_id, status, round_id, prize_rank'),
-          supabase.from('event_rounds').select('id, name')
-        ]);
-
-        const regsList = regsResponse.data || [];
-        const roundsList = roundsResponse.data || [];
-        const eventRounds = eventRoundsResponse.data || [];
+        const { profiles: allProfiles, registrations: regsList, rounds: roundsList, eventRounds } = await getRankingData();
 
         const roundNameMap: Record<string, string> = {};
         eventRounds.forEach(er => {
@@ -144,6 +132,7 @@ const ActiveEvents: React.FC = () => {
             let likesPoints = likes * 10;
             let participationPoints = 0;
             let roundsPoints = 0;
+            let roundsCleared = 0;
             let finalRoundPoints = 0;
             let prizePoints = 0;
             let approvedEventsCount = 0;
@@ -227,8 +216,9 @@ const ActiveEvents: React.FC = () => {
         console.error('Error fetching global ranks:', err);
       }
     };
-    fetchRanks();
-  }, [registrations]);
+    void fetchRanks();
+    return subscribeRankingData(() => { void fetchRanks(); });
+  }, []);
 
   const handlePayNow = async (reg: any) => {
     setFetchingPaymentDetails(reg.id);
@@ -355,29 +345,6 @@ const ActiveEvents: React.FC = () => {
             registration_id: r.id,
           };
         });
-      }
-
-      // Mock/append fake students up to 50 for testing scrollable layout if coList has less than 50
-      if (coList.length < 50) {
-        const batchOptions = ['CSE 2026', 'ECE 2025', 'ME 2027', 'BBA 2026', 'MBA 2025'];
-        const firstNames = ['Amit', 'Rahul', 'Priya', 'Neha', 'Vikram', 'Rohan', 'Sneha', 'Ananya', 'Aarav', 'Kabir', 'Aditya', 'Ishaan', 'Diya', 'Karan', 'Sanya', 'Arjun', 'Simran', 'Rhea', 'Aryan', 'Varun'];
-        const lastNames = ['Sharma', 'Verma', 'Kumar', 'Singh', 'Gupta', 'Patel', 'Joshi', 'Mehta', 'Reddy', 'Rao', 'Das', 'Sen', 'Nair', 'Choudhury', 'Mishra', 'Saxena', 'Kapoor'];
-        
-        const needed = 50 - coList.length;
-        for (let i = 0; i < needed; i++) {
-          const fName = firstNames[(i + 3) % firstNames.length];
-          const lName = lastNames[(i + 7) % lastNames.length];
-          const mockId = `mock-student-${i}`;
-          coList.push({
-            id: mockId,
-            full_name: `${fName} ${lName}`,
-            batch: batchOptions[(i + 2) % batchOptions.length],
-            avatar_url: undefined,
-            aura_color: null,
-            user_id: mockId,
-            registration_id: mockId,
-          });
-        }
       }
 
       setRounds(prev => ({ ...prev, [regId]: roundsData || [] }));
@@ -548,29 +515,9 @@ const ActiveEvents: React.FC = () => {
             const isLoading = loadingExpand === reg.id;
             const eventRounds = rounds[reg.id] || [];
             
-            // Auto pad up to 50 fake students for visual testing of the scrollable grid
             const rawParticipants = coParticipants[reg.id] || [];
             const participants = [...rawParticipants];
-            if (participants.length < 50) {
-              const batchOptions = ['CSE 2026', 'ECE 2025', 'ME 2027', 'BBA 2026', 'MBA 2025'];
-              const firstNames = ['Amit', 'Rahul', 'Priya', 'Neha', 'Vikram', 'Rohan', 'Sneha', 'Ananya', 'Aarav', 'Kabir', 'Aditya', 'Ishaan', 'Diya', 'Karan', 'Sanya', 'Arjun', 'Simran', 'Rhea', 'Aryan', 'Varun'];
-              const lastNames = ['Sharma', 'Verma', 'Kumar', 'Singh', 'Gupta', 'Patel', 'Joshi', 'Mehta', 'Reddy', 'Rao', 'Das', 'Sen', 'Nair', 'Choudhury', 'Mishra', 'Saxena', 'Kapoor'];
-              const needed = 50 - participants.length;
-              for (let i = 0; i < needed; i++) {
-                const fName = firstNames[(i + 3) % firstNames.length];
-                const lName = lastNames[(i + 7) % lastNames.length];
-                const mockId = `mock-student-${i}`;
-                participants.push({
-                  id: mockId,
-                  full_name: `${fName} ${lName}`,
-                  batch: batchOptions[(i + 2) % batchOptions.length],
-                  avatar_url: undefined,
-                  aura_color: null,
-                  user_id: mockId,
-                  registration_id: mockId,
-                });
-              }
-            }
+
 
             const winner = getMyWinner(reg.id);
             const eventTitle = reg.event?.title || reg.event_title || 'Untitled Event';
@@ -937,7 +884,7 @@ const ActiveEvents: React.FC = () => {
           </p>
           <button
             onClick={() => navigate('/events')}
-            className="px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest text-white transition-all flex items-center gap-2"
+            className="student-festival-primary px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest text-white transition-all flex items-center gap-2"
             style={{ background: 'linear-gradient(135deg, #6366f1, #7c3aed)', boxShadow: '0 8px 24px rgba(99,102,241,0.4)' }}
           >
             Explore Events <ArrowRight className="w-4 h-4" />
@@ -951,6 +898,7 @@ const ActiveEvents: React.FC = () => {
           <ProfileModal
             profile={{
               id: selectedProfile.user_id,
+              username: selectedProfile.username || null,
               full_name: selectedProfile.full_name,
               avatar_url: selectedProfile.avatar_url,
               aura_color: selectedProfile.aura_color,
@@ -986,7 +934,7 @@ const ActiveEvents: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed inset-x-4 top-[10%] bottom-[10%] md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 z-[501] w-full max-w-lg bg-[#0d0d0f]/95 border border-[#a855f7]/30 rounded-[2rem] shadow-[0_0_50px_rgba(168,85,247,0.15)] flex flex-col overflow-hidden max-h-[80vh]"
+              className="fixed inset-x-4 top-[10%] bottom-[10%] md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 z-[501] w-full max-w-lg bg-[#0d0d0f]/95 border border-purple-500/30 rounded-[2rem] shadow-[0_0_50px_rgba(168,85,247,0.15)] flex flex-col overflow-hidden max-h-[80vh]"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08]">

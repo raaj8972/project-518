@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabase';
 
 /**
  * Uploads a file to Cloudflare R2 via a presigned URL.
@@ -10,6 +11,8 @@ export const uploadToR2 = async (file: File, folder = 'gallery'): Promise<string
   try {
     const filename = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2)}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Sign in before uploading');
     // 1. Get Presigned URL
     const response = await fetch('/api/get-r2-upload-url', {
       method: 'POST',
@@ -18,7 +21,7 @@ export const uploadToR2 = async (file: File, folder = 'gallery'): Promise<string
         filetype: file.type
       }),
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`
       }
     });
 
@@ -73,13 +76,15 @@ export const deleteFromR2 = async (publicUrl: string): Promise<boolean> => {
     
     if (!fileKey) return false;
 
-    await fetch('/api/delete-r2-file', {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return false;
+    const response = await fetch('/api/delete-r2-file', {
       method: 'POST',
       body: JSON.stringify({ fileKey }),
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }
     });
     
-    return true;
+    return response.ok;
   } catch (e) {
     console.warn('Failed to delete R2 file:', e);
     return false;

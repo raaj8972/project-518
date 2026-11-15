@@ -5,7 +5,7 @@
  */
 
 import { supabase } from '../lib/supabase';
-import { dualRead, dualInsert } from '../lib/dualDb';
+import { dualRead } from '../lib/dualDb';
 import { registerBackgroundSync, isBackgroundSyncSupported } from './backgroundSync';
 import { evaluateRules } from './validationRules';
 import {
@@ -61,7 +61,13 @@ export async function syncPassesFromServer(forceRefresh: boolean = false): Promi
       console.log('📡 Performing full pass sync');
     }
 
-    const { data: passes } = await dualRead(options);
+    const passes: EntryPass[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data: page } = await dualRead({ ...options, forceRefresh: true, range: [offset, offset + 999] });
+      if (!Array.isArray(page)) throw new Error('Failed to fetch passes');
+      passes.push(...page);
+      if (page.length < 1000) break;
+    }
 
     if (!passes) {
       if (isIncremental) {
@@ -193,7 +199,7 @@ export async function validatePassOffline(
     }
 
     // 2. STRICT ONE-TIME USE CHECK
-    if (pass.is_used || pass.scanned_at) {
+    if ((pass.is_used || pass.scanned_at) && (pass.valid_date || !pass.scanned_at || new Date(pass.scanned_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) === new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }))) {
       return {
         valid: false,
         result: 'already_used',
@@ -337,15 +343,19 @@ export async function syncPendingScansToServer(
 
     for (const scan of pending) {
       try {
-        await dualInsert('pass_scans', {
-          pass_token: scan.pass_token,
-          participant_name: scan.participant_name,
-          scan_result: scan.result,
-          scanned_by_username: scan.security_username,
-          guard_name: scan.guard_name,
-          pass_type: scan.pass_type,
-          scanned_at: scan.timestamp
+        const { data, error } = await supabase.rpc('scan_entry_pass', {
+          p_pass_token: scan.pass_token.split('|')[0], p_scanned_by: scan.security_username,
+          p_scanned_at: scan.timestamp,
+          p_client_scan_id: `${scan.security_username}:${scan.pass_token}:${scan.timestamp}`,
+          p_guard_name: scan.guard_name || null
         });
+        if (error) throw error;
+        if (!data.valid) {
+          // A resolved conflict must not be resent forever or count as a successful entry.
+          await markScanAsSynced(scan.id!);
+          failed++;
+          continue;
+        }
 
         // Success - mark as synced
         await markScanAsSynced(scan.id!);
@@ -451,8 +461,20 @@ export async function validatePassHybrid(
   // ONLINE - Try server validation first
   if (isOnline) {
     try {
+      // Evaluate local restrictions before the server consumes the pass.
+      const storedRules = await getStoredRules();
+      if (storedRules.length) {
+        let pass = await getPassByToken(token);
+        if (!pass) {
+          const { data, error } = await supabase.from('entry_passes').select('pass_type, pass_token').eq('pass_token', token).single();
+          if (error) throw error;
+          pass = data as EntryPass;
+        }
+        const rule = await evaluateRules({ pass_type: pass.pass_type, pass_token: token }, storedRules);
+        if (!rule.valid) return { valid: false, result: 'rule_violation', message: rule.reason || 'Rule validation failed' };
+      }
       // 1. Call RPC for atomic validation and consumption
-      const { data, error } = await supabase.rpc('validate_entry_pass', {
+      const { data, error } = await supabase.rpc('scan_entry_pass', {
         p_pass_token: token,
         p_scanned_by: securityUsername
       });
@@ -465,33 +487,11 @@ export async function validatePassHybrid(
       if (!data.valid) {
         return {
           valid: false,
-          result: data.error_code || 'invalid',
-          message: data.reason,
+          result: data.result || 'invalid',
+          message: data.message,
           name: data.name,
           pass_type: data.pass_type
         };
-      }
-
-      // 2. Evaluate any additional client-side rules (e.g., local capacity)
-      // Note: We do this AFTER RPC succeeds because most rules should be server-side.
-      // If a client rule fails now, it's actually bad because server marked it as used.
-      // However, the rules engine is currently designed for more complex/custom logic.
-      const storedRules = await getStoredRules();
-      if (storedRules && storedRules.length > 0) {
-        const rulesResult = await evaluateRules(
-          { pass_type: data.pass_type, pass_token: token },
-          storedRules
-        );
-        
-        if (!rulesResult.valid) {
-          return {
-            valid: false,
-            result: 'rule_violation',
-            message: rulesResult.reason || 'Rule validation failed',
-            name: data.name || 'Unknown',
-            pass_type: data.pass_type
-          };
-        }
       }
 
       // 3. Mark pass as used locally in IndexedDB to prevent offline re-use
@@ -554,7 +554,7 @@ export async function syncRulesFromServer(): Promise<void> {
 export async function syncSettingsFromServer(): Promise<void> {
   try {
     const { data: settings } = await dualRead({
-      table: 'security_settings',
+      table: 'security_settings_public',
       limit: 1
     });
       

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="spiderman">
   <head>
     <meta charset="UTF-8" />
   <!-- Google Search Console verification: token provided by user -->
@@ -22,7 +22,7 @@
   
   <!-- PWA Manifest for Security Scanner -->
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#06b6d4" />
+  <meta name="theme-color" content="#07120c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Security" />
@@ -66,11 +66,11 @@
     <link rel="dns-prefetch" href="https://fonts.googleapis.com">
     <link rel="dns-prefetch" href="https://fonts.gstatic.com">
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
     <!-- Preload critical assets for instant rendering -->
-    <link rel="preload" href="/animations/preloader.lottie" as="fetch" crossorigin="anonymous" fetchpriority="high">
-    <link rel="preload" href="/ambulance-animated.svg" as="image" type="image/svg+xml" fetchpriority="high">
+    <link rel="preload" href="/images/ricorrenza-emerald-preview.webp" as="image" type="image/webp" fetchpriority="high">
     <link rel="preload" href="/rickshaw.svg" as="image" type="image/svg+xml" fetchpriority="high">
     <link rel="preload" href="/noise.png" as="image" type="image/png">
     
@@ -82,7 +82,7 @@
     <!-- Preload main JS module -->
 
     
-    <!-- Global Cyberpunk Styles -->
+    <!-- Base styles; theme tokens override the colours after bootstrap. -->
     <style>
       /* Visually-hidden (accessible) helper for SEO-visible H1s */
       .sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
@@ -92,6 +92,8 @@
         --accent-cyan: #00ffff;
         --bg-dark: #0a0a0a;
       }
+
+      html[data-theme="spiderman"]:not([data-festival-scope="staff"]) { --bg-dark: #050d08; --accent-pink: #b9d977; --accent-cyan: #7aff75; }
 
       * {
         margin: 0;
@@ -162,9 +164,8 @@
     }
     </script>
     <!-- Lottie Player for high-fidelity animations -->
-    <script type="module" src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs"></script>
   </head>
-  <body>
+  <body class="theme-spiderman">
     <title>RICORRENZA</title>
     <script>
       // Shim process.env for third-party scripts that expect it
@@ -247,7 +248,7 @@
 
   <h1 class="sr-only">RICORRENZA — IQ City Medical College Cultural Festival</h1>
 
-  <div id="root" style="position: relative;"></div>
+  <div id="root" style="position: relative;"><div role="status" style="min-height:100dvh;display:grid;place-items:center;padding:24px;text-align:center;color:#eee2b9;background:linear-gradient(#04110966,#04110999),url('/images/ricorrenza-emerald-preview.webp') center/cover #07120a"><div><p style="font:italic 36px Georgia,serif">RICORRENZA</p><p style="margin-top:16px;font:13px sans-serif">Opening your campus…</p></div></div></div>
     <!-- Main app module loaded with high priority -->
     <script type="module" src="/src/main.tsx" fetchpriority="high"></script>
 
@@ -266,7 +267,7 @@
             const btn = document.createElement('button');
             btn.id = 'emergency-recovery-btn';
             btn.innerHTML = 'RELOAD & FIX SITE';
-            btn.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999999;background:#00ffff;color:#000;border:none;padding:12px 24px;border-radius:4px;font-family:Orbitron,sans-serif;font-weight:900;cursor:pointer;box-shadow:0 0 20px #00ffff;letter-spacing:1px;';
+            btn.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999999;background:#c5223a;color:#fff;border:none;padding:12px 24px;border-radius:4px;font-family:Orbitron,sans-serif;font-weight:900;cursor:pointer;box-shadow:none;letter-spacing:1px;';
             btn.onclick = () => {
               btn.innerHTML = 'FIXING...';
               if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {

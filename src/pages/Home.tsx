@@ -1,3 +1,7 @@
+import { selectHomepageArtists } from '../utils/guestArtists';
+import { isHomepageRoadmapVisible } from '../utils/homepageRoadmap';
+import { useHomepageEvents } from '../hooks/useHomepageEvents';
+import { resolveHomepagePartners } from '../utils/homepageContent';
 import React, { useState, useEffect, startTransition, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -68,6 +72,7 @@ export const Home: React.FC = () => {
   const [facultyPaused, setFacultyPaused] = useState(false);
   const [committeePaused, setCommitteePaused] = useState(false);
   const [showInteractive, setShowInteractive] = useState(false);
+  const homeRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     let idleId: number | null = null;
@@ -109,39 +114,40 @@ export const Home: React.FC = () => {
   const detailAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    import('gsap').then(({ default: gsap }) => {
-      import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
-        gsap.registerPlugin(ScrollTrigger);
-        setTimeout(() => {
-          const fadeUpElements = gsap.utils.toArray('.gsap-fade-up') as HTMLElement[];
-          if (fadeUpElements.length > 0) {
-            ScrollTrigger.batch(fadeUpElements, {
-              start: "top 85%",
-              onEnter: (elements) => {
-                gsap.to(elements, {
-                  y: 0,
-                  opacity: 1,
-                  stagger: 0.15,
-                  duration: 0.8,
-                  ease: "power3.out",
-                  overwrite: "auto"
-                });
-              },
-              once: true
-            });
-            gsap.set(fadeUpElements, { y: 50, opacity: 0 });
-          }
-        }, 500);
-      });
-    });
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let context: { revert: () => void } | undefined;
+    void Promise.all([import('gsap'), import('gsap/ScrollTrigger')]).then(([{ default: gsap }, { ScrollTrigger }]) => {
+      if (cancelled) return;
+      gsap.registerPlugin(ScrollTrigger);
+      timer = setTimeout(() => {
+        if (cancelled || !homeRef.current) return;
+        context = gsap.context(() => {
+          const fadeUpElements = gsap.utils.toArray<HTMLElement>('.gsap-fade-up');
+          // Respect the motion preference and leave content visible.
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !fadeUpElements.length) return;
+          gsap.set(fadeUpElements, { y: 50, opacity: 0 });
+          ScrollTrigger.batch(fadeUpElements, {
+            start: "top 85%",
+            onEnter: (elements) => {
+              gsap.to(elements, {
+                y: 0,
+                opacity: 1,
+                stagger: 0.15,
+                duration: 0.8,
+                ease: "power3.out",
+                overwrite: "auto"
+              });
+            },
+            once: true
+          });
+        }, homeRef);
+      }, 500);
+    }).catch(() => { /* Keep the page visible if animation code cannot load. */ });
     return () => {
-      import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
-        ScrollTrigger.getAll().forEach(t => {
-          if (t.vars.trigger && (t.vars.trigger as HTMLElement).classList?.contains('gsap-fade-up')) {
-            t.kill();
-          }
-        });
-      });
+      cancelled = true;
+      clearTimeout(timer);
+      context?.revert();
     };
   }, [showInteractive, loading]);
 
@@ -338,9 +344,10 @@ export const Home: React.FC = () => {
 
 
   // Filter for featured content
-  const featuredEvents = events.filter(event => event.featured && event.visible !== false);
-  const featuredSponsors = sponsors.filter(sponsor => sponsor.featured);
-  const featuredGuestArtists = guestArtists.filter(artist => artist.is_featured && artist.enabled);
+  const featuredEvents = useHomepageEvents(events);
+  const partnerSelection = resolveHomepagePartners(sponsors, homepageSettings?.sponsor_logos, {featuredOnly:true});
+  const featuredSponsors = partnerSelection.partners;
+  const featuredGuestArtists = selectHomepageArtists(guestArtists);
   const hasManyEvents = events.length > 6;
   const hasManySponsors = sponsors.length > 8;
   
@@ -350,7 +357,7 @@ export const Home: React.FC = () => {
   // const showYoutube = socialMediaSettings?.youtubeEnabled && socialMediaSettings?.youtubeUrl;
 
   return (
-    <div className="stranger-mesh-glow min-h-screen text-white overflow-x-hidden">
+    <div ref={homeRef} className="stranger-mesh-glow min-h-screen text-white overflow-x-hidden">
       <style>{`
         .stranger-mesh-glow {
           background-color: #020617;
@@ -473,7 +480,8 @@ export const Home: React.FC = () => {
       {/* Featured Partners */}
       <React.Suspense fallback={<div className="h-48 bg-black/20 animate-pulse" />}>
         <FeaturedSponsors
-          featuredSponsors={featuredSponsors as any}
+          featuredSponsors={featuredSponsors}
+          partnerPeriod={partnerSelection.period}
           homepageSettings={homepageSettings}
           hasManySponsors={hasManySponsors}
         />
@@ -501,7 +509,7 @@ export const Home: React.FC = () => {
 
 
       {/* Roadmap Section */}
-      {homepageSettings?.roadmap_enabled && (
+      {isHomepageRoadmapVisible(homepageSettings?.roadmap_enabled) && (
         <React.Suspense fallback={<div className="h-96 flex items-center justify-center text-gray-400">Loading roadmap...</div>}>
           <Roadmap />
         </React.Suspense>

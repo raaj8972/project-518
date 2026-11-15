@@ -4,24 +4,27 @@ import {
   Settings, 
   Shield, 
   UserCheck, 
-  Plus, 
-  X,
   School,
   ToggleLeft,
   ToggleRight,
   Mail
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { StudentApprovals } from './StudentApprovals';
 import { useData } from '../../context/DataContext';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const StudentManagement: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'verifications' | 'settings' | 'auth'>('verifications');
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('section');
+  const activeSubTab = requested === 'settings' || requested === 'auth' ? requested : 'verifications';
+  const setActiveSubTab = (section: string) => setParams(previous => { const next = new URLSearchParams(previous); next.set('section', section); return next; });
   const { siteSettings, updateSiteSettings } = useData();
   const [saving, setSaving] = useState(false);
 
   const showCollege = siteSettings?.registration_institution_visible ?? true;
+  const collegeOptional = siteSettings?.registration_institution_optional ?? false;
   const googleAuthEnabled = siteSettings?.student_google_auth_enabled ?? false;
 
   const handleUpdateSettings = async (updates: any) => {
@@ -52,10 +55,10 @@ export const StudentManagement: React.FC = () => {
         <div>
           <h1 className="text-2xl font-black text-white flex items-center gap-3">
             <Users className="w-8 h-8 text-blue-400" />
-            Student System
+            Students
           </h1>
           <p className="text-gray-500 text-xs font-black uppercase tracking-[0.2em] mt-1">
-            Centralized control for student profiles and access
+            Review ID approvals and manage student profile and login settings
           </p>
         </div>
 
@@ -63,7 +66,8 @@ export const StudentManagement: React.FC = () => {
           {subTabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveSubTab(tab.id as any)}
+              aria-current={activeSubTab === tab.id ? 'page' : undefined}
+              onClick={() => setActiveSubTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
                 activeSubTab === tab.id
                   ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
@@ -117,6 +121,10 @@ export const StudentManagement: React.FC = () => {
                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${showCollege ? 'left-7' : 'left-1'}`} />
                     </button>
                   </div>
+                  <label className="flex items-center justify-between gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <span>Make the institution field optional</span>
+                    <input type="checkbox" checked={collegeOptional} disabled={saving || !showCollege} onChange={event => void handleUpdateSettings({ registration_institution_optional: event.target.checked })} />
+                  </label>
                 </div>
               </div>
             </div>

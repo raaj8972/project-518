@@ -5,7 +5,7 @@ import { AdminMessage } from '../../hooks/useAdminMessages';
 interface AdminMessageToastProps {
   message: AdminMessage;
   senderEmail: string | null;
-  onDismiss: (messageId: number) => void;
+  onDismiss: (messageId: string) => void;
 }
 
 export const AdminMessageToast: React.FC<AdminMessageToastProps> = ({
@@ -83,7 +83,7 @@ export const AdminMessageToast: React.FC<AdminMessageToastProps> = ({
 
 interface AdminMessageToastContainerProps {
   messages: AdminMessage[];
-  onDismiss: (messageId: number) => void;
+  onDismiss: (messageId: string) => void;
   getUserEmail: (userId: string) => string | null;
 }
 

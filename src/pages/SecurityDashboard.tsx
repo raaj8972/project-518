@@ -102,7 +102,8 @@ export default function SecurityDashboard() {
         const { data } = await dualRead({
           table: 'entry_passes',
           eq: ['is_active', true],
-          limit: 10 // Limit search results to 10
+          or: `participant_name.ilike.%${query.trim().replace(/[%_(),.]/g, '')}%`, forceRefresh: true,
+          limit: 100
         });
         
         results = (data || []).filter((p: any) => 
@@ -115,6 +116,7 @@ export default function SecurityDashboard() {
           // For now, doing simple loop or multiple dualReads if needed, but lets just try a broad fetch
           const { data: usageData } = await dualRead({
             table: 'pass_scans',
+            in: ['pass_id', ids], eq: ['scan_result', 'valid'], forceRefresh: true,
             limit: 100 // Limit usage check to recent 100 scans for efficiency
           });
           
@@ -207,6 +209,10 @@ export default function SecurityDashboard() {
       }
 
       const user = JSON.parse(stored);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || session.user.app_metadata?.role !== 'security' || session.user.app_metadata.security_username !== user.username) {
+        localStorage.removeItem('security_user'); navigate('/security-login'); return;
+      }
       setSecurityUser(user);
       
       // Request notification permission
@@ -485,7 +491,8 @@ export default function SecurityDashboard() {
       if (isOnline) {
         const { data } = await dualRead({
           table: 'entry_passes',
-          eq: ['is_active', true]
+          eq: ['is_active', true], forceRefresh: true,
+          or: `participant_name.ilike.%${manualSearch.trim().replace(/[%_(),.]/g, '')}%`, limit: 100
         });
         
         const results = (data || []).filter((p: any) => 
@@ -601,7 +608,7 @@ export default function SecurityDashboard() {
     localStorage.removeItem('security_user');
     // Keep guard name for the day so they aren't asked again
     // sessionStorage.removeItem('shift_guard_name');
-    navigate('/security-login');
+    void supabase.auth.signOut().finally(() => navigate('/security-login'));
     toast.success('Logged out successfully');
   };
 

@@ -9,7 +9,7 @@ Your goal is to extract event details from images (posters, brochures) or text p
 
 MANDATORY FIELDS FOR EVERY EVENT (Ask ONLY if these are missing and not explicitly declared as unavailable):
 - "title": Official name of the event.
-- "category": Type of event (e.g., Sports, Cultural, Academic).
+- "category": Type of event (e.g., Technical, Cultural, Academic).
 - "description": A short summary of the event.
 - "date": Date of the event.
 - "time": Starting time.

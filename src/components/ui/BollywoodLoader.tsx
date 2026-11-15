@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Film, Clapperboard, Star, Camera, Video, Play, Music } from 'lucide-react';
+import { Film, Clapperboard, Star, Camera, Music } from 'lucide-react';
 
 export const BollywoodLoader: React.FC<{ loading: boolean; stage?: number; onComplete: () => void; logoUrl?: string }> = ({ loading, stage = 0, onComplete, logoUrl }) => {
   const [phase, setPhase] = useState<'run' | 'fadeout'>('run');

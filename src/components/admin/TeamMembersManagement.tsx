@@ -7,12 +7,14 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
 import { AICoreTeamScanner, type ExtractedCoreTeamData } from './AICoreTeamScanner';
+import { instagramProfile, isCouncilPerson, personInstagram } from '../../utils/familyPeople';
 
 interface Props {
   isHeadMode?: boolean;
+  isCouncilMode?: boolean;
 }
 
-export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false }) => {
+export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false, isCouncilMode = false }) => {
   const savingProgress = useSavingProgress();
   const { submitForApproval, checkRequiresApproval } = useApprovals();
   const [requiresApproval, setRequiresApproval] = useState(false);
@@ -34,36 +36,36 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false }) =
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const draftKey = isCouncilMode ? 'admin_council_form_draft' : `admin_${isHeadMode ? 'heads' : 'members'}_form_draft`;
 
-  const [form, setForm] = useLocalStorage(`admin_${isHeadMode ? 'heads' : 'members'}_form_draft`, {
+  const [form, setForm] = useLocalStorage(draftKey, {
     name: '',
-    role: '',
+    is_head: isHeadMode,
     image: '',
-    phone: '',
     instagram: '',
-    linkedin: '',
     order_position: 1,
     committee_id: null as number | null,
     enabled: true
   });
 
   const resetForm = () => {
+    setFormError('');
     setForm({
       name: '',
-      role: '',
+      is_head: isHeadMode,
       image: '',
-      phone: '',
       instagram: '',
-      linkedin: '',
-      order_position: 1,
+      order_position: Math.max(0, ...coreTeamMembers.map((member: any) => member.order_position || 0)) + 1,
       committee_id: selectedCommitteeId === 'all' ? null : selectedCommitteeId,
       enabled: true
     });
   };
 
   const filteredMembers = (coreTeamMembers || [])
-    .filter((m: any) => !m.isCouncil && m.is_head === isHeadMode)
-    .filter((m: any) => selectedCommitteeId === 'all' || m.committee_id === selectedCommitteeId)
+    .filter((m: any) => isCouncilMode ? isCouncilPerson(m) : !isCouncilPerson(m) && Boolean(m.is_head) === isHeadMode)
+    .filter((m: any) => isCouncilMode || selectedCommitteeId === 'all' || m.committee_id === selectedCommitteeId)
     .sort((a: any, b: any) => a.order_position - b.order_position);
 
   const getCommitteeName = (id: number | null) => {
@@ -76,76 +78,50 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false }) =
       return (coreCommittees || []).find((c: any) => c.id === id)?.color || 'gray';
   };
 
-  const handleAdd = async () => {
-    if (!form.name.trim() || !form.image) return alert('Name and Image are required');
-    if (!form.committee_id) return alert('Please select a committee');
-    
-    try {
-      const steps = savingProgress.withSteps(2, 'Preparing…');
-      steps.next('Saving');
-      
-      const payload: any = {
-        name: form.name,
-        role: form.role,
-        image: form.image,
-        phone: form.phone,
-        order_position: form.order_position,
-        enabled: form.enabled,
-        committee_id: form.committee_id,
-        is_head: isHeadMode,
-        is_council: false,
-        social_links: { instagram: form.instagram, linkedin: form.linkedin }
-      };
-
-      if (requiresApproval) {
-        await submitForApproval('core_team_member', 'create', payload);
-        alert('Request submitted for approval.');
-      } else {
-        await addCoreTeamMember(payload);
-      }
-      setIsAdding(false);
-      resetForm();
-      try { localStorage.removeItem(`admin_${isHeadMode ? 'heads' : 'members'}_form_draft`); } catch {}
-    } catch (error) {
-      alert('Failed to add member.');
-    } finally {
-      savingProgress.done();
-    }
+  const buildPayload = () => {
+    const existing = editing === null ? undefined : coreTeamMembers.find((member: any) => member.id === editing);
+    const socialLinks = existing?.social_links && typeof existing.social_links === 'object' && !Array.isArray(existing.social_links) ? existing.social_links : {};
+    return {
+      name: form.name.trim(),
+      image: form.image,
+      role: existing?.role || ((form.is_head ?? isHeadMode) ? 'Head' : 'Member'),
+      order_position: form.order_position,
+      enabled: form.enabled,
+      committee_id: form.committee_id || null,
+      is_head: Boolean(form.is_head ?? isHeadMode),
+      is_council: isCouncilMode,
+      social_links: { ...socialLinks, instagram: instagramProfile(form.instagram)?.url || '' }
+    };
   };
 
-  const handleUpdate = async (id: number) => {
-    if (!form.name.trim() || !form.image) return alert('Name and Image are required');
-    if (!form.committee_id) return alert('Please select a committee');
-    
+  const saveMember = async () => {
+    if (saving) return;
+    if (!form.name.trim() || !form.image) { setFormError('Name and profile image are required.'); return; }
+    if (!isCouncilMode && !form.committee_id) { setFormError('Please select a department.'); return; }
+    if (form.instagram?.trim() && !instagramProfile(form.instagram)) { setFormError('Enter a valid Instagram handle or profile URL.'); return; }
+    setFormError('');
+    setSaving(true);
     try {
       const steps = savingProgress.withSteps(2, 'Preparing…');
       steps.next('Saving');
-      
-      const payload: any = {
-        name: form.name,
-        role: form.role,
-        image: form.image,
-        phone: form.phone,
-        order_position: form.order_position,
-        enabled: form.enabled,
-        committee_id: form.committee_id,
-        is_head: isHeadMode,
-        is_council: false,
-        social_links: { instagram: form.instagram, linkedin: form.linkedin }
-      };
-
+      const payload = buildPayload();
       if (requiresApproval) {
-        await submitForApproval('core_team_member', 'update', payload, id);
+        const result = await submitForApproval('core_team_member', editing === null ? 'create' : 'update', payload, editing ?? undefined);
+        if (!result.success) throw new Error(result.error || 'Approval request failed');
         alert('Request submitted for approval.');
+      } else if (editing === null) {
+        await addCoreTeamMember(payload);
       } else {
-        await updateCoreTeamMember(id, payload);
+        await updateCoreTeamMember(editing, payload);
       }
+      setIsAdding(false);
       setEditing(null);
       resetForm();
-      try { localStorage.removeItem(`admin_${isHeadMode ? 'heads' : 'members'}_form_draft`); } catch {}
+      localStorage.removeItem(draftKey);
     } catch (error) {
-      alert('Failed to update member.');
+      setFormError('Could not save. Your changes are still here; please try again.');
     } finally {
+      setSaving(false);
       savingProgress.done();
     }
   };
@@ -171,13 +147,12 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false }) =
 
   const startEditing = (member: any) => {
     setEditing(member.id);
+    setFormError('');
     setForm({
+      is_head: Boolean(member.is_head),
       name: member.name || '',
-      role: member.role || '',
       image: member.image || '',
-      phone: member.phone || '',
       instagram: member.social_links?.instagram || '',
-      linkedin: member.social_links?.linkedin || '',
       order_position: member.order_position || 1,
       committee_id: member.committee_id,
       enabled: member.enabled !== false
@@ -209,14 +184,13 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false }) =
 
         const payload = {
           name: m.name,
-          role: m.role || (isHeadMode ? 'Committee Head' : 'Member'),
+          role: isHeadMode ? 'Head' : 'Member',
           image: imageUrl || 'https://via.placeholder.com/150',
-          phone: m.phone || '',
           order_position: 1,
           enabled: true,
-          committee_id: committeeId,
+          committee_id: isCouncilMode ? null : committeeId,
           is_head: isHeadMode,
-          is_council: false,
+          is_council: isCouncilMode,
           social_links: { instagram: m.instagram }
         };
 
@@ -250,23 +224,23 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false }) =
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <p className="text-gray-400 text-sm">Manage the {isHeadMode ? 'Heads' : 'Members'} for each division</p>
+          <p className="text-gray-400 text-sm">{isCouncilMode ? 'Manage council heads and members.' : isHeadMode ? 'Add 2–3 heads per department. All heads appear together.' : 'Members appear in an automatic image carousel within their department.'} Only the photo, name and Instagram appear on public profiles.</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-2 bg-white/[0.03] border border-white/5 rounded-lg">
+        <div className="flex flex-wrap items-center gap-3">
+          {!isCouncilMode && <div className="flex items-center gap-2 px-3 py-2 bg-white/[0.03] border border-white/5 rounded-lg">
             <Filter size={16} className="text-gray-500" />
             <select
               value={selectedCommitteeId}
               onChange={e => setSelectedCommitteeId(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
               className="bg-transparent text-sm text-white focus:outline-none min-w-[150px]"
             >
-              <option value="all" className="bg-[#1a1b23]">All Committees</option>
+              <option value="all" className="bg-[#1a1b23]">All Departments</option>
               {(coreCommittees || []).map((c: any) => (
                 <option key={c.id} value={c.id} className="bg-[#1a1b23]">{c.name}</option>
               ))}
             </select>
-          </div>
+          </div>}
 
           <button
             onClick={() => setShowScanner(true)}
@@ -281,7 +255,7 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false }) =
             className={`flex items-center gap-2 px-4 py-2 bg-gradient-to-r ${isHeadMode ? 'from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400' : 'from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400'} text-white rounded-lg font-bold shadow-lg transition-all text-sm`}
           >
             <Plus size={16} />
-            <span className="hidden md:inline">Add {isHeadMode ? 'Head' : 'Member'}</span>
+            <span>Add {isCouncilMode ? 'Council Person' : isHeadMode ? 'Head' : 'Member'}</span>
           </button>
         </div>
       </div>
@@ -295,21 +269,22 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false }) =
                 <img src={member.image || 'https://via.placeholder.com/150'} alt={member.name} className="w-16 h-16 rounded-xl object-cover" />
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-white text-lg truncate">{member.name}</h4>
-                  <p className={`text-${color}-400 text-sm font-medium truncate`}>{member.role}</p>
+                  <p className="text-emerald-400 text-sm font-medium truncate">{member.is_head ? 'Head' : 'Member'}</p>
+                  {personInstagram(member) && <p className="text-gray-400 text-xs truncate">{personInstagram(member)?.handle}</p>}
                   <div className={`inline-block mt-2 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-${color}-500/15 text-${color}-400 border border-${color}-500/20 truncate max-w-full`}>
-                    {getCommitteeName(member.committee_id)}
+                    {isCouncilMode ? 'Council' : getCommitteeName(member.committee_id)}
                   </div>
                 </div>
               </div>
               
               <div className="mt-auto pt-4 flex gap-2 border-t border-white/5">
-                <button onClick={() => toggleCoreTeamMemberEnabled(member.id)} className={`flex-1 flex justify-center py-2 rounded-lg transition-colors ${member.enabled ? 'bg-white/5 text-gray-400 hover:text-white' : 'bg-red-500/20 text-red-400'}`}>
+                <button aria-label={`${member.enabled ? 'Hide' : 'Show'} ${member.name}`} onClick={() => toggleCoreTeamMemberEnabled(member.id)} className={`flex-1 flex justify-center py-2 rounded-lg transition-colors ${member.enabled ? 'bg-white/5 text-gray-400 hover:text-white' : 'bg-red-500/20 text-red-400'}`}>
                   {member.enabled ? <Eye size={18} /> : <EyeOff size={18} />}
                 </button>
-                <button onClick={() => startEditing(member)} className="flex-1 flex justify-center py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors">
+                <button aria-label={`Edit ${member.name}`} onClick={() => startEditing(member)} className="flex-1 flex justify-center py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors">
                   <Edit size={18} />
                 </button>
-                <button onClick={() => handleDelete(member.id)} className="flex-1 flex justify-center py-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
+                <button aria-label={`Delete ${member.name}`} onClick={() => handleDelete(member.id)} className="flex-1 flex justify-center py-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
                   <Trash2 size={18} />
                 </button>
               </div>
@@ -322,7 +297,7 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false }) =
             <p className="text-gray-500 text-sm">
               {selectedCommitteeId === 'all' 
                 ? `Add a ${isHeadMode ? 'Head' : 'Member'} or use the AI Scanner to import them.` 
-                : `No ${isHeadMode ? 'heads' : 'members'} in this committee yet.`}
+                : `No ${isHeadMode ? 'heads' : 'members'} in this department yet.`}
             </p>
           </div>
         )}
@@ -330,54 +305,38 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false }) =
 
       <AdminModal
         isOpen={isAdding || editing !== null}
-        onClose={() => { setIsAdding(false); setEditing(null); resetForm(); }}
-        title={editing !== null ? `Edit ${isHeadMode ? 'Head' : 'Member'}` : `Add ${isHeadMode ? 'Head' : 'Member'}`}
-        onSave={editing !== null ? () => handleUpdate(editing) : handleAdd}
+        onClose={() => { if (!saving) { setIsAdding(false); setEditing(null); resetForm(); } }}
+        title={`${editing !== null ? 'Edit' : 'Add'} ${isCouncilMode ? 'Council Person' : isHeadMode ? 'Head' : 'Member'}`}
+        footer={<><button type="button" disabled={saving} onClick={() => { setIsAdding(false); setEditing(null); resetForm(); }} className="px-4 py-2 text-gray-300">Cancel</button><button type="button" disabled={saving} onClick={saveMember} className="px-6 py-2 bg-emerald-700 text-white rounded-xl disabled:opacity-50">{saving ? 'Saving…' : 'Save Changes'}</button></>}
       >
-        <div className="space-y-4">
+        <fieldset disabled={saving} className="space-y-4">
+          {formError && <p role="alert" className="text-red-300 text-sm">{formError}</p>}
           <div>
-            <label className="block text-sm font-bold text-gray-300 mb-1">Committee *</label>
-            <select 
+            <label htmlFor="family-person-committee" className="block text-sm font-bold text-gray-300 mb-1">{isCouncilMode ? 'Department (optional)' : 'Department *'}</label>
+            <select id="family-person-committee"
               value={form.committee_id || ''} 
               onChange={e => setForm({...form, committee_id: parseInt(e.target.value) || null})} 
               className="w-full bg-[#1a1b23] border border-white/10 rounded-lg px-4 py-2 text-white"
             >
-              <option value="">-- Select Committee --</option>
+              <option value="">-- Select Department --</option>
               {(coreCommittees || []).map((c: any) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-300 mb-1">Name</label>
-              <input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white" />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-300 mb-1">Role</label>
-              <input type="text" value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white" />
-            </div>
+           </div>
+          <div>
+            <label htmlFor="family-person-name" className="block text-sm font-bold text-gray-300 mb-1">Name *</label>
+            <input id="family-person-name" type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white" />
           </div>
           <div>
-            <label className="block text-sm font-bold text-gray-300 mb-1">Profile Image</label>
-            <ImageUpload url={form.image} onUpload={(url) => setForm({...form, image: url})} folder="team" />
+            <label className="block text-sm font-bold text-gray-300 mb-1">Profile Image *</label>
+            <ImageUpload currentImage={form.image} onImageSelect={(url) => setForm({...form, image: url})} bucket="team-images" folder="team" />
           </div>
           <div>
-              <label className="block text-sm font-bold text-gray-300 mb-1">Order Position</label>
-              <input type="number" value={form.order_position} onChange={e => setForm({...form, order_position: parseInt(e.target.value) || 1})} className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white" />
+            <label htmlFor="family-person-instagram" className="block text-sm font-bold text-gray-300 mb-1">Instagram</label>
+            <input id="family-person-instagram" type="text" value={form.instagram} onChange={e => setForm({...form, instagram: e.target.value})} placeholder="@handle or Instagram profile URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-300 mb-1">Instagram Handle</label>
-              <input type="text" value={form.instagram} onChange={e => setForm({...form, instagram: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white" />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-300 mb-1">LinkedIn URL</label>
-              <input type="text" value={form.linkedin} onChange={e => setForm({...form, linkedin: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white" />
-            </div>
-          </div>
-        </div>
+        </fieldset>
       </AdminModal>
     </div>
   );

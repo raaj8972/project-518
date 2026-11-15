@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useData } from '../context/DataContext';
 import ComingSoon from '../pages/ComingSoon';
+import { useFestivalSceneReadiness } from './ui/festival/FestivalSceneReadiness';
 
 import { AlertTriangle } from 'lucide-react';
 
@@ -11,6 +12,7 @@ interface LockedPageGuardProps {
 
 export const LockedPageGuard: React.FC<LockedPageGuardProps> = ({ pageKey, children }) => {
   const { siteSettings, isAdmin } = useData();
+  const { setSettled } = useFestivalSceneReadiness();
   const [now, setNow] = useState(Date.now());
   
   // Poll current time every second so the guard auto-unlocks when timer expires
@@ -28,6 +30,9 @@ export const LockedPageGuard: React.FC<LockedPageGuardProps> = ({ pageKey, child
   //   2. Either there is no timer, or the timer hasn't expired
   const isLocked = isExplicitlyLocked && !timerExpired;
   const canBypass = isAdmin();
+  useEffect(() => {
+    if (isLocked && !canBypass) setSettled(true);
+  }, [isLocked, canBypass, setSettled]);
 
   if (isLocked && !canBypass) {
     // Render the ComingSoon component acting as a maintenance page

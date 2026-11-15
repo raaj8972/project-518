@@ -558,7 +558,7 @@ export const CoreTeamManagement: React.FC = () => {
       name: member.name,
       role: member.role,
       image: member.image,
-      committee_id: member.committee_id,
+      committee_id: member.committee_id ?? 0,
       order_position: member.order_position,
       is_head: member.is_head,
       enabled: member.enabled || true, // Default to true if undefined

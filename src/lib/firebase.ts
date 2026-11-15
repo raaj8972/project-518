@@ -29,6 +29,7 @@ export async function updatePasswordDual(
       return { success: false, error: 'Authentication required for password update.' };
     }
 
+    if (email.trim().toLowerCase() !== session.user.email?.toLowerCase()) return { success: false, error: 'Use owner controls to change another account password.' };
     const res = await fetch('/api/admin-security-controls', {
       method: 'POST',
       headers: {
@@ -37,7 +38,7 @@ export async function updatePasswordDual(
       },
       body: JSON.stringify({
         action: 'update_password',
-        targetUserId: email,
+        targetUserId: session.user.id,
         newPassword
       })
     });

@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { SponsorEditionControls, LegacySponsorArchive } from './sponsors/SponsorPublicationControls';
+import { resolveHomepagePartners, readHomepagePartners, sponsorPlacement, setSponsorPlacement, type HomepagePartner } from '../../utils/homepageContent';
+import '../../styles/HomepageStudio.css';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, X, Pencil, Trash2, Sparkles, Medal, Edit, Save, Building, Star, ExternalLink, FileImage, ArrowUp, ArrowDown, Eye, EyeOff, Award, FileText, Link as LinkIcon, Download, Mail } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useData } from '../../context/DataContext';
@@ -19,7 +22,8 @@ type SubTabType = 'sponsors' | 'packages' | 'settings';
 export const SponsorsManagement: React.FC = () => {
   const { push } = useToast();
   const { 
-    sponsors, 
+    sponsors,
+    homepageSettings, updateHomepageSettings,
     sponsorshipPackages,
     sponsorshipSettings,
     addSponsor, 
@@ -39,9 +43,35 @@ export const SponsorsManagement: React.FC = () => {
   const savingProgress = useSavingProgress();
   const { submitForApproval, checkRequiresApproval } = useApprovals();
   const [requiresApproval, setRequiresApproval] = useState(false);
+  const [approvalLoading,setApprovalLoading]=useState(true);
+  const [publicationBusy,setPublicationBusy]=useState(false);
+  const publicationPending=useRef(false);
+  const [publicationMessage,setPublicationMessage]=useState('');
+  const [editionFilter,setEditionFilter]=useState<'all'|'previous'|'current'>('all');
+  const [newEdition,setNewEdition]=useLocalStorage<'previous'|'current'>('admin_sponsor_new_edition','current');
+  const [savingSponsor,setSavingSponsor]=useState(false);
+  const sponsorSavePending=useRef(false);
+  const featurePending=useRef(false);
+  const [featureBusy,setFeatureBusy]=useState(false);
+  const placements=readHomepagePartners(homepageSettings?.sponsor_logos);
+  const publication=resolveHomepagePartners(sponsors,placements);
+  const homepagePublication=resolveHomepagePartners(sponsors,placements,{featuredOnly:true});
+  const savePublication=async(patch:{sponsor_logos?:HomepagePartner[];featured_partners_enabled?:boolean})=>{
+    if(publicationPending.current)throw new Error('Another partner change is still saving.');
+    if(requiresApproval||approvalLoading)throw new Error('An owner manages edition and visibility changes.');
+    publicationPending.current=true;setPublicationBusy(true);setPublicationMessage('');
+    try{await updateHomepageSettings(patch);setPublicationMessage('Partner selection saved. Sponsors and Home now use this selection.');}
+    catch(error){setPublicationMessage('Could not save partner selection. Your existing selection is unchanged.');throw error;}
+    finally{publicationPending.current=false;setPublicationBusy(false);}
+  };
+  const savePlacements=(records:HomepagePartner[])=>savePublication({sponsor_logos:records});
+  const changePlacement=async(sponsor:Sponsor,patch:Partial<Pick<HomepagePartner,'period'|'enabled'>>)=>{
+    try{await savePlacements(setSponsorPlacement(sponsor,placements,patch));}catch{/* Feedback is shown above the sponsor list. */}
+  };
+
 
   useEffect(() => {
-    checkRequiresApproval().then(setRequiresApproval);
+    let active=true;checkRequiresApproval().then(value=>{if(active)setRequiresApproval(value);}).catch(()=>{if(active)setRequiresApproval(true);}).finally(()=>{if(active)setApprovalLoading(false);});return()=>{active=false;};
   }, []);
 
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('sponsors');
@@ -183,11 +213,13 @@ export const SponsorsManagement: React.FC = () => {
   };
 
   const handleAdd = async () => {
+    if(approvalLoading || sponsorSavePending.current)return;
     if (!form.name || !form.category || !form.logo) {
       alert('Please fill in all required fields (name, category, and logo)');
       return;
     }
     
+    sponsorSavePending.current=true;setSavingSponsor(true);
     try {
       if (requiresApproval) {
         const result = await submitForApproval('sponsor', 'create', form);
@@ -200,18 +232,20 @@ export const SponsorsManagement: React.FC = () => {
           alert(`Failed to submit for approval: ${result.error}`);
         }
       } else {
-        await addSponsor(form);
+        const created = await addSponsor(form);
         setIsAdding(false);
         resetForm();
         try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
+        if(created?.id){try{await savePlacements(setSponsorPlacement(created,placements,{period:newEdition,enabled:true}));}catch{setPublicationMessage('Sponsor saved. Its edition could not be saved; select Previous or Current on the sponsor card to retry.');}}
       }
     } catch (error) {
       console.error('Error adding sponsor:', error);
       alert('Failed to add sponsor. Please try again.');
-    }
+    } finally {sponsorSavePending.current=false;setSavingSponsor(false);}
   };
 
   const handleUpdate = async (id: number) => {
+    if(approvalLoading)return;
     if (!form.name || !form.category || !form.logo) {
       alert('Please fill in all required fields (name, category, and logo)');
       return;
@@ -246,6 +280,7 @@ export const SponsorsManagement: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
+    if(approvalLoading)return;
     if (confirm('Are you sure you want to delete this sponsor? This action cannot be undone.')) {
       try {
         if (requiresApproval) {
@@ -266,6 +301,8 @@ export const SponsorsManagement: React.FC = () => {
   };
 
   const handleToggleFeatured = async (id: number) => {
+    if(approvalLoading||featurePending.current)return;
+    featurePending.current=true;setFeatureBusy(true);
     try {
       if (requiresApproval) {
         // Find the sponsor to get current state
@@ -284,7 +321,7 @@ export const SponsorsManagement: React.FC = () => {
     } catch (error) {
       console.error('Error toggling featured status:', error);
       alert('Failed to update featured status. Please try again.');
-    }
+    } finally {featurePending.current=false;setFeatureBusy(false);}
   };
 
   const startEditing = (sponsor: Sponsor) => {
@@ -639,7 +676,7 @@ export const SponsorsManagement: React.FC = () => {
 
   // Group sponsors by category for better organization
   const groupedSponsors = allCategories.reduce((acc, category) => {
-    acc[category] = sponsors.filter((sponsor: Sponsor) => sponsor.category === category);
+    acc[category] = sponsors.filter((sponsor: Sponsor) => sponsor.category === category && (editionFilter==='all' || (sponsorPlacement(sponsor,placements)?.period || 'previous')===editionFilter));
     return acc;
   }, {} as Record<string, Sponsor[]>);
 
@@ -916,10 +953,11 @@ export const SponsorsManagement: React.FC = () => {
                     </div>
                     <div className="flex items-end pb-1">
                       <label className="flex items-center gap-3 cursor-pointer group">
+                        <input type="checkbox" className="sr-only" aria-label="Show on homepage" checked={form.featured} onChange={event=>setForm(previous=>({...previous,featured:event.target.checked}))}/>
                         <div className={`w-10 h-6 rounded-full transition-all flex items-center ${form.featured ? 'bg-amber-500 justify-end' : 'bg-white/10 justify-start'}`}>
                           <div className={`w-5 h-5 rounded-full mx-0.5 transition-all ${form.featured ? 'bg-white shadow-lg' : 'bg-gray-500'}`}></div>
                         </div>
-                        <span className="text-sm font-bold text-gray-300 group-hover:text-white">Featured</span>
+                        <span className="text-sm font-bold text-gray-300 group-hover:text-white">Show on homepage</span>
                       </label>
                     </div>
                   </div>
@@ -931,6 +969,7 @@ export const SponsorsManagement: React.FC = () => {
                     <ImageUpload
                       onImageSelect={(url: string) => setForm((prev: any) => ({ ...prev, logo: url }))}
                       currentImage={form.logo} bucket="sponsor-logos" folder="sponsors"
+                      preserveExistingMedia
                     />
                   </div>
                   {form.logo && (
@@ -976,11 +1015,11 @@ export const SponsorsManagement: React.FC = () => {
           </h2>
           <p className="text-gray-400 mt-2 font-medium flex items-center gap-2">
             <Medal size={14} className="text-amber-400" />
-            Cultivating global ecosystem synergy
+            Manage each sponsor once. Home follows the featured selection here.
           </p>
         </div>
         <div className="w-full max-w-md">
-          <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 px-1">Global Page Anchor</label>
+          <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 px-1">Sponsors page title</label>
           <div className="relative group/input">
             <div className="absolute inset-0 bg-amber-500/5 rounded-xl blur-lg opacity-0 group-focus-within/input:opacity-100 transition-opacity"></div>
             <input
@@ -1005,7 +1044,7 @@ export const SponsorsManagement: React.FC = () => {
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            Tactical List
+            Sponsors
           </button>
           <button
             onClick={() => setActiveSubTab('packages')}
@@ -1015,7 +1054,7 @@ export const SponsorsManagement: React.FC = () => {
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            Tier Architecture
+            Sponsorship packages
           </button>
           <button
             onClick={() => setActiveSubTab('settings')}
@@ -1025,7 +1064,7 @@ export const SponsorsManagement: React.FC = () => {
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            Core Parameters
+            Page settings
           </button>
         </div>
       </div>
@@ -1033,12 +1072,15 @@ export const SponsorsManagement: React.FC = () => {
       {/* Sponsors Tab */}
       {activeSubTab === 'sponsors' && (
         <div className="space-y-6">
+          <div className="studio-auto-notice"><strong>One sponsor directory → Sponsors page + Home</strong><p>Choose Previous or Current on each sponsor. A complete, visible Current sponsor publishes the current edition; otherwise Previous partners stay live. Switch on Show on homepage for logos you want on Home. Names, logos, websites and order come from the same sponsor record.</p><label className="flex items-center gap-2 text-sm"><input type="checkbox" aria-label="Show partner section on homepage" checked={homepageSettings?.featured_partners_enabled !== false} disabled={publicationBusy||requiresApproval||approvalLoading} onChange={event=>void savePublication({featured_partners_enabled:event.target.checked}).catch(()=>{})}/>Show partner section on homepage</label><p><strong>Live edition: {publication.period}</strong> · {publication.partners.length} on Sponsors · {homepagePublication.partners.length} selected for Home{homepageSettings?.featured_partners_enabled===false ? ' · Homepage section is switched off' : ''}</p>{publicationMessage&&<p role="status">{publicationMessage}</p>}<div className="studio-profile-actions">{(['all','current','previous'] as const).map(period=><button type="button" className="studio-button studio-button-secondary" aria-pressed={editionFilter===period} key={period} onClick={()=>setEditionFilter(period)}>{period==='all'?'All sponsors':period==='current'?'Current partners':'Previous partners'}</button>)}</div></div>
+          <LegacySponsorArchive sponsors={sponsors} placements={placements} busy={publicationBusy} locked={requiresApproval||approvalLoading} onSave={savePlacements}/>
+
           {/* Add Sponsor Button */}
           <div className="flex justify-between items-center bg-white/5 border border-white/10 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full translate-x-1/2 -translate-y-1/2 blur-[60px] group-hover:bg-amber-500/20 transition-colors"></div>
             <div>
-              <h3 className="text-xl font-black text-white tracking-tight">Active Partners</h3>
-              <p className="text-gray-400 text-xs font-medium mt-1">Sponsoring ({sponsors.length}) global ecosystem entities</p>
+              <h3 className="text-xl font-black text-white tracking-tight">Sponsor directory</h3>
+              <p className="text-gray-400 text-xs font-medium mt-1">{sponsors.length} sponsor records · edit logos and homepage selection here</p>
             </div>
             <button
               type="button"
@@ -1059,10 +1101,11 @@ export const SponsorsManagement: React.FC = () => {
             >
               <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-600 group-hover/btn:opacity-90 transition-opacity"></div>
               <Plus size={18} className="mr-2 relative z-10 text-white" />
-              <span className="font-black text-[11px] uppercase tracking-widest relative z-10 text-white">Scale Ecosystem</span>
+              <span className="font-black text-[11px] uppercase tracking-widest relative z-10 text-white">Add sponsor</span>
             </button>
           </div>
 
+          {isAdding&&<div className="sponsor-publication-controls"><label>New sponsor edition<select aria-label="New sponsor edition" value={newEdition} disabled={requiresApproval||approvalLoading||savingSponsor} onChange={event=>setNewEdition(event.target.value as 'previous'|'current')}><option value="current">Current partner</option><option value="previous">Previous partner</option></select></label>{requiresApproval&&<small>After approval, an owner can select this sponsor’s edition on its card.</small>}</div>}
           {/* Package Categories Info */}
           {sponsorshipPackages.filter((p: SponsorshipPackage) => p.enabled).length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1177,7 +1220,7 @@ export const SponsorsManagement: React.FC = () => {
                           onChange={(e) => setForm(prev => ({ ...prev, featured: e.target.checked }))}
                           className="mr-2"
                         />
-                        <span className="text-sm font-medium text-gray-700">Featured</span>
+                        <span className="text-sm font-medium text-gray-700">Show on homepage</span>
                       </label>
                     </div>
                   </div>
@@ -1190,6 +1233,7 @@ export const SponsorsManagement: React.FC = () => {
                       currentImage={form.logo}
                       bucket="sponsor-logos"
                       folder="sponsors"
+                      preserveExistingMedia
                     />
                   </div>
                 </div>
@@ -1209,11 +1253,11 @@ export const SponsorsManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleAdd}
-                  disabled={availableCategories.length === 0}
+                  disabled={availableCategories.length === 0 || savingSponsor || approvalLoading}
                   className="w-full sm:w-auto px-6 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save size={16} className="mr-1" />
-                  Add Sponsor
+                  {savingSponsor ? 'Saving…' : 'Add Sponsor'}
                 </button>
               </div>
             </div>
@@ -1305,18 +1349,21 @@ export const SponsorsManagement: React.FC = () => {
                               </div>
                             )}
                             
+                            <SponsorEditionControls sponsor={sponsor} placements={placements} busy={publicationBusy} locked={requiresApproval||approvalLoading} onChange={patch=>void changePlacement(sponsor,patch)} />
                             <div className="flex justify-between items-center">
                               <button
                                 type="button"
+                                disabled={featureBusy||publicationBusy||approvalLoading}
+                                aria-pressed={sponsor.featured===true}
                                 onClick={() => handleToggleFeatured(sponsor.id)}
                                 className={`p-1 rounded transition-colors ${
                                   sponsor.featured 
                                     ? 'bg-yellow-100 text-yellow-600' 
                                     : 'bg-gray-100 text-gray-600'
                                 } hover:bg-yellow-200`}
-                                title={sponsor.featured ? 'Remove from featured' : 'Mark as featured'}
+                                aria-label={`${sponsor.featured ? 'Hide' : 'Show'} ${sponsor.name} ${sponsor.featured ? 'from' : 'on'} homepage`} title={sponsor.featured ? 'Hide from homepage' : 'Show on homepage'}
                               >
-                                <Star size={14} className={sponsor.featured ? 'fill-current' : ''} />
+                                <Star size={14} className={sponsor.featured ? 'fill-current' : ''} /><span className="ml-1 text-xs">Show on homepage</span>
                               </button>
                               
                               <div className="flex space-x-1">
@@ -1413,7 +1460,7 @@ export const SponsorsManagement: React.FC = () => {
                 <div className="text-2xl font-bold text-yellow-500 mb-1">
                   {sponsors.filter((s: Sponsor) => s.featured).length}
                 </div>
-                <div className="text-gray-600 text-sm">Featured Sponsors</div>
+                <div className="text-gray-600 text-sm">Shown on homepage</div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-yellow-500 mb-1">{availableCategories.length}</div>

@@ -1,0 +1,284 @@
+/* Student-only festival surfaces. Staff workspaces retain their own appearance. */
+body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) {
+  --student-gold: #ddc383;
+  --student-gold-light: #fff0c3;
+  --student-green: #76f669;
+  --student-panel: #08150f;
+  --student-line: #a78c4566;
+  --student-muted: #b7c4b5;
+  color: #f4f0df;
+  color-scheme: dark;
+  font-family: 'Geist Variable', 'Poppins', system-ui, sans-serif;
+  background: radial-gradient(ellipse at 95% 5%, #204b2566, transparent 45%), radial-gradient(ellipse at 0% 55%, #34432444, transparent 48%), #030a07 !important;
+  min-height: 100dvh;
+  isolation: isolate;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival { padding-top: 28px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-content { min-width: 0; max-width: 100%; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .fixed.inset-x-4.w-full { width: calc(100% - 2rem); }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, #030a0799, #030a07e6), url('/images/ricorrenza-emerald-city.webp') center / cover;
+  opacity: .34;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-brandline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 0 5px 14px;
+  border-bottom: 1px solid #b49a4e44;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-brandline > span {
+  color: #c7d5bd;
+  font-size: 10px;
+  letter-spacing: .24em;
+  font-weight: 600;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-brandline > span > span { color: var(--student-green); margin: 0 8px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-wordmark {
+  color: var(--student-gold-light);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(18px, 2vw, 23px);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -.035em;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-wordmark em { color: var(--student-green); margin-left: 8px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .student-festival-welcome {
+  background: radial-gradient(ellipse at 88% 0%, #285e2444, transparent 55%), linear-gradient(125deg, #13251d, #07130e 65%) !important;
+  border-color: #b89b52aa !important;
+  border-radius: 6px 22px 6px 22px;
+  box-shadow: inset 0 1px 0 #fae6a14d, 0 12px 40px #0008 !important;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-welcome::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 20%;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent, #c6edaa08, transparent);
+  transform: translateX(-150%) skewX(-12deg);
+  animation: student-festival-light 9s ease-in-out infinite;
+}
+@keyframes student-festival-light {
+  0%, 20% { transform: translateX(-150%) skewX(-12deg); opacity: 0; }
+  35% { opacity: 1; }
+  70%, 100% { transform: translateX(650%) skewX(-12deg); opacity: 0; }
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-welcome::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, #75fa7b, #b8ff93, transparent);
+  box-shadow: 0 0 14px #67ff7899;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-welcome h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-style: italic;
+  color: #f7edcc;
+  text-shadow: 0 2px 1px #030704 !important;
+  line-height: 1.2;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-welcome h1 > span {
+  background: linear-gradient(180deg, #f4f3ce 15%, #e5d395 45%, #a98843 70%, #f7e5b1) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival :is(.neu-card, .neu-stat-card, .rico-glass-card) {
+  background: linear-gradient(140deg, #10231aee, #06110bee 70%) !important;
+  border: 1px solid var(--student-line) !important;
+  border-radius: 6px 18px 6px 18px;
+  box-shadow: inset 0 1px 0 #eee5aa0d, 0 7px 24px #0004 !important;
+  backdrop-filter: none !important;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .neu-inset {
+  background: #020b07b3 !important;
+  border-color: #8d975144 !important;
+  box-shadow: inset 0 2px 8px #0005 !important;
+  border-radius: 9px;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival :is(.neu-nav-item, .neu-icon-btn) {
+  background: #0a1a11 !important;
+  border-color: #b6ac651c !important;
+  box-shadow: none !important;
+  border-radius: 5px 12px 5px 12px;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival :is(.neu-nav-item:hover, .neu-nav-item-active) {
+  background: linear-gradient(100deg, #24582a66, #0d2016) !important;
+  border-color: #75df7480 !important;
+  box-shadow: inset 3px 0 0 #79ee77, inset 0 1px 0 #d3ef8b22 !important;
+  border-radius: 5px 12px 5px 12px;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .neu-section-label {
+  color: #b6bc99;
+  letter-spacing: .18em;
+  font-size: 9px;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-sidebar nav { scrollbar-width: thin; scrollbar-color: #697b3c #07110b; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-stats { gap: 16px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-stat { min-height: 164px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-stat::before {
+  background: radial-gradient(ellipse, #9dce5344, transparent 70%) !important;
+  opacity: .65;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-stat::after {
+  content: '';
+  position: absolute;
+  inset: auto 16% 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #9bfe7a, transparent);
+  box-shadow: 0 0 9px #79fa5f77;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .student-festival-content :is(h1, h2, h3) {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-weight: 700;
+  color: var(--student-gold-light);
+  letter-spacing: -.025em;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-stat-value {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 32px;
+  font-style: italic;
+  color: #f7ecc4 !important;
+  font-variant-numeric: tabular-nums;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-stat > div:first-child { background: #70e36614; border: 1px solid #9bd47d33; border-radius: 7px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-stat > div:first-child svg { color: #a5f18c !important; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .student-festival-stars-heading h2 {
+  font: italic 700 clamp(23px, 3vw, 32px)/1.1 'Playfair Display', Georgia, serif;
+  color: var(--student-gold-light);
+  letter-spacing: -.03em;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .student-festival-stars-heading > div > span { color: #addc9b; border-color: #75b96244; background: #60b34b0d; font-size: 8px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-star {
+  background: radial-gradient(ellipse at 50% 15%, #24552c66, transparent 70%), #06140d !important;
+  border: 1px solid #8de67e80 !important;
+  border-radius: 8px 23px 8px 23px;
+  box-shadow: inset 0 1px 0 #ece5a744, 0 6px 20px #0006 !important;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-star:first-child { border-color: #eccb76bd !important; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-star::after {
+  content: '';
+  position: absolute;
+  inset: auto 15% 0;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, #7aff75, transparent);
+  box-shadow: 0 0 12px #6dff69;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-star:first-child::after { background: linear-gradient(90deg, transparent, #ffde82, transparent); box-shadow: 0 0 12px #f4d36a; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-star h4 { font-family: 'Playfair Display', Georgia, serif; font-style: italic; color: #fff0c5; font-size: 18px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-star :is(.bg-gray-950, .grid > div) { background-color: #082111a6 !important; border-color: #9ab65366 !important; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .student-festival-xp > div:first-child > svg circle:last-of-type { stroke: #b8e873; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-sidebar > .neu-card span[style] { color: #b9e787 !important; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-sidebar > .neu-card .animate-pulse { background-color: #95f67d !important; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .student-festival-xp [style*="background-color"] { background-color: #345824 !important; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .student-festival-primary {
+  background: linear-gradient(125deg, #22582b, #092a13) !important;
+  border: 1px solid #cfbc7a;
+  color: #fff0c9;
+  box-shadow: inset 0 1px 0 #eff4a44d, 0 4px 20px #74f65b14 !important;
+  border-radius: 5px 15px 5px 15px;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-xp [class*="from-red-"] { background: linear-gradient(135deg, #9e873d, #213e1c); }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .neu-bottom-bar {
+  background: #07150ff5 !important;
+  border: 1px solid #b0a25a88 !important;
+  border-radius: 8px 18px 8px 18px;
+  box-shadow: 0 -1px 20px #9dc8680e, 0 10px 30px #0008 !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-menu { background: #07150f !important; border-color: #b6a46288 !important; border-radius: 18px 18px 0 0; }
+body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) :is(.text-gray-500, .text-gray-600, .text-gray-700, .text-white\/40, .text-white\/50) { color: var(--student-muted); }
+body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) :is([class*="text-indigo-"], [class*="text-purple-"], [class*="text-violet-"], [class*="text-cyan-"]) { color: #a2ed8d !important; }
+body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) :is([class*="bg-indigo-"], [class*="bg-violet-"], [class*="bg-purple-"], [class*="bg-cyan-"]) { background-color: #75c96b14 !important; }
+body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) :is([class*="border-indigo-"], [class*="border-violet-"], [class*="border-purple-"], [class*="border-cyan-"]) { border-color: #94b96c55 !important; }
+body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) :is(button, a):focus-visible { outline: 2px solid #c4fb93; outline-offset: 4px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) :is(input, textarea, select) { color-scheme: dark; color: #f4eed6; border-color: #b2b66e55; }
+body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) :is(input, textarea, select):focus-visible { outline: 2px solid #8bec7b; outline-offset: 3px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) :is(button[type=submit], button[class*="bg-gradient-to-r"]) {
+  background: linear-gradient(120deg, #22522c, #0b2f16) !important;
+  border: 1px solid #b1c475;
+  box-shadow: inset 0 1px 0 #e6f0a455, 0 3px 12px #6cff5111 !important;
+  color: #fff1c5;
+  border-radius: 5px 14px 5px 14px;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) :is(button, a):active { transform: translateY(1px); }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth { padding-block: 80px 48px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(#030a07aa, #030a07e6), url('/images/ricorrenza-emerald-city.webp') center / cover;
+  opacity: .4;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth :is(h1, h2, h3) {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  color: #ffefc0;
+  font-weight: 700;
+  letter-spacing: -.035em;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth > :is(.lg\:flex, .lg\:hidden, .max-w-2xl),
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth .rico-glass-card {
+  border-color: #c0a75499 !important;
+  background: #07140fed !important;
+  border-radius: 8px 30px 8px 30px;
+  box-shadow: inset 0 1px 0 #eddda544, 0 20px 70px #0007 !important;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth div[class*="bg-gradient-to-br"] { background: linear-gradient(135deg, #25482a, #0b2415 55%, #182a15) !important; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth .student-festival-auth-texture {
+  background-image: repeating-linear-gradient(135deg, transparent 0 29px, #d7d69b24 30px, transparent 31px);
+  animation: none;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth .student-festival-field > span {
+  display: block;
+  color: #c4d6b6;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth :is(button, a)[class*="border-white"] { border-color: #deca85; border-width: 1px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth button.bg-white { background: #f4edd7; color: #102315; border: 1px solid #d5bf75; border-radius: 5px 14px 5px 14px; }
+body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth button.bg-white:hover { background: #e4f5cf; }
+@media (max-width: 767px) {
+  body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival { padding-top: 20px; }
+  body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-brandline { gap: 10px; }
+  body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-brandline > span { font-size: 8px; letter-spacing: .16em; }
+  body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-stat { padding: 17px 14px; min-height: 160px; }
+  body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-stat:last-child:nth-child(odd) { grid-column: 1 / -1; min-height: 140px; }
+  body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-star { width: 235px; }
+  body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival .student-festival-welcome { padding: 20px 16px; }
+  body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth { padding-inline: 16px; }
+  body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth .rico-glass-card { padding: 28px 22px; }
+  body.theme-spiderman:not([data-festival-scope="staff"]) .student-festival-auth h2 { overflow-wrap: anywhere; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) *,
+  body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) *::before,
+  body.theme-spiderman:not([data-festival-scope="staff"]) :is(.student-festival, .student-festival-auth) *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

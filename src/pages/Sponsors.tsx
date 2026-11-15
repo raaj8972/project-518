@@ -1,3 +1,4 @@
+import { resolveHomepagePartners } from '../utils/homepageContent';
 import React, { useEffect } from 'react';
 import { Crown } from 'lucide-react';
 import { useData } from '../context/DataContext';
@@ -12,7 +13,9 @@ import SponsorshipContact from '../components/Sponsors/SponsorshipContact';
 import '../styles/Sponsors.css';
 
 export const Sponsors: React.FC = () => {
-  const { sponsors, sponsorshipSettings, sponsorshipPackages, eventCategories } = useData();
+  const { sponsors: sponsorRecords, homepageSettings, sponsorshipSettings, sponsorshipPackages, eventCategories } = useData();
+  const partnerSelection = resolveHomepagePartners(sponsorRecords, homepageSettings?.sponsor_logos);
+  const sponsors = partnerSelection.partners;
 
   // Helpers
   const hexToRgba = (hex: string, alpha = 0.75) => {
@@ -117,6 +120,7 @@ export const Sponsors: React.FC = () => {
         canonical="https://ricorrenza.fun/sponsors" 
       />
 
+      <header className="container mx-auto px-4 text-center pb-6"><p className="text-sm text-white/60">{partnerSelection.period === 'current' ? 'Current edition' : 'Previous edition'}</p><h1 className="text-3xl font-bold text-white mt-2">{partnerSelection.period === 'current' ? 'Our partners' : 'Our previous partners'}</h1>{partnerSelection.period === 'previous' && <p className="text-sm text-white/50 mt-3">Current-edition partners will appear here when they are announced.</p>}</header>
       {/* Title Sponsors */}
       {titleSponsors.length > 0 && (
         <section className="py-20 relative sponsors-zoom-scope">

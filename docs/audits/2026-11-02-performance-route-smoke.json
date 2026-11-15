@@ -1,0 +1,137 @@
+{
+  "collectedAt": "2026-11-02T17:26:14.729Z",
+  "scope": "fresh anonymous local sessions, no form submissions; login rendering only",
+  "results": [
+    {
+      "route": "/student/login",
+      "http": 200,
+      "path": "/student/login",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 0
+    },
+    {
+      "route": "/login",
+      "http": 200,
+      "path": "/login",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 2
+    },
+    {
+      "route": "/coordinator",
+      "http": 200,
+      "path": "/coordinator",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 1
+    },
+    {
+      "route": "/cr/login",
+      "http": 200,
+      "path": "/cr/login",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 1
+    },
+    {
+      "route": "/security-login",
+      "http": 200,
+      "path": "/security-login",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 2
+    },
+    {
+      "route": "/council",
+      "http": 200,
+      "path": "/council",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 1
+    },
+    {
+      "route": "/sports-admin",
+      "http": 200,
+      "path": "/sports-admin",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 1
+    },
+    {
+      "route": "/sports",
+      "http": 200,
+      "path": "/sports",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 1
+    },
+    {
+      "route": "/schedule",
+      "http": 200,
+      "path": "/schedule",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 1
+    },
+    {
+      "route": "/rico-family",
+      "http": 200,
+      "path": "/rico-family",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 0
+    },
+    {
+      "route": "/home-bound",
+      "http": 200,
+      "path": "/home-bound",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 0
+    },
+    {
+      "route": "/sponsors",
+      "http": 200,
+      "path": "/sponsors",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 0
+    },
+    {
+      "route": "/gallery",
+      "http": 200,
+      "path": "/gallery",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 0
+    },
+    {
+      "route": "/dashboard",
+      "http": 200,
+      "path": "/student/login",
+      "errors": [],
+      "fatal": 0,
+      "inputs": 0
+    }
+  ],
+  "navigation": {
+    "observedLinks": [
+      "/",
+      "/events",
+      "/schedule",
+      "/gallery",
+      "/home-bound",
+      "/rico-family",
+      "/sports",
+      "/sponsors",
+      "/student/login"
+    ],
+    "path": "/gallery",
+    "documents": 1
+  },
+  "initialLanding": {
+    "path": "/gallery",
+    "documents": 1
+  }
+}

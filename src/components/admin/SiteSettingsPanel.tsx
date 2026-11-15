@@ -1,3 +1,4 @@
+import { SITE_FEATURES } from '../../constants/siteFeatures';
 import React from 'react';
 import { useData } from '../../context/DataContext';
 import { Calendar, Save, MessageSquareOff, Timer, Plus, Minus, X, Zap, Infinity as InfinityIcon, ArrowUp, ArrowDown, Layout } from 'lucide-react';
@@ -88,9 +89,7 @@ export const SiteSettingsPanel: React.FC = () => {
         coming_soon_ended_text: local.coming_soon_ended_text || null,
         // optional homepage hero title (stored in site_settings)
         homepage_hero_title: local.homepage_hero_title || null,
-        sports_instagram_url: local.sports_instagram_url || null,
-        registration_institution_visible: !!local.registration_institution_visible,
-        registration_institution_optional: !!local.registration_institution_optional,
+        ...(SITE_FEATURES.sports ? { sports_instagram_url: local.sports_instagram_url || null } : {}),
         registration_participant_types: Array.isArray(local.registration_participant_types) ? local.registration_participant_types : null,
         locked_pages_until: Object.keys(local.locked_pages_until).reduce((acc, page) => ({
           ...acc,
@@ -267,7 +266,7 @@ export const SiteSettingsPanel: React.FC = () => {
                     <option value="/gallery">Gallery Page</option>
                     <option value="/home-bound">Home Bound Page</option>
                     <option value="/rico-family">Rico Family Page</option>
-                    <option value="/sports">Sports Page</option>
+                    {SITE_FEATURES.sports && <option value="/sports">Sports Page</option>}
                     <option value="/sponsors">Sponsors Page</option>
                   </select>
                 </div>
@@ -275,7 +274,7 @@ export const SiteSettingsPanel: React.FC = () => {
                 <div>
                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">Menu Item Order</label>
                   <div className="space-y-2">
-                    {(local.navigation_order.length > 0 ? local.navigation_order : ['home', 'events', 'schedule', 'gallery', 'home-bound', 'rico-family', 'sports', 'sponsors']).map((item, idx, arr) => (
+                    {(local.navigation_order.length > 0 ? local.navigation_order : ['home', 'events', 'schedule', 'gallery', 'home-bound', 'rico-family', 'sports', 'sponsors']).map((item, idx, arr) => !SITE_FEATURES.sports && item === 'sports' ? null : (
                       <div key={item} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-lg px-3 py-2 group hover:border-white/10 transition-colors">
                         <span className="text-sm text-gray-300 capitalize font-medium">{item.replace('-', ' ')}</span>
                         <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
@@ -310,7 +309,7 @@ export const SiteSettingsPanel: React.FC = () => {
             <div className="space-y-4 bg-black/20 p-4 rounded-xl border border-white/5">
               <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Page Level Maintenance Locks</h3>
               <div className="space-y-3">
-                {['home', 'events', 'schedule', 'gallery', 'home-bound', 'rico-family', 'sponsors', 'sports'].map(page => {
+                {['home', 'events', 'schedule', 'gallery', 'home-bound', 'rico-family', 'sponsors', 'sports'].filter(page => SITE_FEATURES.sports || page !== 'sports').map(page => {
                   const timerExpiry = local.locked_pages_until[page];
                   const pageModeTimer = local.show_page_timers[page];
                   const hasTimer = !!timerExpiry && new Date(timerExpiry).getTime() > Date.now();
@@ -464,7 +463,7 @@ export const SiteSettingsPanel: React.FC = () => {
                 <p className="text-[10px] text-gray-500 mt-1.5 ml-1">The big text on the main landing page.</p>
               </div>
 
-              <div>
+              {SITE_FEATURES.sports && <div>
                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Sports Instagram URL</label>
                 <input
                   value={local.sports_instagram_url}
@@ -473,7 +472,7 @@ export const SiteSettingsPanel: React.FC = () => {
                   placeholder="https://instagram.com/..."
                 />
                 <p className="text-[10px] text-gray-500 mt-1.5 ml-1">Optional URL for the Sports page's dedicated Instagram.</p>
-              </div>
+              </div>}
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Message Body</label>

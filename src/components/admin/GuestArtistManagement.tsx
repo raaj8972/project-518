@@ -1,390 +1,67 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Star, 
-  Eye, 
-  EyeOff, 
-  Music, 
-  Play, 
-  Instagram, 
-  Youtube, 
-  AlignJustify as Spotify, 
-  X
-} from 'lucide-react';
+import { PlusIcon, Pencil2Icon, TrashIcon, StarIcon, EyeOpenIcon, EyeNoneIcon, MagnifyingGlassIcon, Cross2Icon, ArrowRightIcon, CalendarIcon, MixIcon, CheckCircledIcon, ExclamationTriangleIcon } from '@radix-ui/react-icons';
 import { useData } from '../../context/DataContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { GuestArtistForm } from './GuestArtistForm';
-import { deleteFromStorageByPublicUrl } from '../../utils/uploadUtils';
+import '../../styles/ArtistStudio.css';
 
-export const GuestArtistManagement: React.FC = () => {
-  const savingProgress = useSavingProgress();
-  const { submitForApproval, checkRequiresApproval } = useApprovals();
-  const [requiresApproval, setRequiresApproval] = useState(false);
-
-  useEffect(() => {
-    checkRequiresApproval().then(setRequiresApproval);
-  }, []);
-
-  const { 
-    guestArtists,
-    addGuestArtist,
-    updateGuestArtist,
-    deleteGuestArtist,
-    toggleGuestArtistEnabled,
-    toggleGuestArtistFeatured
-  } = useData();
-
-  const [isAdding, setIsAdding] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleCloseModal = () => {
-    if (isSubmitting) return;
-    setIsAdding(false);
-    setEditingId(null);
-  };
-
-  const handleSave = async (data: any) => {
-    try {
-      setIsSubmitting(true);
-      const steps = savingProgress.withSteps(2, 'Preparing…');
-      steps.next('Saving to database');
-      
-      const isEdit = editingId !== null;
-      const action = isEdit ? 'update' : 'create';
-      
-      if (requiresApproval) {
-        await submitForApproval(
-          'guest_artist',
-          action as any,
-          data,
-          isEdit ? editingId : undefined
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-      } else {
-        if (isEdit && editingId) {
-          // Cleanup replaced files
-          const original = guestArtists.find(a => a.id === editingId);
-          if (original) {
-              const { deleteFromStorageByPublicUrl } = await import('../../utils/uploadUtils');
-              const checks = [
-                  { old: original.image, new: data.image, bucket: 'guest-artist-images' },
-                  { old: (original as any).video_url, new: data.video_url, bucket: 'guest-artist-videos' },
-                  { old: (original as any).card_media_url, new: data.card_media_url, bucket: (original as any).card_media_is_video ? 'guest-artist-videos' : 'guest-artist-images' },
-                  { old: (original as any).detail_music_url, new: data.detail_music_url, bucket: 'guest-artist-audio' }
-              ];
-
-              for (const check of checks) {
-                  if (check.old && check.old !== check.new) {
-                      await deleteFromStorageByPublicUrl(check.old, check.bucket);
-                  }
-              }
-          }
-          await updateGuestArtist(editingId, data);
-        } else {
-          await addGuestArtist(data);
-        }
-      }
-      
-      handleCloseModal();
-    } catch (error) {
-      console.error('Error saving guest artist:', error);
-      const msg = (error as any)?.message || String(error);
-      alert(`Failed to save guest artist. ${msg}`);
-    } finally {
-      savingProgress.done();
-      setIsSubmitting(false);
-    }
-  };
-
-
-  const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this guest artist? This action cannot be undone.')) {
-      try {
-        const steps = savingProgress.withSteps(2, 'Preparing…');
-        steps.next('Deleting files');
-        
-        // Find the artist to search for files
-        const artist = guestArtists.find(a => a.id === id);
-        if (artist) {
-            // Delete associated files
-            const filesToDelete = [
-                { url: artist.image, bucket: 'guest-artist-images' },
-                { url: (artist as any).video_url, bucket: 'guest-artist-videos' },
-                { url: (artist as any).card_media_url, bucket: (artist as any).card_media_is_video ? 'guest-artist-videos' : 'guest-artist-images' },
-                { url: (artist as any).detail_music_url, bucket: 'guest-artist-audio' }
-            ];
-
-            for (const file of filesToDelete) {
-                if (file.url) {
-                    await deleteFromStorageByPublicUrl(file.url, file.bucket);
-                }
-            }
-        }
-
-        steps.next('Deleting record');
-        if (requiresApproval) {
-          await submitForApproval('guest_artist', 'delete', {}, id);
-          alert('Request submitted for approval. An owner will review your changes.');
-        } else {
-          await deleteGuestArtist(id);
-        }
-      } catch (error) {
-        console.error('Error deleting guest artist:', error);
-        alert('Failed to delete guest artist. Please try again.');
-      } finally {
-        savingProgress.done();
-      }
-    }
-  };
-
-  const handleToggleEnabled = async (id: number) => {
-    try {
-      const steps = savingProgress.withSteps(2, 'Preparing…');
-      steps.next('Updating');
-      if (requiresApproval) {
-        await submitForApproval(
-          'guest_artist',
-          'update',
-          { enabled: !guestArtists.find(a => a.id === id)?.enabled },
-          id
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-      } else {
-        await toggleGuestArtistEnabled(id);
-      }
-    } catch (error) {
-      console.error('Error toggling guest artist status:', error);
-      alert('Failed to update status.');
-    } finally {
-      savingProgress.done();
-    }
-  };
-
-  const handleToggleFeatured = async (id: number) => {
-    try {
-      const steps = savingProgress.withSteps(2, 'Preparing…');
-      steps.next('Updating');
-      if (requiresApproval) {
-        await submitForApproval(
-          'guest_artist',
-          'update',
-          { is_featured: !guestArtists.find(a => a.id === id)?.is_featured },
-          id
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-      } else {
-        await toggleGuestArtistFeatured(id);
-      }
-    } catch (error) {
-      console.error('Error toggling featured status:', error);
-      alert('Failed to update featured status.');
-    } finally {
-      savingProgress.done();
-    }
-  };
-
-  // Sort guest artists by order position
-  const sortedGuestArtists = [...guestArtists].sort((a, b) => a.order_position - b.order_position);
-  const editingArtist = editingId ? guestArtists.find(a => a.id === editingId) : null;
-
-  return (
-    <div className="space-y-6 relative">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Guest Artist Management</h2>
-          <p className="text-gray-600">Manage featured guest artists for the homepage</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsAdding(true)}
-          className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center shadow-sm"
-        >
-          <Plus size={16} className="mr-2" />
-          Add Guest Artist
-        </button>
-      </div>
-
-      {/* Guest Artists List */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sortedGuestArtists.map((artist) => (
-          <div key={artist.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full hover:shadow-lg transition-shadow">
-            <div className="relative h-48 md:h-56 group">
-              <img
-                src={artist.image}
-                alt={artist.name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="absolute top-0 left-0 w-full h-full bg-black/0 group-hover:bg-black/10 transition-colors" />
-              
-              <div className="absolute top-2 left-2 flex space-x-1">
-                {artist.is_featured && (
-                  <span className="bg-yellow-400 text-black p-1 rounded-full shadow-sm" title="Featured on Homepage">
-                    <Star size={14} fill="black" />
-                  </span>
-                )}
-                {!artist.enabled && (
-                  <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium shadow-sm">
-                    Hidden
-                  </span>
-                )}
-              </div>
-              <div className="absolute top-2 right-2">
-                <span className="bg-black/70 text-white px-2 py-1 rounded text-xs backdrop-blur-sm">
-                  #{artist.order_position}
-                </span>
-              </div>
-              {(artist.video || (artist as any).video_url) && (
-                <div className="absolute bottom-2 right-2">
-                   <div className="bg-black/60 text-white p-1.5 rounded-full backdrop-blur-sm">
-                      <Play size={16} fill="white" />
-                   </div>
-                </div>
-              )}
-            </div>
-            
-            <div className="p-5 flex-1 flex flex-col">
-              <div className="flex justify-between items-start mb-1">
-                 <h3 className="font-bold text-lg text-gray-900 line-clamp-1" title={artist.name}>{artist.name}</h3>
-              </div>
-              <p className="text-purple-600 font-medium text-sm mb-2">{artist.title}</p>
-              
-              <div className="mb-3">
-                <span className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium">
-                  {artist.specialty}
-                </span>
-              </div>
-              
-              <p className="text-gray-500 text-sm mb-4 line-clamp-2 flex-1">{artist.description}</p>
-              
-              {/* Social Links Icons */}
-              {(artist.social_links as any) && (
-                <div className="flex space-x-3 mb-4 pt-4 border-t border-gray-100">
-                  {(artist.social_links as any).instagram && (
-                    <a href={(artist.social_links as any).instagram} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-600 transition-colors p-1">
-                      <Instagram size={18} />
-                    </a>
-                  )}
-                  {(artist.social_links as any).youtube && (
-                    <a href={(artist.social_links as any).youtube} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-red-600 transition-colors p-1">
-                      <Youtube size={18} />
-                    </a>
-                  )}
-                  {(artist.social_links as any).spotify && (
-                    <a href={(artist.social_links as any).spotify} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-green-600 transition-colors p-1">
-                      <Spotify size={18} />
-                    </a>
-                  )}
-                  {!Object.values(artist.social_links || {}).some(Boolean) && (
-                     <span className="text-xs text-gray-300 italic">No social links</span>
-                  )}
-                </div>
-              )}
-              
-              <div className="flex justify-between items-center gap-2 mt-auto">
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleEnabled(artist.id)}
-                    className={`p-3 rounded-md transition-colors ${
-                      artist.enabled 
-                        ? 'text-green-600 hover:bg-green-50' 
-                        : 'text-gray-400 hover:bg-gray-100'
-                    }`}
-                    title={artist.enabled ? 'Hide from public' : 'Show to public'}
-                  >
-                    {artist.enabled ? <Eye size={20} /> : <EyeOff size={20} />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleFeatured(artist.id)}
-                    className={`p-3 rounded-md transition-colors ${
-                      artist.is_featured 
-                        ? 'text-yellow-500 hover:bg-yellow-50' 
-                        : 'text-gray-400 hover:bg-gray-100'
-                    }`}
-                    title={artist.is_featured ? 'Remove from featured' : 'Mark as featured'}
-                  >
-                    <Star size={20} fill={artist.is_featured ? "currentColor" : "none"} />
-                  </button>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingId(artist.id)}
-                    className="flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors text-sm font-medium"
-                  >
-                    <Edit size={16} className="mr-1.5" />
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(artist.id)}
-                    className="p-3 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                    title="Delete guest artist"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {guestArtists.length === 0 && (
-        <div className="text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-          <Music size={48} className="mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-900 mb-1">No Guest Artists Yet</h3>
-          <p className="text-gray-500 mb-6">Start by adding your first guest artist to the lineup.</p>
-          <button
-            type="button"
-            onClick={() => setIsAdding(true)}
-            className="bg-yellow-400 text-black px-6 py-2.5 rounded-lg hover:bg-yellow-300 transition-colors font-medium inline-flex items-center"
-          >
-            <Plus size={18} className="mr-2" />
-            Add Guest Artist
-          </button>
-        </div>
-      )}
-
-      {/* Modal Overlay */}
-      {(isAdding || editingId) && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="text-xl font-bold text-gray-800">
-                {isAdding ? 'Add New Guest Artist' : 'Edit Guest Artist'}
-              </h3>
-              <button
-                onClick={handleCloseModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-200"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-auto min-h-0 bg-gray-50/50">
-               <div className="h-full p-4 overflow-hidden flex flex-col">
-                  {/* Reuse the GuestArtistForm inside the modal content area */}
-                  <GuestArtistForm
-                    initialData={editingArtist}
-                    onSubmit={handleSave}
-                    onCancel={handleCloseModal}
-                    isSubmitting={isSubmitting}
-                  />
-               </div>
-            </div>
-          </div>
-        </div>
-      , document.body)}
-    </div>
-  );
-};
+type Filter='all'|'visible'|'hidden';
+export function GuestArtistManagement(){
+ const {guestArtists,addGuestArtist,updateGuestArtist,deleteGuestArtist,toggleGuestArtistEnabled}=useData();
+ const progress=useSavingProgress();const {submitForApproval,checkRequiresApproval}=useApprovals();
+ const [accessFailed,setAccessFailed]=useState(false);
+ const [requiresApproval,setRequiresApproval]=useState(false);const [checkingAccess,setCheckingAccess]=useState(true);
+ const [isAdding,setIsAdding]=useState(false);const [editingId,setEditingId]=useState<number|null>(null);const [isSubmitting,setIsSubmitting]=useState(false);const [mediaBusy,setMediaBusy]=useState(false);
+ const [query,setQuery]=useState('');const [filter,setFilter]=useState<Filter>('all');const [feedback,setFeedback]=useState<{error:boolean;text:string}|null>(null);const [saveError,setSaveError]=useState('');const [rowBusy,setRowBusy]=useState<number|null>(null);
+ const saving=useRef(false);const rowPending=useRef(false);const dialog=useRef<HTMLDialogElement>(null);const returnFocus=useRef<HTMLElement|null>(null);const modalOpen=isAdding||editingId!==null;const busy=isSubmitting||mediaBusy;
+ useBodyScrollLock(modalOpen);
+ useEffect(()=>{let active=true;checkRequiresApproval().then(value=>{if(active)setRequiresApproval(value);}).catch(()=>{if(active){setAccessFailed(true);setFeedback({error:true,text:'Artist permissions could not load. Refresh this page to retry.'});}}).finally(()=>{if(active)setCheckingAccess(false);});return()=>{active=false;};},[]);
+ const locked=checkingAccess||accessFailed;
+ useEffect(()=>{
+  if(!modalOpen)return;const element=dialog.current;const previous=returnFocus.current;
+  if(element){if(typeof element.showModal==='function')element.showModal();else element.setAttribute('open','');}
+  return()=>{if(element?.open)element.close();previous?.focus();};
+ },[modalOpen]);
+ const close=()=>{if(busy||saving.current)return;setIsAdding(false);setEditingId(null);setSaveError('');};
+ const add=()=>{returnFocus.current=document.activeElement as HTMLElement|null;setSaveError('');setEditingId(null);setIsAdding(true);};
+ const save=async(data:any)=>{
+  if(saving.current||locked||mediaBusy)return;saving.current=true;setIsSubmitting(true);setSaveError('');
+  try{
+   progress.withSteps(1,'Saving artist…');
+   data={...data,is_featured:true};
+   if(requiresApproval){const result=await submitForApproval('guest_artist',editingId!==null?'update':'create',data,editingId??undefined);if(!result.success)throw new Error(result.error||'Could not submit the artist for review.');}
+   else if(editingId!==null)await updateGuestArtist(editingId,data);else await addGuestArtist(data);
+   setIsAdding(false);setEditingId(null);setFeedback({error:false,text:requiresApproval?'Artist submitted for owner review.':'Artist saved. Your lineup is updated.'});
+  }catch(error){setSaveError(error instanceof Error?error.message:'Could not save this artist. Your edits are kept.');}
+  finally{saving.current=false;setIsSubmitting(false);progress.done();}
+ };
+ const action=async(id:number,kind:'delete'|'enabled')=>{
+  if(rowPending.current||locked)return;const artist=guestArtists.find(item=>item.id===id);if(!artist)return;
+  if(kind==='delete'&&!window.confirm(`Delete ${artist.name} from the lineup?`))return;
+  rowPending.current=true;setRowBusy(id);setFeedback(null);
+  try{
+   progress.withSteps(1,'Updating artist…');
+   if(requiresApproval){const patch=kind==='delete'?{}:{enabled:!artist.enabled,is_featured:true};const result=await submitForApproval('guest_artist',kind==='delete'?'delete':'update',patch,id);if(!result.success)throw new Error(result.error||'Could not submit this change for review.');}
+   else if(kind==='delete')await deleteGuestArtist(id);else await toggleGuestArtistEnabled(id);
+   setFeedback({error:false,text:requiresApproval?'Change submitted for owner review.':kind==='delete'?'Artist removed from the lineup.':'Artist visibility updated.'});
+  }catch(error){setFeedback({error:true,text:error instanceof Error?error.message:'Could not update this artist. Please retry.'});}
+  finally{rowPending.current=false;setRowBusy(null);progress.done();}
+ };
+ const sorted=[...guestArtists].sort((a,b)=>Number(a.order_position||0)-Number(b.order_position||0));const search=query.trim().toLowerCase();
+ const artists=sorted.filter(artist=>(filter==='all'||filter==='visible'&&artist.enabled||filter==='hidden'&&!artist.enabled)&&`${artist.name} ${artist.title} ${artist.specialty}`.toLowerCase().includes(search));
+ const editingArtist=editingId!==null?guestArtists.find(artist=>artist.id===editingId):null;
+ return <section className="artist-ui artist-studio" aria-label="Artist lineup workspace">
+  <header className="artist-page-heading"><div><span className="artist-eyebrow">PEOPLE ON STAGE</span><h2>Artist lineup<span>.</span></h2><p>Build your lineup. Set the profiles, media and performances visitors will see.</p></div><button type="button" className="artist-button artist-button-primary" onClick={add}><PlusIcon/>Add artist</button></header>
+  <div className="artist-lineup-summary"><span><strong>{guestArtists.length}</strong>Artists</span><span><strong>{guestArtists.filter(artist=>artist.enabled).length}</strong>Public profiles</span><span><strong>{guestArtists.filter(artist=>artist.enabled).length}</strong>On homepage</span><small><span/>Public artists feature on Home automatically</small></div>
+  {feedback&&<div className={`artist-feedback${feedback.error?'':' is-success'}`} role={feedback.error?'alert':'status'}>{feedback.error?<ExclamationTriangleIcon/>:<CheckCircledIcon/>}<span>{feedback.text}</span><button type="button" aria-label="Dismiss artist message" onClick={()=>setFeedback(null)}><Cross2Icon/></button></div>}
+  {guestArtists.length>0?<>
+   <div className="artist-roster-toolbar"><div className="artist-filter-group" role="group" aria-label="Filter artists">{(['all','visible','hidden'] as const).map(value=><button type="button" key={value} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{value==='all'?'All artists':value==='visible'?'On homepage':'Hidden'}</button>)}</div><label className="artist-search"><MagnifyingGlassIcon/><input type="search" aria-label="Search artists" placeholder="Find an artist or genre…" value={query} onChange={event=>setQuery(event.target.value)}/></label></div>
+   <div className="artist-roster">{artists.map(artist=><article className="artist-roster-card" key={artist.id}><div className="artist-roster-portrait">{artist.image?<img src={artist.image} alt={artist.name}/>:<div className="artist-poster-placeholder"><strong>LIVE<br/>ON STAGE.</strong></div>}<span>{String(artist.order_position||1).padStart(2,'0')}</span></div><div className="artist-roster-info"><div className="artist-roster-status"><span className={artist.enabled?'is-public':''}>{artist.enabled?'Public':'Hidden'}</span>{artist.enabled&&<span><StarIcon/>On homepage</span>}</div><h3>{artist.name}</h3><p>{artist.title}</p><small>{artist.specialty}</small>{artist.performance_at&&<div className="artist-performance"><CalendarIcon/>{new Date(artist.performance_at).toLocaleDateString(undefined,{day:'numeric',month:'short'})}{artist.venue&&` · ${artist.venue}`}</div>}<div className="artist-card-actions"><button type="button" className="artist-edit-button" onClick={()=>{returnFocus.current=document.activeElement as HTMLElement|null;setSaveError('');setIsAdding(false);setEditingId(artist.id);}}><Pencil2Icon/>Edit profile</button><button type="button" className="artist-icon-button" disabled={rowBusy!==null||locked} aria-label={`${artist.enabled?'Hide':'Show'} ${artist.name}`} aria-pressed={artist.enabled} onClick={()=>void action(artist.id,'enabled')}>{artist.enabled?<EyeOpenIcon/>:<EyeNoneIcon/>}</button><button type="button" className="artist-icon-button artist-delete" disabled={rowBusy!==null||locked} aria-label={`Delete ${artist.name}`} onClick={()=>void action(artist.id,'delete')}><TrashIcon/></button></div></div></article>)}</div>
+   {!artists.length&&<div className="artist-no-results"><MagnifyingGlassIcon/><h3>No artists match this view</h3><p>Try a different name or clear the filters.</p><button type="button" className="artist-text-button" onClick={()=>{setQuery('');setFilter('all');}}>Clear search & filters</button></div>}
+  </>:<div className="artist-empty"><div className="artist-empty-poster" aria-hidden="true"><span>YOUR FESTIVAL / ON STAGE</span><strong>THE<br/>LINEUP<br/>STARTS<br/>HERE.</strong><div className="artist-stage-bars">{Array.from({length:12},(_,index)=><i key={index} style={{height:`${24+(index*17)%65}%`}}/>)}</div><small>Artist announcements coming soon</small></div><div className="artist-empty-content"><span className="artist-eyebrow">READY FOR YOUR FIRST ARTIST</span><h3>Give your lineup<br/>a face.</h3><p>Add a profile once. Its portrait, bio and performance details stay together here.</p><ol><li><span>01</span><div><strong>Introduce the artist</strong><small>Name, role and a short bio</small></div></li><li><span>02</span><div><strong>Add the visual</strong><small>Portrait, poster or performance clip</small></div></li><li><span>03</span><div><strong>Set the performance</strong><small>Date and venue, when you’re ready</small></div></li></ol><button type="button" className="artist-button artist-button-primary" onClick={add}>Create artist profile<ArrowRightIcon/></button><small>Only artist details and a portrait are required.</small></div></div>}
+  {modalOpen&&createPortal(<dialog ref={dialog} className="artist-ui artist-dialog" aria-labelledby="artist-dialog-title" onCancel={event=>{event.preventDefault();close();}} onClick={event=>{if(event.target===event.currentTarget)close();}}><div className="artist-dialog-shell"><header className="artist-dialog-header"><div className="artist-dialog-mark"><MixIcon/></div><div><span className="artist-eyebrow">{isAdding?'ADD TO THE LINEUP':'UPDATE ARTIST PROFILE'}</span><h2 id="artist-dialog-title">{isAdding?'Create an artist':editingArtist?.name||'Edit artist'}</h2></div><button type="button" className="artist-icon-button" aria-label="Close artist editor" disabled={busy} onClick={close}><Cross2Icon/></button></header><GuestArtistForm key={editingId??'new'} initialData={editingArtist} onSubmit={save} onCancel={close} isSubmitting={isSubmitting||locked} onProcessingChange={setMediaBusy} submitError={saveError}/></div></dialog>,document.body)}
+ </section>;
+}

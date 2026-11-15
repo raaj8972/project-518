@@ -1,3 +1,4 @@
+import { useDomainRealtime } from '../hooks/useDomainRealtime';
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { dualRead, dualUpsert, dualDelete } from '../lib/dualDb';
 import { AnnualSportsEvent, AnnualSportsRegistration } from '../types/data';
@@ -78,6 +79,8 @@ export function AnnualSportsProvider({ children, enabled = true }: { children: R
       fetchAnnualSportsData();
     }
   }, [fetchAnnualSportsData, refreshTrigger, enabled]);
+
+  useDomainRealtime('annualsports-context-realtime', enabled, ['annual_sports_events', 'annual_sports_registrations'], fetchAnnualSportsData);
 
   const addAnnualEvent = async (eventData: Partial<AnnualSportsEvent>) => {
     await dualUpsert('annual_sports_events', eventData);

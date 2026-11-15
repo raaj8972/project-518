@@ -3,10 +3,9 @@ import React, { createContext, useContext, ReactNode, useState, useEffect, useCa
 console.log('[AuthContext.tsx] Module execution started. React available:', !!React, 'useState available:', !!useState);
 import { supabase } from '../lib/supabase';
 import { AdminService } from '../lib/adminService';
-import { dualRead, dualUpdate } from '../lib/dualDb';
+import { dualUpdate } from '../lib/dualDb';
 import { isMasterOwner } from '../constants/owners';
 
-import { authenticator } from 'otplib';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -43,11 +42,15 @@ const isMasterBypassUser = (u: any | null | undefined): boolean => {
 };
 
 // Configuration for otplib (will be initialized in useEffect)
-const generateTOTPSecret = (): string => authenticator.generateSecret();
-
-const buildOtpAuthUri = (secret: string, email: string): string => {
+async function getAuthenticator() {
+  const { authenticator } = await import('otplib');
+  authenticator.options = { window: [1, 1] } as any;
+  return authenticator;
+}
+const generateTOTPSecret = async (): Promise<string> => (await getAuthenticator()).generateSecret();
+const buildOtpAuthUri = async (secret: string, email: string): Promise<string> => {
   const issuer = `${BRAND_NAME.toUpperCase()} ${BRAND_YEAR}`;
-  return authenticator.keyuri(email || 'admin', issuer, secret);
+  return (await getAuthenticator()).keyuri(email || 'admin', issuer, secret);
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -71,16 +74,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Configure otplib authenticator
-    authenticator.options = { window: [1, 1] } as any;
-
-    const { data: { subscription: supabaseListener } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[AuthContext] Supabase auth event:', event, session?.user?.email);
-      if (session?.user) {
-        handleUserAuthenticated(session.user);
-      } else {
-        clearAuthState();
-      }
+    let pendingAuth: { key: string; request: Promise<void> } | undefined;
+    const { data: { subscription: supabaseListener } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) { currentInitIdRef.current += 1; clearAuthState(); return; }
+      const key = session.user.id + JSON.stringify(session.user.app_metadata);
+      if (pendingAuth?.key === key) return;
+      const request = handleUserAuthenticated(session.user).finally(() => { if (pendingAuth?.request === request) pendingAuth = undefined; });
+      pendingAuth = { key, request };
     });
 
     // Global mount-level failsafe (15s)
@@ -104,6 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         setLoading(true);
+        if (['coordinator', 'security', 'cr'].includes(authUser.app_metadata?.role)) {
+          clearAuthState();
+          return;
+        }
         if (!email) {
           console.warn(`[AuthContext] No email found for user [${initId}]`);
           return;
@@ -133,8 +137,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             AdminService.isEmailAllowed(email),
             new Promise<{ allowed: boolean; role: string; display_name: string; permissions?: any }>((res) =>
               setTimeout(() => {
-                console.warn(`[AuthContext] isEmailAllowed [${initId}] timed out — granting access for existing session`);
-                res({ allowed: true, role: 'admin', display_name: email.split('@')[0] });
+                console.warn(`[AuthContext] isEmailAllowed [${initId}] timed out — denying access until authorization can be verified`);
+                res({ allowed: false, role: '', display_name: '' });
               }, 6000)
             )
           ]);
@@ -178,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Fetch additional user data from dualDb
         let userData: any = null;
         try {
-          const { data: userDataList } = await dualRead({ table: 'admin_users', eq: ['user_id', userId] });
+          const { data: userDataList } = await supabase.from('admin_users').select('*').eq('user_id',userId);
           if (userDataList && userDataList.length > 0) {
             userData = userDataList[0];
           }
@@ -201,17 +205,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
           
           // Upsert to DB
-          await supabase.from('admin_users').upsert(userData, { onConflict: 'user_id' }).catch(err => {
+          await Promise.resolve(supabase.from('admin_users').upsert(userData, { onConflict: 'user_id' })).then(({ error }) => { if (error) throw error; }).catch(err => {
             console.warn('[AuthContext] Owner upsert to admin_users failed:', err);
           });
           
-          await supabase.from('admin_permissions').upsert({
+          await Promise.resolve(supabase.from('admin_permissions').upsert({
             user_id: userId,
             email: email.toLowerCase(),
             can_events: true, can_schedule: true, can_gallery: true, can_sponsors: true, 
             can_registrations: true, can_faculty: true, can_chief_guests: true, can_security_passes: true,
             updated_at: new Date().toISOString()
-          }, { onConflict: 'user_id' }).catch(err => {
+          }, { onConflict: 'user_id' })).then(({ error }) => { if (error) throw error; }).catch(err => {
             console.warn('[AuthContext] Owner upsert to admin_permissions failed:', err);
           });
         }
@@ -219,7 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!userData && email) {
           console.log(`[AuthContext] [${initId}] Profile not found by user_id (${userId}). Trying email lookup:`, email);
           try {
-            const { data: emailMatches } = await dualRead({ table: 'admin_users', eq: ['email', email] });
+            const { data: emailMatches } = await supabase.from('admin_users').select('*').eq('email',email);
             if (emailMatches && emailMatches.length > 0) {
               userData = emailMatches[0];
               console.log(`[AuthContext] [${initId}] Found existing profile by email. Linking to current session ID.`);
@@ -272,6 +276,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (currentInitIdRef.current !== initId) return;
 
+        const { data: assignedPermissions } = await supabase.from('admin_permissions').select('*').eq('user_id',userId).maybeSingle();
+        if (currentInitIdRef.current !== initId) return;
+        userData = { ...userData, permissions: assignedPermissions || {} };
         console.log('[AuthContext] Finalizing user state');
         setUser({
           ...authUser,
@@ -341,7 +348,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!supabase) return;
-        channel = supabase.channel('admin_security', {
+        channel = supabase.channel(`admin-session-${user.id}`, {
           config: {
             broadcast: { self: false },
             presence: { key: user.id },
@@ -380,44 +387,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, totpCode?: string, bypassTOTP: boolean = false): Promise<{ success: boolean; requiresTOTP?: boolean; role?: string; error?: string }> => {
     try {
-      const MASTER_KEY_ENV = import.meta.env.VITE_MASTER_BYPASS_KEY || import.meta.env.MASTER_BYPASS_KEY;
-      const actualEmail = email || 'master@rico.family';
-
-      // --- Supabase Auth Flow ---
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: actualEmail,
-        password: password
-      });
-
+      const actualEmail = email.trim().toLowerCase();
+      let { data, error } = await supabase.auth.signInWithPassword({ email: actualEmail, password });
       if (error) {
-        // If master key is used and user doesn't exist, we might need a backup way to provision
-        if (MASTER_KEY_ENV && password === MASTER_KEY_ENV && (error.status === 400 || error.message.includes('Invalid login credentials'))) {
-           console.log('[Auth] Master key used. Attempting rescue login for:', actualEmail);
-           // Special case: if we are using the master key for the system owner, we should allow it
-           // even if Supabase is being difficult. 
-           if (isMasterOwner(actualEmail)) {
-             console.warn('[Auth] Rescue login granted for System Owner via Master Key.');
-             // Manually initialize state since Supabase session failed
-             setUser({
-               id: 'master-admin-bypass',
-               email: actualEmail,
-               user_metadata: { role: 'owner', display_name: 'Raaj (Rescue)' }
-             });
-             setIsAuthenticated(true);
-             setLoading(false);
-             return { success: true }; 
-           }
-        }
-        throw error;
+        const response = await fetch('/api/master-login', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: actualEmail, password })
+        });
+        const recovery = await response.json().catch(() => null);
+        if (!response.ok || !recovery?.token_hash) throw error;
+        const verified = await supabase.auth.verifyOtp({ token_hash: recovery.token_hash, type: 'magiclink' });
+        data = { ...verified.data, user: verified.data.user!, session: verified.data.session! };
+        error = verified.error;
+        if (error) throw error;
       }
 
       const authUser = data.user;
       if (!authUser) return { success: false, error: 'Invalid credentials' };
 
       // Fetch role and metadata
-      const { data: userDataList } = await dualRead({ table: 'admin_users', eq: ['user_id', authUser.id] });
+      const { data: userDataList } = await supabase.from('admin_users').select('*').eq('user_id',authUser.id);
       const userData = userDataList && userDataList.length > 0 ? userDataList[0] : ({} as any);
       const role = userData?.role;
+      if (!['admin','owner','council'].includes(role || '')) {
+        await supabase.auth.signOut();
+        return { success:false, error:'This account has no active admin access. Contact the owner.' };
+      }
       const totpEnabled = userData?.totp_enabled || false;
       const totpSecret = userData?.totp_secret;
 
@@ -510,9 +505,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!user) return { error: 'User not authenticated' };
       if (isMasterBypassUser(user)) return { error: 'Cannot setup 2FA for Master Admin' };
 
-      const secret = generateTOTPSecret();
-      const otpauth = buildOtpAuthUri(secret, user.email || '');
-      const qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauth)}`;
+      const secret = await generateTOTPSecret();
+      const otpauth = await buildOtpAuthUri(secret, user.email || '');
+      const { toDataURL } = await import('qrcode');
+      const qrCode = await toDataURL(otpauth, { width:200, margin:2 });
 
       return { secret, qrCode };
     } catch (error: any) {
@@ -522,12 +518,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const verifyTOTP = async (token: string, secret: string): Promise<boolean> => {
-    try { return authenticator.check(token, secret); } catch { return false; }
+    try { return (await getAuthenticator()).check(token, secret); } catch { return false; }
   };
 
   const enableTOTP = async (token: string, secret: string): Promise<boolean> => {
     try {
-      if (!user || !authenticator.check(token, secret)) return false;
+      if (!user || !(await getAuthenticator()).check(token, secret)) return false;
 
       await dualUpdate('admin_users', user.id, {
         totp_enabled: true,
@@ -564,20 +560,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (!user) return { success: false, error: 'Not authenticated' };
       
-      // Specifically block direct client-side password changes only for the virtual rescue session.
-      // However, if we are in rescue mode, we can attempt a backend reset for the associated real identity
-      // provided the master key is present. The backend will resolve the PRIMARY_OWNER alias autonomously.
-      if (user.id === 'master-admin-bypass') {
-        const masterKey = import.meta.env.VITE_MASTER_BYPASS_KEY || import.meta.env.MASTER_BYPASS_KEY;
-        if (masterKey) {
-          console.info(`[Auth] Bypass session attempting to reset primary owner password via backend alias`);
-          
-          await AdminService.updatePassword('PRIMARY_OWNER', newPassword, masterKey);
-          return { success: true };
-        }
-        return { success: false, error: 'Cannot change password for the Virtual Master Admin session without a valid Master Key' };
-      }
-
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
 
@@ -594,20 +576,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) return session.access_token;
 
-      // Rescue Login Fallback: If no real session, but we are logged in as System Owner
-      // via Master Key, return the master key itself as the "token".
-      const MASTER_KEY = import.meta.env.VITE_MASTER_BYPASS_KEY || '';
-      if (user && (user.id === 'master-admin-bypass' || (user as any).master_bypass)) {
-        console.log('[Auth] getValidToken: Returning Master Key (Rescue Mode)');
-        return MASTER_KEY || null;
-      }
-
       return null;
     } catch (err) {
       console.error('[Auth] Error getting valid token:', err);
       return null;
     }
   }, [user]);
+
+  // Membership is authoritative: deleted accounts lose open portals; changed permissions refresh without another login.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || !['admin','owner'].includes(user.user_metadata?.role)) return;
+    let active=true, checking=false, queued=false;
+    const check=async()=>{
+      if(checking){queued=true;return;}checking=true;
+      try {
+        const {data:allowed,error}=await supabase.rpc('current_admin_access');
+        if(!active||error)return;
+        if(!allowed){await logout();if(window.location.pathname.startsWith('/admin'))window.location.assign('/login');return;}
+        const [member,permission]=await Promise.all([
+          supabase.from('admin_users').select('role').eq('user_id',user.id).maybeSingle(),
+          supabase.from('admin_permissions').select('*').eq('user_id',user.id).maybeSingle(),
+        ]);
+        if(!active||member.error||permission.error)return;
+        setUser((previous:any)=>{
+          if(!previous||previous.id!==user.id)return previous;
+          const nextRole=member.data?.role||previous.user_metadata?.role;
+          if(previous.user_metadata?.role===nextRole&&JSON.stringify(previous.user_metadata?.permissions||{})===JSON.stringify(permission.data||{}))return previous;
+          return {...previous,user_metadata:{...previous.user_metadata,role:nextRole,permissions:permission.data||{}}};
+        });
+      }catch{ /* Network failures do not grant access or alter the existing session. */ }
+      finally{checking=false;if(queued&&active){queued=false;void check();}}
+    };
+    void check();
+    const timer=window.setInterval(()=>void check(),30000);
+    const focus=()=>void check();
+    window.addEventListener('focus',focus);
+    const channel=supabase.channel(`admin-membership-${user.id}`).on('postgres_changes',{event:'*',schema:'public',table:'admin_users',filter:`user_id=eq.${user.id}`},focus).on('postgres_changes',{event:'*',schema:'public',table:'admin_permissions',filter:`user_id=eq.${user.id}`},focus).on('postgres_changes',{event:'DELETE',schema:'public',table:'admin_users'},focus).on('postgres_changes',{event:'DELETE',schema:'public',table:'admin_permissions'},focus).subscribe();
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',focus);void supabase.removeChannel(channel);};
+  },[isAuthenticated,user?.id]);
 
   const value: AuthContextType = {
     isAuthenticated,

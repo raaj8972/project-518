@@ -983,7 +983,7 @@ export interface Database {
       core_team_members: {
         Row: {
           id: number
-          committee_id: number
+          committee_id: number | null
           name: string
           role: string
           image: string
@@ -1003,7 +1003,7 @@ export interface Database {
         }
         Insert: {
           id?: number
-          committee_id: number
+          committee_id: number | null
           name: string
           role: string
           image: string
@@ -1023,7 +1023,7 @@ export interface Database {
         }
         Update: {
           id?: number
-          committee_id?: number
+          committee_id?: number | null
           name?: string
           role?: string
           image?: string

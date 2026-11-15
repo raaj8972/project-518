@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Trash2, HardDrive, RefreshCw, Layers, Clipboard, Clock, ChevronDown, ChevronUp, FileText, Database, Activity, Box, Search, ExternalLink, ShieldCheck, Zap, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trash2, HardDrive, RefreshCw, Layers, Clipboard, ChevronDown, ChevronUp, FileText, Database, Activity, Box, ExternalLink, ShieldCheck, Zap, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../ToastProvider';
 import { supabase } from '../../lib/supabase';
+import { getBucketInventory, invalidateStorageInventory } from '../../services/storageService';
 import { sanitizeUrl } from '../../utils/dataUtils';
 
 function formatBytes(bytes: number) {
@@ -46,7 +47,7 @@ export const StorageOverview: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [bucket, setBucket] = useState<string>('registration-photos');
   const [buckets, setBuckets] = useState<string[]>(DEFAULT_BUCKETS);
-  const [lastTotalUpdatedMs, setLastTotalUpdatedMs] = useState<number | null>(null);
+  const [, setLastTotalUpdatedMs] = useState<number | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState<boolean>(false);
   const [loadingBreakdown, setLoadingBreakdown] = useState<boolean>(false);
   const [breakdown, setBreakdown] = useState<Array<{ id: string; totalBytes: number; count: number }>>([]);
@@ -62,15 +63,17 @@ export const StorageOverview: React.FC = () => {
     try {
       const u = await computeBucketUsage(bucket);
       setUsage(u);
+    } catch (error: any) { toast({ type: 'error', message: error.message || 'Could not load storage usage' });
     } finally {
       setLoadingUsage(false);
     }
   };
 
   const loadPage = async (p = page) => {
-    const { items, total } = await getBucketObjects(bucket, p, pageSize);
-    setItems(items);
-    setTotal(total);
+    try {
+      const { items, total } = await getBucketObjects(bucket, p, pageSize);
+      setItems(items); setTotal(total);
+    } catch (error: any) { toast({ type: 'error', message: error.message || 'Could not list files' }); }
   };
 
   const loadTotalUsage = async () => {
@@ -79,6 +82,7 @@ export const StorageOverview: React.FC = () => {
       const u = await computeAllBucketsUsage();
       setTotalUsage(u);
       setLastTotalUpdatedMs(Date.now());
+    } catch (error: any) { toast({ type: 'error', message: error.message || 'Could not load total storage usage' });
     } finally {
       setLoadingTotal(false);
     }
@@ -177,7 +181,8 @@ export const StorageOverview: React.FC = () => {
         toast({ type: 'error', message: 'Purge failed. Access denied or RLS violation.' });
         return;
       }
-      toast({ type: 'success', message: 'Data purge complete' });
+      toast({ type: 'success', message: 'File deleted' });
+    } catch (error: any) { toast({ type: 'error', message: error.message || 'Could not delete file' });
     } finally {
       setBusyName(null);
     }
@@ -193,7 +198,8 @@ export const StorageOverview: React.FC = () => {
         toast({ type: 'error', message: 'Purge operation failed.' });
         return;
       }
-      toast({ type: 'success', message: 'Nexus entry retracted' });
+      toast({ type: 'success', message: 'File deleted' });
+    } catch (error: any) { toast({ type: 'error', message: error.message || 'Could not delete file' });
     } finally {
       setBusyName(null);
     }
@@ -203,6 +209,7 @@ export const StorageOverview: React.FC = () => {
 
   const refresh = async () => {
     setRefreshing(true);
+    invalidateStorageInventory();
     await Promise.all([loadUsage(), loadPage(page), loadTotalUsage(), loadBreakdown()]);
     setRefreshing(false);
     toast({ type: 'info', message: 'Environment re-scanned' });
@@ -227,20 +234,7 @@ export const StorageOverview: React.FC = () => {
   const loadTop = async () => {
     setLoadingTop(true);
     try {
-      const collectForBucket = async (bkt: string) => {
-        const pageSize = 500;
-        let page = 1;
-        let results: Array<{ bucket: string; name: string; publicUrl: string; size: number; created_at: string | null }> = [];
-        while (true) {
-          const { items, total } = await getBucketObjects(bkt, page, pageSize);
-          results = results.concat(items.map(i => ({ bucket: bkt, ...i })));
-          const totalPages = Math.max(1, Math.ceil(total / pageSize));
-          if (page >= totalPages) break;
-          page += 1;
-          await new Promise(r => setTimeout(r, 0));
-        }
-        return results;
-      };
+      const collectForBucket = async (bkt: string) => (await getBucketInventory(bkt)).map(item => ({ ...item, bucket: bkt }));
 
       let all: Array<{ bucket: string; name: string; publicUrl: string; size: number; created_at: string | null }> = [];
       if (topScope === 'bucket') {

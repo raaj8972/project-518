@@ -1,11 +1,24 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
+import { localApi } from './scripts/local-api';
 import react from '@vitejs/plugin-react';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Backend variables remain server-side, including legacy VITE-named secrets.
+  const env = loadEnv(mode, process.cwd(), '');
+  for (const [key, value] of Object.entries(env)) if (process.env[key] === undefined) process.env[key] = value;
+  const privateVariable = /SECRET|PASSWORD|SERVICE_ROLE|BYPASS|PRIVATE_KEY|PASSCODE|MASTER|GOOGLE_API_KEY|GEMINI_API_KEY|OPENAI_API_KEY/i;
+  const publicDefines = Object.fromEntries(Object.entries(env)
+    .filter(([key]) => key.startsWith('VITE_') && !privateVariable.test(key))
+    .map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)]));
+  return {
+  // Disable automatic VITE_* export: full import.meta.env reads must stay filtered too.
+  envPrefix: [],
+  define: publicDefines,
   plugins: [
     react(),
+    localApi(),
     nodePolyfills({
       include: ['buffer', 'crypto', 'stream', 'util', 'vm', 'process'],
       globals: {
@@ -15,9 +28,7 @@ export default defineConfig({
       },
     }),
   ],
-  define: {
-    'process.env': {},
-  },
+
   cacheDir: 'node_modules/.vite_cache',
   resolve: {
     dedupe: ['react', 'react-dom'],
@@ -28,8 +39,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', '@supabase/supabase-js', 'buffer', 'process'],
-    exclude: ['lucide-react'],
+    include: ['react', 'react-dom', 'lucide-react', 'three', '@supabase/supabase-js', 'buffer', 'process'],
   },
   server: {
     host: 'localhost',
@@ -68,39 +78,10 @@ export default defineConfig({
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
-        manualChunks(id: string) {
-          if (!id) return undefined;
-          if (id.includes('node_modules')) {
-            // Priority 1: Large core frameworks
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) return 'vendor-core';
-            
-            // Priority 2: Heavy third-party UI/Logic
-            if (id.includes('lucide-react')) return 'vendor-ui';
-            if (id.includes('framer-motion')) return 'vendor-framer';
-            if (id.includes('gsap')) return 'vendor-gsap';
-            if (id.includes('lenis')) return 'vendor-lenis';
-            if (id.includes('@supabase/supabase-js')) return 'vendor-supabase';
-            
-            // Priority 3: Specialized heavy libraries
-            if (id.includes('@tensorflow') || id.includes('face-api') || id.includes('@vladmandic')) return 'vendor-ai';
-            if (id.includes('three') || id.includes('@react-three')) return 'vendor-three';
-            if (id.includes('@ffmpeg')) return 'vendor-ffmpeg';
-            if (id.includes('xlsx') || id.includes('exceljs')) return 'vendor-excel';
-            if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('jspdf-autotable')) return 'vendor-pdf';
-            if (id.includes('@aws-sdk')) return 'vendor-aws';
-            
-            return 'vendor-stable';
-          }
 
-          // Admin Dashboard — lazy-loaded via router
-          if (id.includes('/src/pages/AdminDashboard') || id.includes('/src/pages/admin') || id.includes('/src/pages/Admin')) {
-            return 'admin';
-          }
-
-          return undefined;
-        }
       }
     }
   },
   base: '/',
+  };
 });

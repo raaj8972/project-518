@@ -167,8 +167,8 @@ export const Preloader: React.FC<PreloaderProps> = ({
             {/* @ts-ignore - Custom Web Component */}
             <dotlottie-player
               src="/animations/preloader.lottie"
-              loop="true"
-              autoplay="true"
+              loop
+              autoplay
               style={{ width: '100%', height: '100%', display: 'block' }}
             ></dotlottie-player>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2, Bell, Upload, FileImage, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useData } from '../../context/DataContext';
@@ -15,6 +15,8 @@ import { useApprovals } from '../../hooks/useApprovals';
 import { deleteFromStorageByPublicUrl } from '../../utils/uploadUtils';
 import { InlineDescriptionAI } from './InlineDescriptionAI';
 import { AIEventScanner } from './events/AIEventScanner';
+import { EventPosterPreview } from './events/EventPosterPreview';
+import { EVENT_CATEGORIES, eventCategory, filterEventCatalog, EVENT_POSTER_ASPECT } from '../../utils/eventPresentation';
 
 import { useToast } from '../../components/ToastProvider';
 
@@ -57,10 +59,9 @@ const computeRulesCount = (rules: string[] | null | undefined): number => {
 
 export const EventsManagement: React.FC = () => {
   const { push } = useToast();
-  const { user } = useAuth();
+  useAuth();
   const { 
     events, 
-    eventCategories,
     updateEvent, 
     deleteEvent,
     toggleEventFeatured,
@@ -76,21 +77,11 @@ export const EventsManagement: React.FC = () => {
     // Reorder
     reorderEvents,
     lastEventReorderError,
-    adminUsers,
     sanitizeUrl,
     addNotification,
   } = (useData() || {}) as any;
   
   // Determine if current user is the OWNER
-  const isOwner = useMemo(() => {
-    try {
-      const uid = user?.id;
-      if (!uid || !Array.isArray(adminUsers)) return false;
-      return !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
-    } catch {
-      return false;
-    }
-  }, [user, adminUsers]);
   const savingProgress = useSavingProgress();
   const { submitForApproval, checkRequiresApproval } = useApprovals();
   const [savingAdd, setSavingAdd] = useState(false);
@@ -252,6 +243,10 @@ export const EventsManagement: React.FC = () => {
 
 
   const [isAddingEvent, setIsAddingEvent] = useState(false);
+  const [catalogQuery, setCatalogQuery] = useState('');
+  const [catalogCategory, setCatalogCategory] = useState('All');
+  const [catalogVisibility, setCatalogVisibility] = useState('all');
+  const catalogEvents = React.useMemo(() => filterEventCatalog(events, catalogQuery, catalogCategory, catalogVisibility), [events, catalogQuery, catalogCategory, catalogVisibility]);
   const [formStep, setFormStep] = useState(1);
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
   const [activeWinnersFor, setActiveWinnersFor] = useState<number | null>(null);
@@ -275,7 +270,7 @@ export const EventsManagement: React.FC = () => {
     motion_poster_url: '' as string | null,
     coordinator_name: '' as string | null,
     coordinator_phone: '' as string | null,
-    coordinator_password: '123@Rajaevent' as string | null,
+    coordinator_password: '' as string | null,
     whatsapp_group_link: '' as string | null,
     date: '',
     time: '',
@@ -435,14 +430,14 @@ export const EventsManagement: React.FC = () => {
   const resetEventForm = () => {
     setEventForm({
       title: '',
-      category: eventCategories.length > 0 ? eventCategories[0].name : '',
+      category: 'Cultural',
       description: '',
       image: '',
       motion_poster_url: '',
       motion_poster_autoplay: false,
       coordinator_name: '',
       coordinator_phone: '',
-      coordinator_password: '123@Rajaevent',
+      coordinator_password: '',
       whatsapp_group_link: '',
       date: '',
       time: '',
@@ -541,7 +536,7 @@ export const EventsManagement: React.FC = () => {
         venue: eventForm.venue?.trim() || '',
         rules_link: eventForm.rules_link || null,
         rules: finalRules,
-        category: eventForm.category || (eventCategories.length > 0 ? eventCategories[0].name : 'General'),
+        category: eventCategory(eventForm.category),
         registration_timer_enabled: !!eventForm.registration_timer_enabled,
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
         registration_closes_at: eventForm.registration_closes_at ? new Date(eventForm.registration_closes_at).toISOString() : null,
@@ -622,6 +617,7 @@ export const EventsManagement: React.FC = () => {
         venue: eventForm.venue?.trim() || '',
         rules_link: eventForm.rules_link || null,
         rules: finalRules,
+        category: eventCategory(eventForm.category),
         // Heuristic Logic for "Close Now":
         // If user is unchecking manual open (registration_open=false), AND timer is enabled, AND timer start time has passed, 
         // we assume they want to CLOSE the event, so we disable the timer too.
@@ -974,7 +970,7 @@ export const EventsManagement: React.FC = () => {
   const startEditingEvent = (event: Event) => {
     setEventForm({
       title: event.title,
-      category: event.category,
+      category: eventCategory(event.category),
       description: event.description,
       image: event.image,
       motion_poster_url: event.motion_poster_url || '',
@@ -1262,6 +1258,7 @@ export const EventsManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <div className="arena-studio-notice"><strong>Events arena · Poster &amp; publishing guide</strong><br />Upload landscape posters at <strong>1600 × 1000 px (8:5)</strong>. Use artwork without titles; the public card adds a dark fade and live text. Clicking a card opens the full poster, date, time, venue, coordinators and numbered rulebook. Registration uses this event’s individual/team, fee and opening-time settings. Edit the page backdrop in <strong>Hero Media → Events</strong>.</div>
       {/* AI Event Scanner Modal */}
       {showEventScanner && (
         <AIEventScanner 
@@ -1468,13 +1465,13 @@ export const EventsManagement: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Category</label>
                     <select
-                      value={eventForm.category}
+                      value={eventCategory(eventForm.category)}
                       onChange={(e) => setEventForm(prev => ({ ...prev, category: e.target.value }))}
                       className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-white appearance-none transition-all"
                     >
                       <option value="" className="bg-[#181824]">Select Category</option>
-                      {eventCategories.map((category: any) => (
-                        <option key={category.id} value={category.name} className="bg-[#181824]">{category.name}</option>
+                      {EVENT_CATEGORIES.map(category => (
+                        <option key={category} value={category} className="bg-[#181824]">{category}</option>
                       ))}
                     </select>
                   </div>
@@ -1977,19 +1974,20 @@ export const EventsManagement: React.FC = () => {
                             currentImage={eventForm.image}
                             bucket="event-images"
                             folder="events"
-                            cropAspect={49/59.4}
+                            cropAspect={EVENT_POSTER_ASPECT}
                             enableCropper={true}
                             maxImageBytes={20 * 1024 * 1024}
-                            fileTypeLabel="Poster (49:59.4)"
-                            className="w-full aspect-[49/59.4] rounded-2xl overflow-hidden border border-white/5 group-hover:border-purple-500/30 transition-all"
+                            fileTypeLabel="Poster (1600 × 1000)"
+                            className="w-full aspect-[8/5] rounded-2xl overflow-hidden border border-white/5 group-hover:border-purple-500/30 transition-all"
                           />
-                          <p className="text-[9px] text-gray-600 mt-2 uppercase tracking-tighter">Primary card image (49:59.4 ratio)</p>
+                          <p className="text-[9px] text-gray-600 mt-2 uppercase tracking-tighter">1600 × 1000 px · 8:5 landscape · Text is added automatically</p>
+                          <div className="mt-4"><EventPosterPreview event={eventForm} /></div>
                         </div>
 
                         {/* Motion Poster */}
                         <div className="group relative">
                           <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Motion Poster (Video)</label>
-                          <div className="rounded-2xl overflow-hidden border border-white/5 group-hover:border-purple-500/30 transition-all bg-black/20 aspect-[49/59.4]">
+                          <div className="rounded-2xl overflow-hidden border border-white/5 group-hover:border-purple-500/30 transition-all bg-black/20 aspect-[8/5]">
                             <VideoUpload
                               onVideoSelect={(url) => setEventForm(prev => ({ ...prev, motion_poster_url: url }))}
                               currentVideo={eventForm.motion_poster_url || ''}
@@ -2229,7 +2227,7 @@ export const EventsManagement: React.FC = () => {
                   {/* Event Info */}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm md:text-base font-semibold text-gray-900 truncate">{ev.title}</div>
-                    <div className="text-xs md:text-sm text-gray-600 truncate">{ev.category || 'Uncategorized'}</div>
+                    <div className="text-xs md:text-sm text-gray-600 truncate">{eventCategory(ev.category)}</div>
                   </div>
 
                   {/* Arrow Buttons */}
@@ -2271,8 +2269,16 @@ export const EventsManagement: React.FC = () => {
         </div>
       )}
       {/* Events List - Responsive Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {events.map((event: any) => (
+      <section className="events-catalog-controls" aria-label="Find an event to manage">
+        <label>Search events<input type="search" value={catalogQuery} onChange={event => setCatalogQuery(event.target.value)} placeholder="Search by event name or venue" /></label>
+        <label>Category<select value={catalogCategory} onChange={event => setCatalogCategory(event.target.value)}><option value="All">All categories</option>{EVENT_CATEGORIES.map(category => <option key={category} value={category}>{category}</option>)}</select></label>
+        <label>Publication<select value={catalogVisibility} onChange={event => setCatalogVisibility(event.target.value)}><option value="all">All events</option><option value="published">Published</option><option value="hidden">Hidden</option></select></label>
+        <p role="status">Showing {catalogEvents.length} of {events.length} events</p>
+        {(catalogQuery || catalogCategory !== 'All' || catalogVisibility !== 'all') && <button type="button" onClick={() => { setCatalogQuery(''); setCatalogCategory('All'); setCatalogVisibility('all'); }}>Clear filters</button>}
+      </section>
+      {!catalogEvents.length && <p className="events-catalog-empty">{events.length ? 'No events match these filters. Try another name or clear the filters.' : 'No events yet. Add your first event to get started.'}</p>}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {catalogEvents.map((event: any) => (
           <div key={event.id} className="rico-glass-card rounded-[2.5rem] overflow-hidden group hover:border-purple-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-900/20 tilt-3d relative">
             <div className="absolute inset-0 bg-gradient-to-b from-purple-500/0 via-purple-500/0 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
               <div className="relative aspect-[16/10] overflow-hidden">
@@ -2282,6 +2288,8 @@ export const EventsManagement: React.FC = () => {
                     return sanitized;
                   })()}
                   alt={event.title}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-[#0f0f1a] to-transparent opacity-90" />
@@ -2330,8 +2338,8 @@ export const EventsManagement: React.FC = () => {
                 
                 <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
                   <div>
-                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-[0.2em] mb-1 block">{event.category}</span>
-                    <h3 className="font-bold text-xl text-white tracking-tight group-hover:text-purple-300 transition-colors line-clamp-1">{event.title}</h3>
+                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-[0.2em] mb-1 block">{eventCategory(event.category)}</span>
+                    <h3 className="font-bold text-xl text-white tracking-tight group-hover:text-purple-300 transition-colors line-clamp-2">{event.title}</h3>
                   </div>
                 </div>
               </div>
@@ -2564,20 +2572,21 @@ export const EventsManagement: React.FC = () => {
               <div className="space-y-6">
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider">Event Poster</label>
-                  <div className="relative rounded-xl overflow-hidden shadow-lg border border-white/10 bg-black/40 aspect-[49/59.4] group-hover:border-purple-500/50 transition-colors">
+                  <div className="relative rounded-xl overflow-hidden shadow-lg border border-white/10 bg-black/40 aspect-[8/5] group-hover:border-purple-500/50 transition-colors">
                      <ImageUpload
                       onImageSelect={(url) => setEventForm(prev => ({ ...prev, image: url }))}
                       currentImage={eventForm.image}
                       bucket="event-images"
                       folder="events"
-                      cropAspect={49/59.4}
+                      cropAspect={EVENT_POSTER_ASPECT}
                       enableCropper={true}
                       maxImageBytes={20 * 1024 * 1024}
-                      fileTypeLabel="Poster (49:59.4)"
+                      fileTypeLabel="Poster (1600 × 1000)"
                       className="w-full h-full"
                     />
                   </div>
-                  <p className="text-[10px] text-gray-500 mt-2">Recommended: 49:59.4 Aspect Ratio</p>
+                  <p className="text-[10px] text-gray-500 mt-2">Recommended: 1600 × 1000 px · 8:5 landscape</p>
+                  <div className="mt-4"><EventPosterPreview event={eventForm} /></div>
                 </div>
 
                 <div>
@@ -2646,13 +2655,13 @@ export const EventsManagement: React.FC = () => {
                         <div className="space-y-1">
                            <label className="text-xs font-medium text-gray-400">Category</label>
                            <select
-                              value={eventForm.category}
+                              value={eventCategory(eventForm.category)}
                               onChange={(e) => setEventForm(prev => ({ ...prev, category: e.target.value }))}
                               className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-gray-300 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 [&>option]:bg-[#1a1a2e]"
                            >
                               <option value="">Select...</option>
-                              {eventCategories.map((category: any) => (
-                                <option key={category.id} value={category.name}>{category.name}</option>
+                              {EVENT_CATEGORIES.map(category => (
+                                <option key={category} value={category}>{category}</option>
                               ))}
                            </select>
                         </div>
@@ -2712,16 +2721,17 @@ export const EventsManagement: React.FC = () => {
                   {/* Mobile Media Grid (Visible only on small screens) */}
                   <div className="md:hidden space-y-4 pt-4 border-t border-white/5">
                      <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Media</h3>
+                     <EventPosterPreview event={eventForm} />
                      <div className="grid grid-cols-2 gap-4">
                         <ImageUpload
                            onImageSelect={(url) => setEventForm(prev => ({ ...prev, image: url }))}
                            currentImage={eventForm.image}
                            bucket="event-images"
                            folder="events"
-                           cropAspect={49/59.4}
+                           cropAspect={EVENT_POSTER_ASPECT}
                            enableCropper={true}
                            fileTypeLabel="Poster"
-                           className="w-full aspect-[49/59.4]"
+                           className="w-full aspect-[8/5]"
                         />
                         <VideoUpload
                            onVideoSelect={(url) => setEventForm(prev => ({ ...prev, motion_poster_url: url }))}

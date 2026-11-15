@@ -1,4 +1,3 @@
-import { parseEventDateTime } from './eventTime';
 
 // Structured rules helpers (mirrored from admin logic)
 export type RuleBlock = { kind: 'points'; style?: 'bullet' | 'number'; title?: string; items: string[] };

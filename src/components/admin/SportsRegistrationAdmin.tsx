@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Download, Check, X, Filter, Search, Shield, Info, Eye, Trash2, FileText, Pencil, Loader2, BookOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useSportsData } from '../../context/SportsContext';

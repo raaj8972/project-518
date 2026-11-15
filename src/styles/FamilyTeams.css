@@ -1,0 +1,238 @@
+/* Compact family roster. All rules stay within the council/committee components. */
+.family-teams {
+  --family-gold: #cfb362;
+  --family-green: #b5e45a;
+  position: relative;
+  isolation: isolate;
+  background: #041009;
+  color: #f4f1df;
+  padding: 32px 24px 48px;
+}
+.family-teams::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(#041009ef, #041009da), url('/images/ricorrenza-emerald-city.webp') center bottom / cover;
+}
+.family-teams-section { max-width: 1040px; min-width: 0; margin: 0 auto 32px; }
+.family-teams-section:last-child { margin-bottom: 0; }
+.family-section-heading { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 22px; }
+.family-section-heading > span { height: 1px; flex: 1; max-width: 160px; background: linear-gradient(90deg, transparent, #cfb362b0); }
+.family-section-heading > span:last-child { transform: rotate(180deg); }
+body .rico-family-page .family-teams .family-section-heading h2 {
+  margin: 0;
+  padding: 8px 28px;
+  border-block: 1px solid #cfb36299;
+  background: #09170c;
+  color: #ecdaa0;
+  font: 500 clamp(20px, 2.4vw, 27px) / 1.25 Georgia, serif;
+  letter-spacing: .06em;
+  text-align: center;
+  text-transform: uppercase;
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%);
+}
+.family-committees-list { display: grid; gap: 9px; }
+.family-committee, .family-council-panel {
+  container: family-panel / inline-size;
+  min-width: 0;
+  border: 1px solid #aa914d;
+  border-radius: 17px;
+  overflow: hidden;
+  background: linear-gradient(110deg, #0b2012d9, #041009f5 75%);
+}
+.family-committee.is-open { border-color: #b7c45c; box-shadow: inset 0 1px 0 #a6da3824; }
+.family-committee h3 { margin: 0; }
+.family-committee-toggle {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  min-height: 72px;
+  padding: 11px 20px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .2s;
+}
+.family-committee-toggle:hover { background: #b4e45608; }
+.family-committee-toggle:active { background: #b4e45612; }
+.family-committee-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 43px;
+  border: 1px solid #a9bc57;
+  border-radius: 10px;
+  color: #e0ca72;
+  background: linear-gradient(135deg, #38532233, #0a150a);
+}
+.family-committee-icon svg { width: 27px; height: 27px; }
+.family-committee.is-open .family-committee-icon { border-color: #bcdf68; box-shadow: inset 0 0 9px #b1e34a22; }
+.family-committee-title { min-width: 0; }
+.family-committee-title > span {
+  display: block;
+  color: #f2eee0;
+  font: 500 clamp(18px, 2.1vw, 23px) / 1.2 Georgia, serif;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.family-committee-title small {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 4px;
+  font: 400 12px / 1.4 'Poppins', sans-serif;
+  color: #b9c3af;
+}
+.family-committee-chevron { width: 21px; height: 21px; color: #d9dfc6; transition: transform .2s; }
+.family-committee.is-open .family-committee-chevron { transform: rotate(180deg); }
+.family-group { display: grid; gap: 20px; min-width: 0; padding: 20px; }
+.family-committee .family-group { border-top: 1px solid #b5bf5230; margin: 0 12px; padding: 18px 8px 20px; }
+.family-group-heads, .family-group-members { min-width: 0; }
+.family-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.family-heads-grid { display: grid; grid-template-columns: repeat(var(--family-head-count, 1), minmax(0, 1fr)); max-width: var(--family-head-column); justify-content: start; align-items: start; gap: 18px 12px; }
+.family-person { position: relative; isolation: isolate; width: 112px; max-width: 100%; min-width: 0; text-align: center; }
+.family-person-photo { position: relative; z-index: 1; width: fit-content; max-width: 100%; margin: 0 auto 9px; }
+.family-person-portrait { display: grid; place-items: center; width: 74px; height: 74px; max-width: 100%; border: 2px solid #c9ac61; border-radius: 50%; overflow: hidden; background: #17301d; }
+.family-person-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 22%; }
+.family-person-portrait > span { color: #ead69a; font: 500 24px Georgia, serif; }
+.family-person--head { width: 120px; }
+.family-person--head .family-person-photo { padding-bottom: 9px; }
+.family-person--head .family-person-portrait { width: 96px; height: 110px; border: 1px solid #c7d970; border-radius: 13px 13px 10px 10px; box-shadow: 0 0 9px #a7db2420; }
+.family-person-head-badge { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); min-width: 68px; padding: 3px 12px; border: 1px solid #c8d65c; border-radius: 7px; background: linear-gradient(#1e3512, #09150a); color: #f0dd98; font: 500 10px / 1.2 'Poppins', sans-serif; text-transform: uppercase; letter-spacing: .07em; }
+.family-person-details { position: relative; z-index: 1; min-width: 0; }
+body .rico-family-page .family-teams .family-person h5 { margin: 0; color: #f3efde; font: 500 14px / 1.35 'Poppins', sans-serif; overflow-wrap: break-word; word-break: normal; }
+.family-person a { display: inline-flex; align-items: center; justify-content: center; gap: 5px; max-width: 100%; margin-top: 4px; color: #b9be99; text-decoration: none; font: 400 10px / 1.4 'Poppins', sans-serif; }
+.family-person a span { min-width: 0; overflow-wrap: break-word; word-break: normal; }
+.family-person a svg { width: 13px; height: 13px; flex-shrink: 0; }
+.family-person a:hover { color: #d6e99b; }
+.family-group-label { margin: 0 0 10px; color: #d6c58a; font: 500 10px / 1.4 'Poppins', sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+.family-group--split .family-group-members { border-top: 1px solid #ae9d4f40; padding-top: 16px; }
+.family-carousel { position: relative; min-width: 0; }
+.family-carousel-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; color: #8e9d7d; font: 400 10px / 1.3 'Poppins', sans-serif; }
+.family-carousel-toolbar .family-group-label { margin: 0; font-size: 9px; }
+.family-carousel-toolbar .family-group-label > span { margin-left: 5px; color: #8e9d7d; letter-spacing: 0; }
+.family-carousel-controls { display: flex; gap: 4px; }
+.family-carousel-controls--bottom { display: flex; justify-content: center; gap: 8px; margin-top: 12px; }
+.family-carousel-controls--bottom button { width: 38px; height: 38px; font-size: 16px; }
+.family-carousel-controls--bottom button svg { width: 18px; height: 18px; }
+.family-carousel-controls button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid #a1904c66; border-radius: 50%; background: #0d1a0d; color: #dcca8a; cursor: pointer; transition: background .2s; }
+.family-carousel-controls button:hover { background: #283a19; }
+.family-carousel-controls button:active { transform: scale(.96); }
+.family-carousel-controls svg { width: 15px; height: 15px; }
+.family-carousel-track { display: flex; gap: 20px; min-width: 0; padding: 30px 0 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.family-carousel-slide { flex: 0 0 calc((100% - (var(--family-member-columns, 1) - 1) * 20px) / var(--family-member-columns, 1)); scroll-snap-align: start; }
+.family-teams button:focus-visible, .family-teams a:focus-visible, .family-carousel-track:focus-visible { outline: 2px solid #d4ee8b; outline-offset: 3px; }
+.family-empty { margin: 0; padding: 18px 4px; color: #a6b296; font: 400 12px / 1.5 'Poppins', sans-serif; }
+.family-unassigned { margin-top: 14px; }
+.family-unassigned > h3 { padding: 16px 20px 0; }
+.family-teams-loading { display: grid; gap: 9px; }
+.family-teams-loading > div { height: 72px; border: 1px solid #aa914d66; border-radius: 17px; background: #112417; }
+@container family-panel (min-width: 480px) {
+  .family-group--split { grid-template-columns: minmax(0, min(var(--family-head-column), 54%)) minmax(0, 1fr); align-items: center; gap: 26px; }
+  .family-group--split .family-group-members { padding: 0 0 0 24px; border-top: 0; border-left: 1px solid #ae9d4f55; }
+}
+@media (max-width: 600px) {
+  .family-teams { padding: 24px 14px 36px; }
+  .family-section-heading { gap: 7px; margin-bottom: 18px; }
+  body .rico-family-page .family-teams .family-section-heading h2 { padding: 7px 18px; font-size: 18px; }
+  .family-committee, .family-council-panel { border-radius: 14px; }
+  .family-committee-toggle { grid-template-columns: 44px minmax(0, 1fr) 18px; min-height: 65px; gap: 12px; padding: 10px 13px; }
+  .family-committee-icon { width: 44px; height: 38px; border-radius: 8px; }
+  .family-committee-icon svg { width: 23px; height: 23px; }
+  .family-committee-title > span { font-size: 17px; }
+  .family-committee-title small { font-size: 10px; margin-top: 3px; }
+  .family-committee-chevron { width: 18px; height: 18px; }
+  .family-committee .family-group { margin-inline: 10px; padding: 16px 3px; }
+  .family-heads-grid { gap: 16px 10px; }
+  .family-person--head .family-person-portrait { width: 86px; height: 100px; }
+  .family-person-head-badge { min-width: 58px; padding: 3px 8px; font-size: 9px; }
+  body .rico-family-page .family-teams .family-person h5 { font-size: 12px; }
+  .family-person a { font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) { .family-teams * { scroll-behavior: auto; transition: none; } }
+
+/* A physical lamp, a diffuse volume and a soft reflection share one light source. */
+.family-spotlight { position: absolute; top: 0; left: 50%; width: 32px; height: 43px; transform: translateX(-50%); pointer-events: none; z-index: 0; }
+.family-spotlight-mount { position: absolute; top: -4px; left: 14px; height: 12px; width: 4px; border-radius: 2px; background: linear-gradient(90deg, #141b17, #89917e, #1c231c); }
+.family-spotlight-fixture { position: relative; z-index: 1; display: block; width: 32px; height: 43px; object-fit: contain; filter: drop-shadow(0 3px 3px #020804b3); }
+.family-spotlight-beam { position: absolute; top: 33px; left: 50%; width: 160px; height: 184px; transform: translateX(-50%); overflow: visible; opacity: .75; mix-blend-mode: screen; }
+.family-person--head .family-person-portrait, .family-person--council .family-person-portrait { position: relative; box-shadow: 0 8px 14px #02070366, 0 -5px 18px #e8df9a14; }
+.family-person-portrait::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(155deg, #fff9d524, #f3efc705 42%, transparent 70%); mix-blend-mode: screen; }
+.family-person-portrait { position: relative; }
+.family-heads-grid { width: 100%; }
+.family-carousel-track::-webkit-scrollbar { display: none; }
+.family-carousel-slide .family-person { width: 100%; }
+.family-carousel { isolation: isolate; }
+.family-members-light { position: absolute; left: 50%; top: 26px; width: 20px; height: 27px; pointer-events: none; z-index: -1; transform: translateX(-50%); transition: left 0.45s cubic-bezier(0.25, 0.8, 0.25, 1); }
+.family-spotlight--soft { width: 20px; height: 27px; }
+.family-spotlight--soft .family-spotlight-fixture { width: 20px; height: 27px; opacity: .75; }
+.family-spotlight--soft .family-spotlight-mount { left: 8px; }
+.family-spotlight--soft .family-spotlight-beam { top: 20px; width: 260px; height: 160px; opacity: .38; }
+.family-group-members { position: relative; }
+.family-group-members::before { content: ''; position: absolute; inset: 20px -10px -10px; pointer-events: none; background: radial-gradient(ellipse at 50% 24%, #ece3b313, transparent 72%); }
+.family-council-section { padding-bottom: 12px; }
+.family-council-panel { position: relative; isolation: isolate; border-color: #b9a772; border-radius: 5px 5px 20px 20px; background: radial-gradient(ellipse at 50% 0, #3c3e241c, transparent 65%), linear-gradient(120deg, #101d15, #07140e); padding: 18px 24px 30px; }
+.family-council-eyebrow { position: relative; z-index: 1; margin: 0 0 20px; text-align: center; font: 500 9px/1.4 'Poppins', sans-serif; color: #acb79a; letter-spacing: .25em; text-transform: uppercase; }
+.family-council-truss { position: absolute; top: 48px; left: 24px; right: 24px; height: 5px; background: linear-gradient(#79826c60, #101b12 45%, #68715440); border-block: 1px solid #a4a77b22; }
+.family-council-roster { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(var(--council-columns, 4), minmax(0, 152px)); justify-content: center; gap: 24px; padding-top: 20px; }
+.family-person--council { width: 152px; }
+.family-person--council .family-person-photo { padding-bottom: 9px; }
+.family-person--council .family-person-portrait { width: 110px; height: 132px; border: 1px solid #cfbd84; border-radius: 45% 45% 10px 10px; }
+.family-person--council .family-person-portrait img { filter: brightness(.84) contrast(1.04) saturate(.94); }
+.family-person--council .family-person-portrait::after { mix-blend-mode: soft-light; }
+.family-person--council .family-person-head-badge { border-color: #bda776; background: linear-gradient(#3a3620, #161e12); }
+.family-council-floor { position: absolute; z-index: -1; bottom: 0; left: 0; right: 0; height: 56px; border-bottom: 4px solid #635d3033; background: radial-gradient(ellipse at 50% 100%, #e4d6a21c, transparent 70%); }
+.family-council-empty { position: relative; min-height: 130px; display: grid; place-items: end center; padding-top: 62px; }
+.family-council-empty p { position: relative; margin: 0; padding: 12px 4px; color: #b9c1a8; text-align: center; font: 400 12px/1.5 'Poppins', sans-serif; }
+@media (max-width: 600px) {
+  .family-council-panel { padding: 16px 14px 24px; }
+  .family-council-roster { grid-template-columns: repeat(var(--council-columns, 4), minmax(0, 132px)); gap: 18px 10px; }
+  .family-person--council { width: 132px; }
+  .family-person--council .family-person-portrait { width: 96px; height: 116px; }
+}
+
+/* Four fixed lamps are aimed independently at their saved council targets. */
+.family-spotlight-head { position: absolute; inset: 0; transform-origin: 50% 12px; }
+.family-spotlight-lens { position: absolute; z-index: 2; left: 18%; right: 18%; bottom: 1px; height: 5px; border-radius: 50%; background: var(--family-light-color, #f6e6a1); opacity: .55; filter: blur(1px); box-shadow: 0 0 8px var(--family-light-color, #f6e6a1); }
+.family-spotlight-fixture { filter: hue-rotate(var(--family-lamp-hue, 0deg)) drop-shadow(0 3px 3px #020804b3); }
+.family-spotlight--off .family-spotlight-beam, .family-spotlight--off .family-spotlight-lens { opacity: 0; }
+.family-spotlight--off .family-spotlight-fixture { filter: grayscale(1) brightness(.55); }
+.council-light-rig { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); height: 66px; pointer-events: none; }
+.council-rig-light { position: relative; height: 43px; }
+.council-rig-light .family-spotlight-head { transform: rotate(var(--council-light-angle, 0deg)); }
+.council-rig-light .family-spotlight-beam { width: var(--family-beam-width, 160px); height: var(--family-beam-length, 184px); opacity: .85; }
+.council-stage-person { position: relative; min-width: 0; }
+.council-stage-person .family-person { margin-inline: auto; }
+.council-stage-person.is-lit .family-person-portrait { border-color: var(--council-person-light); box-shadow: 0 8px 16px #02070366, 0 -6px 22px color-mix(in srgb, var(--council-person-light) 24%, transparent); }
+.council-stage-person.is-lit .family-person-portrait::after { background: linear-gradient(160deg, color-mix(in srgb, var(--council-person-light) 16%, transparent), transparent 65%); }
+.family-council-empty { min-height: 80px; padding-top: 0; }
+.family-council-truss { top: 55px; }
+.council-lighting-editor { border: 1px solid #74846344; border-radius: 14px; background: #22322015; padding: 20px; }
+.council-lighting-editor header h3 { margin: 0 0 7px; font: 600 16px/1.4 'Poppins', sans-serif; color: var(--dashboard-ink, #e2e6d6); }
+.council-lighting-editor header p, .council-light-hint { color: var(--dashboard-muted, #adb69f); font: 400 12px/1.6 'Poppins', sans-serif; margin: 0 0 16px; }
+.council-light-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 14px; padding: 0; border: 0; }
+.council-light-control { min-width: 0; }
+.council-light-control label { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; color: var(--dashboard-ink, #e2e6d6); font: 500 12px 'Poppins', sans-serif; }
+.council-light-control label span { width: 10px; height: 10px; border-radius: 50%; }
+.council-light-control select { width: 100%; padding: 10px 12px; border: 1px solid #7a876b55; border-radius: 7px; background: var(--dashboard-surface, #101c12); color: var(--dashboard-ink, #e2e6d6); font-size: 12px; }
+.council-light-preview { margin-block: 16px; }
+.council-light-preview summary { cursor: pointer; color: var(--dashboard-ink, #d9e4ce); font: 500 12px 'Poppins', sans-serif; }
+.council-light-preview .family-teams { border-radius: 10px; padding: 16px; margin-top: 12px; }
+.council-lighting-editor footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; padding-top: 12px; }
+.council-lighting-editor footer button { padding: 9px 14px; border: 1px solid #7a876b55; border-radius: 7px; color: var(--dashboard-ink, #e2e6d6); font: 500 12px 'Poppins', sans-serif; background: transparent; cursor: pointer; }
+.council-lighting-editor footer button:last-child { background: #28562d; color: #f1f4de; border-color: #698d56; }
+.council-lighting-editor button:disabled { opacity: .45; cursor: default; }
+.council-light-control select:focus-visible, .council-lighting-editor button:focus-visible { outline: 2px solid #b6d98a; outline-offset: 3px; }
+@media (max-width: 560px) { .council-light-controls { grid-template-columns: minmax(0, 1fr); } .council-lighting-editor { padding: 16px; } }
+
+@container family-panel (max-width: 440px) {
+  .family-council-roster { grid-template-columns: repeat(2, minmax(0, 132px)); }
+  .family-council-roster:has(> :only-child) { grid-template-columns: minmax(0, 132px); }
+}

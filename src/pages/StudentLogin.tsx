@@ -1,3 +1,5 @@
+import '../styles/StudentFestival.css';
+import {registrationBatches} from '../utils/registrationBatches';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useStudentAuth } from '../context/StudentAuthContext';
@@ -9,13 +11,14 @@ import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import { useCoreData } from '../context/CoreDataContext';
 
 const InputField = ({ icon: Icon, ...props }: any) => (
-  <div className="relative group mb-6">
+  <label className="student-festival-field relative group mb-6 block">
+    <span>{props['aria-label'] || props.placeholder}</span>
     <input
       {...props}
-      className={`w-full bg-transparent border-b-2 border-white/10 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#a855f7] transition-all pr-8 peer ${props.className || ''}`}
+      className={`w-full bg-transparent border-b-2 border-white/10 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 transition-all pr-8 peer ${props.className || ''}`}
     />
-    <Icon className="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-4 text-gray-500 peer-focus:text-[#a855f7] transition-colors" />
-  </div>
+    <Icon aria-hidden="true" className="absolute right-0 bottom-4 w-5 h-4 text-gray-500 peer-focus:text-purple-500 transition-colors" />
+  </label>
 );
 
 const StudentLogin: React.FC = () => {
@@ -45,14 +48,8 @@ const StudentLogin: React.FC = () => {
   const { siteSettings } = useCoreData();
   const navigate = useNavigate();
 
-  const rawPt = (siteSettings as any)?.registration_participant_types;
-  const rawBo = (siteSettings as any)?.batch_options;
-  const batchOptions = (Array.isArray(rawPt) && rawPt.length > 0)
-    ? rawPt
-    : (Array.isArray(rawBo) && rawBo.length > 0)
-    ? rawBo
-    : ['Batch 2024', 'Batch 2025', 'Batch 2026', 'Batch 2027'];
-     
+  const batchOptions = registrationBatches(siteSettings);
+
   const showCollege = false;
 
   // Sync profile data when authenticated but incomplete
@@ -141,9 +138,9 @@ const StudentLogin: React.FC = () => {
   // 1. Loading State
   if (authLoading && !isAuthenticated) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#05050A] text-white">
-        <Loader2 className="w-12 h-12 animate-spin text-[#a855f7] mb-4" />
-        <p className="text-gray-400 animate-pulse">Initializing Secure Portal...</p>
+      <div className="student-festival-auth student-auth-page min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-950 text-white">
+        <Loader2 className="w-12 h-12 animate-spin text-purple-500 mb-4" />
+        <p className="text-gray-400 animate-pulse">Opening your RICO portal...</p>
       </div>
     );
   }
@@ -151,13 +148,13 @@ const StudentLogin: React.FC = () => {
   // 2. Profile Completion Form (Authenticated but Incomplete)
   if (isAuthenticated && !isProfileComplete) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#05050A] p-4 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#a855f7]/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="student-festival-auth student-auth-page min-h-[100dvh] flex items-center justify-center bg-zinc-950 p-4 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
         
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-2xl bg-[#0d0d12]/90 backdrop-blur-2xl border border-[#a855f7]/30 rounded-[2.5rem] p-8 md:p-12 shadow-[0_0_50px_rgba(168,85,247,0.15)] relative z-10"
+          className="w-full max-w-2xl bg-[#0d0d12]/90 backdrop-blur-2xl border border-purple-500/30 rounded-[2.5rem] p-8 md:p-12 shadow-[0_0_50px_rgba(168,85,247,0.15)] relative z-10"
         >
           <div className="flex justify-between items-start mb-8">
             <div>
@@ -191,10 +188,11 @@ const StudentLogin: React.FC = () => {
             
             <div className="relative mb-6">
               <select 
+                aria-label="Batch or type"
                 required 
                 value={batch} 
                 onChange={(e) => setBatch(e.target.value)} 
-                className="w-full bg-transparent border-b-2 border-white/10 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#a855f7] transition-all appearance-none cursor-pointer"
+                className="w-full bg-transparent border-b-2 border-white/10 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 transition-all appearance-none cursor-pointer"
               >
                 <option value="" disabled className="bg-[#05050A]">Select Batch/Type</option>
                 {batchOptions.map((opt: string) => <option key={opt} value={opt} className="bg-[#05050A]">{opt}</option>)}
@@ -212,11 +210,11 @@ const StudentLogin: React.FC = () => {
               <button 
                 type="submit" 
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-[#9333ea] to-[#a855f7] hover:from-[#7e22ce] hover:to-[#9333ea] text-white font-bold py-4 rounded-2xl shadow-[0_10px_30px_rgba(168,85,247,0.3)] transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white font-bold py-4 rounded-2xl shadow-[0_10px_30px_rgba(168,85,247,0.3)] transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
                   <>
-                    Initialize Student ID
+                    Create Student ID
                     <CheckCircle2 className="w-5 h-5" />
                   </>
                 )}
@@ -234,7 +232,7 @@ const StudentLogin: React.FC = () => {
   // 3. Authenticated and Complete (Redirecting)
   if (isAuthenticated && isProfileComplete) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#05050A] text-white">
+      <div className="student-festival-auth student-auth-page min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-950 text-white">
         <motion.div 
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -252,17 +250,17 @@ const StudentLogin: React.FC = () => {
 
   // 4. Guest Landing (Auth UI)
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#05050A] relative overflow-hidden font-sans p-4 pt-20">
+    <div className="student-festival-auth student-auth-page min-h-[100dvh] flex items-center justify-center bg-zinc-950 relative overflow-hidden font-sans p-4 pt-20">
       {/* Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#a855f7]/10 rounded-full blur-[150px] pointer-events-none animate-pulse" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-500/10 rounded-full blur-[150px] pointer-events-none animate-pulse" />
 
       {/* Main Container Desktop */}
-      <div className="hidden lg:flex relative w-full max-w-[1000px] min-h-[600px] bg-[#0d0d12] rounded-[3rem] shadow-[0_0_80px_rgba(168,85,247,0.15)] border border-[#a855f7]/30 overflow-hidden">
+      <div className="hidden lg:flex relative w-full max-w-[1000px] min-h-[600px] bg-[#0d0d12] rounded-[3rem] shadow-[0_0_80px_rgba(168,85,247,0.15)] border border-purple-500/30 overflow-hidden">
         
         {/* SIGN UP PANEL (Left Side Form) */}
         <div className="absolute top-0 left-0 w-1/2 h-full px-16 py-12 flex flex-col justify-center text-left">
           <h2 className="text-5xl font-black text-white mb-6 tracking-tight">Sign Up</h2>
-          <p className="text-gray-400 mb-10 text-lg leading-relaxed">Join the most anticipated technical fest of the year. Register now to experience innovation.</p>
+          <p className="text-gray-400 mb-10 text-lg leading-relaxed">One festival. Every possibility. Join the music, culture and competition at RICORRENZA.</p>
           
           <button 
             type="button" 
@@ -307,18 +305,18 @@ const StudentLogin: React.FC = () => {
           transition={{ type: 'spring', stiffness: 45, damping: 15 }}
         >
           {/* Neon Gradient Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#4c1d95] via-[#7e22ce] to-[#1e1b4b] z-0" />
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-900 via-purple-700 to-indigo-950 z-0" />
           {/* Animated texture overlay */}
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 mix-blend-overlay animate-pulse" />
+          <div className="absolute inset-0 student-festival-auth-texture opacity-20 mix-blend-overlay animate-pulse" />
 
           <div className="relative z-40 w-full px-6">
             <AnimatePresence mode="wait">
               {isLogin ? (
                 <motion.div key="w-signup" initial={{opacity:0, scale:0.9, y: 30}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -30, position:'absolute', top:0, left:0, width:'100%'}}>
                   <div className="w-20 h-2 bg-white rounded-full mx-auto mb-10" />
-                  <h2 className="text-5xl font-black mb-8 leading-[1.1] tracking-tighter uppercase italic">Join the <br/> Revolution</h2>
-                  <p className="mb-12 text-[#d8b4fe] leading-relaxed font-bold text-xl">Start your journey with {BRAND_NAME} {BRAND_YEAR}. Instant signup with Google.</p>
-                  <button onClick={() => setIsLogin(false)} className="px-14 py-4 rounded-full border-4 border-white font-black text-xl hover:bg-white hover:text-[#4c1d95] transition-all hover:scale-105 active:scale-[0.98]">
+                  <h2 className="text-5xl font-black mb-8 leading-[1.1] tracking-tighter uppercase italic">Join the <br/> Story</h2>
+                  <p className="mb-12 text-purple-300 leading-relaxed font-bold text-xl">Start your journey with {BRAND_NAME} {BRAND_YEAR}. Instant signup with Google.</p>
+                  <button onClick={() => setIsLogin(false)} className="px-14 py-4 rounded-full border-4 border-white font-black text-xl hover:bg-white hover:text-violet-900 transition-all hover:scale-105 active:scale-[0.98]">
                     NEED ACCOUNT?
                   </button>
                 </motion.div>
@@ -326,8 +324,8 @@ const StudentLogin: React.FC = () => {
                 <motion.div key="w-login" initial={{opacity:0, scale:0.9, y: 30}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -30, position:'absolute', top:0, left:0, width:'100%'}}>
                   <Sparkles className="w-12 h-12 text-yellow-300 mx-auto mb-6" />
                   <h2 className="text-5xl font-black mb-8 leading-[1.1] tracking-tighter uppercase italic">Stay Ahead <br/> Secure Faster</h2>
-                  <p className="mb-12 text-[#d8b4fe] leading-relaxed font-bold text-xl">Sign in to your student dashboard using Google for a 2-click experience.</p>
-                  <button onClick={() => setIsLogin(true)} className="px-14 py-4 rounded-full border-4 border-white font-black text-xl hover:bg-white hover:text-[#4c1d95] transition-all hover:scale-105 active:scale-[0.98]">
+                  <p className="mb-12 text-purple-300 leading-relaxed font-bold text-xl">Sign in to your student dashboard using Google for a 2-click experience.</p>
+                  <button onClick={() => setIsLogin(true)} className="px-14 py-4 rounded-full border-4 border-white font-black text-xl hover:bg-white hover:text-violet-900 transition-all hover:scale-105 active:scale-[0.98]">
                     ALREADY MEMBER?
                   </button>
                 </motion.div>
@@ -338,7 +336,7 @@ const StudentLogin: React.FC = () => {
       </div>
 
       {/* Mobile Experience (Premium Sliding Card) */}
-      <div className="lg:hidden w-full max-w-sm h-[640px] bg-[#0d0d12]/90 backdrop-blur-2xl border border-[#a855f7]/30 rounded-[3rem] shadow-[0_0_80px_rgba(168,85,247,0.25)] z-10 relative overflow-hidden flex flex-col">
+      <div className="lg:hidden w-full max-w-sm h-[640px] bg-[#0d0d12]/90 backdrop-blur-2xl border border-purple-500/30 rounded-[3rem] shadow-[0_0_80px_rgba(168,85,247,0.25)] z-10 relative overflow-hidden flex flex-col">
           
           {/* Base Layer: Action Area (Google Action) */}
           <div className="absolute inset-0 flex flex-col p-8 z-0">
@@ -354,7 +352,7 @@ const StudentLogin: React.FC = () => {
                       <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-1">
                         {isLogin ? 'Welcome Back' : 'Sign Up'}
                       </h3>
-                      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Global Authentication Portal</p>
+                      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Your RICO account</p>
                     </div>
 
                     <button 
@@ -371,7 +369,7 @@ const StudentLogin: React.FC = () => {
                       )}
                     </button>
                     
-                    <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase opacity-60">Secured via Google Cloud Shield</p>
+                    <p className="text-[10px] text-gray-500 font-bold tracking-widest uppercase opacity-60">Sign in with your Google account</p>
                 </motion.div>
              </div>
           </div>
@@ -387,17 +385,17 @@ const StudentLogin: React.FC = () => {
               stiffness: 100,
               damping: 20
             }}
-            className="absolute top-0 left-0 right-0 h-[340px] bg-gradient-to-br from-[#4c1d95] via-[#7e22ce] to-[#1e1b4b] z-20 flex flex-col items-center justify-center pt-10 pb-10 px-8 text-center text-white border-b border-white/10 shadow-2xl"
+            className="absolute top-0 left-0 right-0 h-[340px] bg-gradient-to-br from-violet-900 via-purple-700 to-indigo-950 z-20 flex flex-col items-center justify-center pt-10 pb-10 px-8 text-center text-white border-b border-white/10 shadow-2xl"
           >
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 mix-blend-overlay animate-pulse" />
+            <div className="absolute inset-0 student-festival-auth-texture opacity-20 mix-blend-overlay animate-pulse" />
             
             <div className="relative z-30 w-full flex flex-col items-center">
               <AnimatePresence mode="wait">
                 {isLogin ? (
                   <motion.div key="m-join-slogan" initial={{opacity:0, scale:0.9, y: 10}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -10, position:'absolute'}} className="w-full flex flex-col items-center">
                     <div className="w-16 h-1.5 bg-white/20 rounded-full mx-auto mb-7" />
-                    <h2 className="text-3xl font-black mb-4 leading-[0.9] tracking-tighter uppercase italic">Join the <br/> Revolution</h2>
-                    <p className="text-[#d8b4fe] leading-tight font-bold text-[13px] px-4 mb-6 max-w-[260px] mx-auto opacity-80">Start your journey with {BRAND_NAME}. Global tech leaderboard is waiting.</p>
+                    <h2 className="text-3xl font-black mb-4 leading-[0.9] tracking-tighter uppercase italic">Join the <br/> Story</h2>
+                    <p className="text-purple-300 leading-tight font-bold text-[13px] px-4 mb-6 max-w-[260px] mx-auto opacity-80">Start your journey with {BRAND_NAME}. Your events, team and festival memories, together.</p>
                     
                     <button 
                       onClick={() => setIsLogin(false)}
@@ -410,7 +408,7 @@ const StudentLogin: React.FC = () => {
                   <motion.div key="m-login-slogan" initial={{opacity:0, scale:0.9, y: 10}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -10, position:'absolute'}} className="w-full flex flex-col items-center">
                     <Sparkles className="w-10 h-10 text-yellow-300 mx-auto mb-5" />
                     <h2 className="text-3xl font-black mb-4 leading-[0.9] tracking-tighter uppercase italic">Stay Ahead <br/> Secure Faster</h2>
-                    <p className="text-[#d8b4fe] leading-tight font-bold text-[13px] px-4 mb-6 max-w-[260px] mx-auto opacity-80">Sign in to your student dashboard using Google for a 2-click experience.</p>
+                    <p className="text-purple-300 leading-tight font-bold text-[13px] px-4 mb-6 max-w-[260px] mx-auto opacity-80">Sign in to your student dashboard using Google for a 2-click experience.</p>
                     
                     <button 
                       onClick={() => setIsLogin(true)}
@@ -426,8 +424,8 @@ const StudentLogin: React.FC = () => {
       </div>
 
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-center text-sm z-10 w-full px-6 flex flex-col items-center gap-4">
-         <Link to="/" className="text-gray-600 hover:text-white transition-all font-black uppercase tracking-widest text-xs border-b border-transparent hover:border-white pb-1">← HOME PORTAL</Link>
-         <p className="text-[10px] text-gray-700 tracking-[0.2em] font-medium">PROTECTED BY CLOUD SHIELD 2.0</p>
+         <Link to="/" className="text-gray-600 hover:text-white transition-all font-black uppercase tracking-widest text-xs border-b border-transparent hover:border-white pb-1">← BACK TO RICO</Link>
+         <p className="text-[10px] text-gray-500 tracking-[0.2em] font-medium">YOUR CAMPUS. YOUR STAGE.</p>
       </div>
 
     </div>

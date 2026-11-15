@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 import { EventRoundsSection } from './EventRoundsSection';
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
@@ -5,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../ToastProvider';
 import { dualRead, dualUpdate } from '../../lib/dualDb';
-import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone, ToggleLeft, ToggleRight, Lock, Unlock, Filter, ChevronDown, Trophy, Loader2, Sparkles, Plus, Trash2, UserCheck, Image, IndianRupee, QrCode, FileText, Clock, CalendarClock } from 'lucide-react';
+import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone, ToggleLeft, ToggleRight, Lock, Unlock, Filter, ChevronDown, Trophy, Loader2, Sparkles, Trash2, UserCheck, Image, IndianRupee, FileText, Clock, CalendarClock } from 'lucide-react';
 import { exportCoordinatorRegistrationsToPDF } from '../../utils/pdfExport';
 import { AnnouncementsPanel } from '../shared/AnnouncementsPanel';
 import { ChatPanel } from '../shared/ChatPanel';
@@ -20,6 +21,7 @@ const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
 );
 
 export const CoordinatorDashboard: React.FC = () => {
+  const realtimeReady = React.useRef(false);
   const navigate = useNavigate();
   // We still use useData for events (public) but NOT for registrations (RLS protected)
   const { events, updateEvent } = useData() as any; 
@@ -37,7 +39,7 @@ export const CoordinatorDashboard: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // New features state
-  const [activeTab, setActiveTab] = useState<'approved' | 'pending' | 'rejected' | 'groups'>('approved');
+  const [activeTab, setActiveTab] = useState<'approved' | 'pending' | 'payment_pending' | 'rejected' | 'groups'>('approved');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReg, setSelectedReg] = useState<any | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
@@ -112,7 +114,7 @@ export const CoordinatorDashboard: React.FC = () => {
       const [coordResult, regsResult] = await Promise.all([
         dualRead({
           table: 'event_coordinators',
-          eq: ['event_id', sessionData.eventId],
+          eq: ['event_id', sessionData.eventId], forceRefresh: true,
           // Temporarily removed order_position to avoid 400 error if column is missing
           // order: ['order_position', { ascending: true }]
         }).catch(err => {
@@ -121,7 +123,7 @@ export const CoordinatorDashboard: React.FC = () => {
         }),
         dualRead({
           table: 'registrations',
-          eq: ['event_id', sessionData.eventId]
+          eq: ['event_id', sessionData.eventId], forceRefresh: true
         }).catch(err => {
           console.error('Regs fetch failed:', err);
           return { data: [], source: 'error' };
@@ -132,9 +134,10 @@ export const CoordinatorDashboard: React.FC = () => {
 
       if (coordResult.data) setEventCoordinators(coordResult.data);
 
-      if (!regsResult.data && regsResult.source === 'firestore') {
+      if (regsResult.source === 'error') {
         // Handle failure if needed, though dualRead already returns [] or null
         setErrorMsg('Failed to refresh data.');
+        return false;
       } else {
         // Transform Firestore data to match expected RPC structure
         const fresh = (regsResult.data || []).map((r: any) => ({
@@ -165,8 +168,10 @@ export const CoordinatorDashboard: React.FC = () => {
           } catch {}
         }
       }
+      return true;
     } catch {
       if (mounted.current) setErrorMsg('System error loading data');
+      return false;
     } finally {
       if (mounted.current) setIsLoadingData(false);
     }
@@ -177,7 +182,8 @@ export const CoordinatorDashboard: React.FC = () => {
     setIsManualRefreshing(true);
     try {
       const mounted = { current: true };
-      await fetchData(session, mounted);
+      const refreshed = await fetchData(session, mounted);
+      if (!refreshed) throw new Error("Participant refresh failed. Please retry.");
       
       const { data: payData } = await supabase
         .from('payment_submissions')
@@ -206,6 +212,13 @@ export const CoordinatorDashboard: React.FC = () => {
         if (!stored) { navigate('/coordinator'); return; }
 
         const data = JSON.parse(stored);
+        const { data: { session: signedSession } } = await supabase.auth.getSession();
+        if (!signedSession || signedSession.user.app_metadata?.role !== 'coordinator' || signedSession.user.app_metadata.coordinator_event_id !== String(data.eventId)) {
+          sessionStorage.removeItem('coordinator_session');
+          navigate('/coordinator');
+          return;
+        }
+
 
         // Check if token expired (client-side check)
         if (data.expiresAt && new Date(data.expiresAt) < new Date()) {
@@ -320,10 +333,10 @@ export const CoordinatorDashboard: React.FC = () => {
             }
           }
         )
-        .subscribe();
+        .subscribe((status: string) => { realtimeReady.current = status === 'SUBSCRIBED'; });
     };
     setupRealtime();
-    return () => { if (sub) sub.unsubscribe(); };
+    return () => { realtimeReady.current = false; if (sub) sub.unsubscribe(); };
   }, [session]);
 
 
@@ -334,18 +347,15 @@ export const CoordinatorDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!isLoadingData && session) {
-      const timer = setTimeout(() => {
-        setShowSplash(false);
-      }, 2500);
-      return () => clearTimeout(timer);
+      setShowSplash(false);
     }
   }, [isLoadingData, session]);
 
-  // Polling fallback to keep registrations & payments updated every 12 seconds in case websockets fail
+  // Polling fallback to keep registrations & payments updated every 30 seconds only when realtime is disconnected
   useEffect(() => {
     if (!session?.eventId) return;
     const interval = setInterval(async () => {
-      if (showSplash || document.hidden) return;
+      if (showSplash || document.hidden || realtimeReady.current) return;
       try {
         const { data: regsData } = await supabase
           .from('registrations')
@@ -383,7 +393,7 @@ export const CoordinatorDashboard: React.FC = () => {
       } catch (err) {
         console.warn('Background poll failed:', err);
       }
-    }, 12000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [session?.eventId, showSplash]);
@@ -552,7 +562,7 @@ export const CoordinatorDashboard: React.FC = () => {
 
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem('coordinator_session');
-    window.location.href = '/coordinator';
+    void supabase.auth.signOut().finally(() => { window.location.href = '/coordinator'; });
   }, []);
 
   const handleRetry = useCallback(async () => {
@@ -695,46 +705,13 @@ export const CoordinatorDashboard: React.FC = () => {
         reader.onerror = (err) => reject(err);
       });
 
-      // 2. Call Gemini Vision API
-      const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
-      if (!apiKey) {
-        throw new Error('VITE_GOOGLE_API_KEY is not configured in settings. Check your .env.local file.');
-      }
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `Analyze this image containing lists of students grouped together. 
-                    Identify all groups and the student names or registration IDs (e.g. RICO1001) in each group. 
-                    Output ONLY as a JSON array of objects, with no markdown code blocks, no backticks, and no extra text. 
-                    The format MUST be:
-                    [
-                      { "group_name": "Group A", "members": ["Student Name 1", "RICO1002"] }
-                    ]
-                    `
-                  },
-                  {
-                    inlineData: {
-                      mimeType: file.type,
-                      data: base64Data
-                    }
-                  }
-                ]
-              }
-            ],
-            generationConfig: {
-              responseMimeType: "application/json"
-            }
-          })
-        }
-      );
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (!authSession) throw new Error('Please sign in again.');
+      const response = await fetch('/api/coordinator-ai-groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authSession.access_token}` },
+        body: JSON.stringify({ eventId: session?.eventId, mimeType: file.type, data: base64Data })
+      });
 
       if (!response.ok) {
         const errTxt = await response.text();
@@ -1331,12 +1308,8 @@ export const CoordinatorDashboard: React.FC = () => {
   const handleVerifyPayment = useCallback(async (regId: string) => {
     try {
       setIsUpdatingStatus(regId);
-      const { error } = await supabase
-        .from('payment_submissions')
-        .update({ verified_at: new Date().toISOString(), verified_by_event: session?.eventTitle })
-        .eq('registration_id', regId);
-      if (error) console.warn('payment_submissions update:', error);
-      await dualUpdate('registrations', regId, { status: 'approved', is_active: true });
+      const { error } = await supabase.rpc('verify_event_payment', { p_registration_id: regId });
+      if (error) throw error;
       setRpcRegistrations(prev =>
         prev.map(r => r.reg_id === regId ? { ...r, status: 'approved', is_active: true } : r)
       );

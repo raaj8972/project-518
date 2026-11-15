@@ -1,0 +1,23 @@
+// @vitest-environment jsdom
+import React,{act} from 'react';
+import {createRoot,type Root} from 'react-dom/client';
+import {MemoryRouter} from 'react-router-dom';
+import {beforeEach,afterEach,expect,it,vi} from 'vitest';
+import {PasswordsAccessCenter} from '../src/components/admin/PasswordsAccessCenter';
+import {legacyAccessSections} from '../src/utils/adminAccessRoutes';
+const mocks=vi.hoisted(()=>({owner:true,team:vi.fn(),portal:vi.fn(),staff:vi.fn()}));
+vi.mock('../src/context/DataContext',()=>({useData:()=>({isOwner:()=>mocks.owner})}));
+vi.mock('../src/components/admin/SecuritySettings',()=>({SecuritySettings:({section}:any)=><p>Personal security: {section}</p>}));
+vi.mock('../src/components/admin/AdminUsersPanel',()=>({AdminUsersPanel:()=>{mocks.team();return <input aria-label="Team search"/>;}}));
+vi.mock('../src/components/admin/AdminPasscodesPanel',()=>({AdminPasscodesPanel:({section}:any)=>{mocks.portal();return <p>Portal settings: {section}</p>;}}));
+vi.mock('../src/components/admin/CoordinatorPasswordManagement',()=>({CoordinatorPasswordManagement:()=> <p>Event coordinator access</p>}));
+vi.mock('../src/components/admin/SecurityStaffAccess',()=>({SecurityStaffAccess:()=>{mocks.staff();return <p>Staff accounts</p>;}}));
+let root:Root,container:HTMLDivElement;
+beforeEach(()=>{(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;mocks.owner=true;vi.clearAllMocks();container=document.createElement('div');document.body.append(container);root=createRoot(container);});
+afterEach(async()=>{await act(async()=>root.unmount());container.remove();});
+const mount=async(path='/admin/security')=>{await act(async()=>{root.render(<MemoryRouter initialEntries={[path]}><PasswordsAccessCenter/></MemoryRouter>);});};
+const choose=async(id:string)=>{await act(async()=>container.querySelector<HTMLButtonElement>(`#access-heading-${id}`)!.click());};
+it('provides one page with seven owner sections, loading only opened settings',async()=>{await mount();expect(container.querySelectorAll('.access-section')).toHaveLength(7);expect(container.querySelector('#access-heading-account')?.getAttribute('aria-expanded')).toBe('false');expect(mocks.team).not.toHaveBeenCalled();expect(mocks.portal).not.toHaveBeenCalled();expect(mocks.staff).not.toHaveBeenCalled();await choose('team');expect(mocks.team).toHaveBeenCalled();expect(container.querySelector('#access-panel-account')?.hasAttribute('hidden')).toBe(true);expect(container.querySelector('#access-heading-team')?.getAttribute('aria-expanded')).toBe('true');});
+it('retains an opened section when another section is selected',async()=>{await mount('/admin/security?section=team');const input=container.querySelector<HTMLInputElement>('[aria-label="Team search"]')!;input.value='events';await choose('council');expect(container.querySelector('#access-panel-team')?.hasAttribute('hidden')).toBe(true);await choose('team');expect(container.querySelector<HTMLInputElement>('[aria-label="Team search"]')?.value).toBe('events');});
+it('limits an ordinary admin to their own account and sessions even on an owner deep link',async()=>{mocks.owner=false;await mount('/admin/security?section=staff');expect(container.querySelectorAll('.access-section')).toHaveLength(2);expect(container.textContent).not.toContain('Council access');expect(mocks.staff).not.toHaveBeenCalled();expect(mocks.team).not.toHaveBeenCalled();expect(container.querySelector('#access-heading-account')?.getAttribute('aria-expanded')).toBe('false');});
+it('maps old credential pages to their sections',()=>{expect(legacyAccessSections).toEqual({'admin-users':'team','admin-passcodes':'council','coordinator-passwords':'coordinators','council-access':'council'});});

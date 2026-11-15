@@ -5,7 +5,6 @@ import { User, Search, Filter, Heart, Crown, Trophy, Star, Shield, ChevronDown, 
 import { useXPEngine } from '../../hooks/useXPEngine';
 import { useStudentAuth } from '../../context/StudentAuthContext';
 import { supabase } from '../../lib/supabase';
-import DynamicBadge from '../../components/dashboard/DynamicBadge';
 import ProfileModal from '../../components/dashboard/ProfileModal';
 
 const Community: React.FC = () => {
@@ -248,7 +247,7 @@ const Community: React.FC = () => {
                         }`}>
                           {/* Like Button */}
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleLike(star.id, e, isLegendary ? star.rank - 1 : undefined); }}
+                            onClick={(e) => { e.stopPropagation(); handleLike(star.id); }}
                             className={`absolute top-3 right-3 p-1.5 rounded-xl transition-all z-20 border ${
                               myLikes.has(star.id)
                                 ? 'bg-red-500 border-red-400 text-white scale-105 shadow-md shadow-red-500/10'

@@ -1,4 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
+import { CalendarIcon, CheckCircledIcon } from '@radix-ui/react-icons';
+import { useFestivalDialog } from '../hooks/useFestivalDialog';
+import { eventDate } from '../utils/eventPresentation';
+import { canRegisterNow } from '../utils/eventUtils';
+import '../styles/EventArena.css';
 import { createPortal } from 'react-dom';
 import { X, User, Users, Mail, Phone, BookOpen, ChevronRight, Check, Loader2, AlertCircle, Building2, Sparkles, PartyPopper, Search, IndianRupee } from 'lucide-react';
 import { useData } from '../context/DataContext';
@@ -24,8 +29,10 @@ const labelCls = 'block text-[10px] font-black text-white/30 uppercase tracking-
 const iconCls = 'absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-indigo-400 transition-colors duration-300';
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose, eventId, eventTitle, previewOverrides }) => {
+  const dialogRef = useFestivalDialog(isOpen, onClose);
+  const dialogTitleId = useId();
   const { events, siteSettings, addRegistration } = useData() as any;
-  const { user, profile, isAuthenticated, isProfileComplete, isApproved } = useStudentAuth();
+  const { user, profile, isAuthenticated, isProfileComplete } = useStudentAuth();
   
   const [mode, setMode, clearMode] = useLocalStorage<'individual' | 'team'>(`registration_draft_mode_${eventId}`, 'individual');
   const [step, setStep] = useState<'form' | 'payment' | 'success'>('form');
@@ -69,7 +76,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
       setStep('form');
       setLoading(false);
       setError(null);
@@ -79,12 +85,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       }
       // Fetch student's groups for 1-click registration
       if (user && isAuthenticated) fetchMyGroups();
-    } else {
-      document.body.style.overflow = '';
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [isOpen, user, isAuthenticated]); 
 
   useEffect(() => {
@@ -182,6 +183,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
   // 1-click individual registration (no form needed)
   const handleOneClickIndividual = async () => {
     if (!user || !profile || !isProfileComplete) return;
+    if (!canRegisterNow(event)) return setError('Registration is currently closed for this event.');
     setOneClickLoading(true);
     setError(null);
     try {
@@ -230,7 +232,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       } else {
         setStep('success');
         const confetti = (await import('canvas-confetti')).default;
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#6366f1', '#ec4899', '#ffffff'] });
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#d9ba6c', '#88b96b', '#f1e6c5'] });
       }
     } catch (err: any) {
       const msg = err?.message || '';
@@ -244,86 +246,33 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     }
   };
 
-  // 1-click group registration using a saved group
-  const handleOneClickGroup = async (group: any) => {
+  // Load a saved team into the same reviewed entry and payment flow as a manual team.
+  const handleOneClickGroup = (group: any) => {
+    if (!canRegisterNow(event)) return setError('Registration is currently closed for this event.');
     if (!user || !profile) return;
-    const acceptedMembers = (group.members || []).filter((m: any) => m.status === 'accepted');
-    const totalCount = acceptedMembers.length + 1; // +1 for owner/self
-
-    if (totalCount < minTeamSize) {
-      setError(`Need at least ${minTeamSize} accepted members. Currently ${totalCount}.`);
-      return;
-    }
-
-    setOneClickLoading(true);
+    if (group.owner_id !== user.id) return setError('Choose a group you manage, or build your team below.');
+    const seen = new Set([user.id]);
+    const acceptedMembers = (group.members || []).filter((member: any) => {
+      if (member.status !== 'accepted' || !member.user_id || seen.has(member.user_id)) return false;
+      seen.add(member.user_id);
+      return true;
+    });
+    const total = acceptedMembers.length + 1;
+    if (total < minTeamSize || total > maxTeamSize) return setError(`This event needs ${minTeamSize}–${maxTeamSize} team members. Your group has ${total}.`);
+    if (acceptedMembers.some((member: any) => !member.profile?.username || !member.profile?.full_name)) return setError('Each teammate needs a complete profile with a username before you can use this group.');
     setError(null);
-    try {
-      // Register each accepted member + self
-      const allMembers = [
-        { user_id: user.id, full_name: profile.full_name, email: user.email, phone: profile.phone, college: profile.college, batch: profile.batch },
-        ...acceptedMembers.map((m: any) => ({
-          user_id: m.user_id,
-          full_name: m.profile?.full_name || '',
-          email: '',
-          phone: m.profile?.phone || '',
-          college: m.profile?.college || '',
-          batch: m.profile?.batch || '',
-        }))
-      ];
-
-      for (let i = 0; i < allMembers.length; i++) {
-        const member = allMembers[i];
-        let newId = 'RICO1';
-        try {
-          const { data } = await supabase.from('registrations').select('id').order('created_at', { ascending: false }).limit(1);
-          const lastReg = Array.isArray(data) ? data[0] : null;
-          if (lastReg?.id) {
-            const match = lastReg.id.match(/^RICO(\d+)$/);
-            if (match) newId = `RICO${parseInt(match[1], 10) + 1}`;
-          }
-        } catch { newId = `RICO${Math.floor(100000 + Math.random() * 900000)}`; }
-
-        const payload: any = {
-          id: newId,
-          event_id: eventId.toString(),
-          event_title: eventTitle,
-          full_name: member.full_name,
-          email: member.email,
-          phone: member.phone || '',
-          college: member.college || '',
-          participant_type: member.batch || '',
-          is_team_registration: true,
-          team_name: group.name,
-          team_members: null,
-          total_members: allMembers.length,
-          registration_date: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          user_id: member.user_id,
-          status: 'approved',
-          is_active: false,
-        };
-
-        if (i === 0 && previewOverrides?.addRegistration) {
-          await previewOverrides.addRegistration(payload);
-        } else {
-          await supabase.from('registrations').insert(payload);
-        }
-      }
-
-      setStep('success');
-      setSuccessId(group.name);
-      const confetti = (await import('canvas-confetti')).default;
-      confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#a855f7', '#6366f1', '#ec4899', '#ffffff'] });
-    } catch (err: any) {
-      const msg = err?.message || '';
-      if (msg.includes('duplicate key') || msg.includes('unique constraint')) {
-        setError('One or more members already registered for this event!');
-      } else {
-        setError(msg || 'Registration failed. Please try again.');
-      }
-    } finally {
-      setOneClickLoading(false);
-    }
+    setFormData(previous => ({
+      ...previous,
+      team_name: group.name,
+      team_members: acceptedMembers.map((member: any) => ({
+        id: member.user_id,
+        name: member.profile.full_name,
+        username: member.profile.username,
+        batch: member.profile.batch || '',
+        avatar_url: member.profile.avatar_url || '',
+        status: 'pending',
+      })),
+    }));
   };
 
   const addInvitedMember = (userProfile: any) => {
@@ -356,6 +305,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!canRegisterNow(event)) return setError('Registration is currently closed for this event.');
 
     if (!formData.name.trim()) return setError('Name is required.');
     if (!formData.email.trim()) return setError('Email is required.');
@@ -453,7 +403,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
           particleCount: 150,
           spread: 70,
           origin: { y: 0.6 },
-          colors: ['#a855f7', '#6366f1', '#ec4899', '#ffffff']
+          colors: ['#d9ba6c', '#88b96b', '#f1e6c5']
         });
       }
 
@@ -489,7 +439,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
   if (typeof document === 'undefined') return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
+    <div className="arena-registration-layer fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
       {/* Overlay */}
       <div 
         className="absolute inset-0 bg-black/70 backdrop-blur-2xl animate-in fade-in duration-300"
@@ -498,9 +448,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
       {/* Modal */}
       <div 
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={dialogTitleId}
         data-lenis-prevent
-        className="relative w-full max-w-2xl bg-[#0a0a12]/95 backdrop-blur-3xl border border-white/[0.06] rounded-[28px] shadow-[0_32px_100px_-20px_rgba(99,102,241,0.25)] overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-6 duration-500"
+        className="arena-registration-panel relative w-full max-w-2xl bg-[#0a0a12]/95 backdrop-blur-3xl border border-white/[0.06] rounded-[28px] shadow-[0_32px_100px_-20px_rgba(99,102,241,0.25)] overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-6 duration-500"
       >
+        <span id={dialogTitleId} className="sr-only">Registration for {eventTitle}</span>
+        <div className="arena-registration-banner"><span><CheckCircledIcon /> YOUR ENTRY TO THE ARENA</span><span><CalendarIcon />{eventDate(event?.date)}</span></div>
         
         {/* Top gradient bar */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
@@ -512,6 +469,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
         <button 
           onClick={onClose}
+          aria-label="Close registration"
           className="absolute top-5 right-5 p-2.5 text-white/20 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.05] hover:border-white/10 rounded-xl transition-all duration-300 z-10"
         >
           <X size={16} />
@@ -561,7 +519,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
               onSuccess={async () => {
                 setStep('success');
                 const confetti = (await import('canvas-confetti')).default;
-                confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 }, colors: ['#10b981', '#6366f1', '#a855f7'] });
+                confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 }, colors: ['#d9ba6c', '#88b96b', '#f1e6c5'] });
               }}
             />
           </div>
@@ -620,7 +578,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                   )}
 
                   {/* ─── Use My Group (Team) ─── */}
-                  {mode === 'team' && myGroups.length > 0 && (
+                  {mode === 'team' && myGroups.some((group: any) => group.owner_id === user?.id) && (
                     <div className="p-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.03] space-y-3">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center">
@@ -633,20 +591,20 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                         {loadingGroups ? (
                           <div className="h-12 rounded-xl bg-white/5 animate-pulse" />
                         ) : (
-                          myGroups.map((group: any) => {
-                            const accepted = (group.members || []).filter((m: any) => m.status === 'accepted');
+                          myGroups.filter((group: any) => group.owner_id === user?.id).map((group: any) => {
+                            const accepted = (group.members || []).filter((m: any) => m.status === 'accepted' && m.user_id !== user?.id);
                             const pending = (group.members || []).filter((m: any) => m.status === 'pending');
                             const total = accepted.length + 1;
-                            const canRegister = total >= minTeamSize;
+                            const canRegister = total >= minTeamSize && total <= maxTeamSize;
                             return (
-                              <div key={group.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${canRegister ? 'border-indigo-500/20 bg-white/[0.02] hover:bg-indigo-500/[0.05] cursor-pointer' : 'border-white/[0.04] bg-white/[0.01] opacity-60'}`}
+                              <button type="button" aria-label={`Use saved team ${group.name}`} disabled={!canRegister || oneClickLoading} key={group.id} className={`w-full text-left flex items-center gap-3 p-3 rounded-xl border transition-all ${canRegister ? 'border-indigo-500/20 bg-white/[0.02] hover:bg-indigo-500/[0.05] cursor-pointer' : 'border-white/[0.04] bg-white/[0.01] opacity-60'}`}
                                 onClick={() => canRegister && !oneClickLoading && handleOneClickGroup(group)}
                               >
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs font-black text-white truncate">{group.name}</p>
                                   <p className="text-[9px] text-gray-500 mt-0.5">
                                     {total} accepted{pending.length > 0 ? ` · ${pending.length} pending` : ''}
-                                    {!canRegister && <span className="text-yellow-500 ml-1">· need {minTeamSize - total} more</span>}
+                                    {!canRegister && <span className="text-yellow-500 ml-1">{total < minTeamSize ? `· need ${minTeamSize - total} more` : `· maximum ${maxTeamSize}`}</span>}
                                   </p>
                                 </div>
                                 <div className="flex -space-x-1.5 shrink-0">
@@ -657,9 +615,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                   ))}
                                 </div>
                                 {canRegister && (
-                                  <ChevronRight size={14} className="text-indigo-400 shrink-0" />
+                                  <span className="text-[9px] text-indigo-400 shrink-0">Load team <ChevronRight size={14} className="inline" /></span>
                                 )}
-                              </div>
+                              </button>
                             );
                           })
                         )}
@@ -910,7 +868,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
                  {/* Error Alert */}
                  {error && (
-                    <div className="bg-rose-500/10 border border-rose-500/15 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div role="alert" className="bg-rose-500/10 border border-rose-500/15 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                        <AlertCircle className="text-rose-400 shrink-0 mt-0.5" size={16} />
                        <div className="text-sm text-rose-200/80 font-medium leading-relaxed">{error}</div>
                     </div>
@@ -920,6 +878,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
               {/* Submit footer */}
               <div className="p-7 pt-5 border-t border-white/[0.04] bg-black/20 backdrop-blur-md shrink-0">
                  <button
+                    type="button"
+                    data-arena-submit
                     onClick={handleSubmit}
                     disabled={loading}
                     className="w-full py-4 bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:via-indigo-400 hover:to-purple-500 text-white rounded-2xl font-black text-sm uppercase tracking-[0.15em] shadow-[0_8px_32px_-4px_rgba(99,102,241,0.4)] hover:shadow-[0_8px_40px_-4px_rgba(99,102,241,0.55)] transform active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2.5 disabled:opacity-40 disabled:pointer-events-none"
@@ -958,7 +918,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
               </div>
 
               <p className="text-white/20 text-xs mb-8 max-w-xs font-medium leading-relaxed">
-                 We've sent the ticket and further details to your email address.
+                 Your entry has been received. Track coordinator approval and payment status in your student dashboard.
               </p>
               
               <div className="space-y-3 w-full max-w-xs">

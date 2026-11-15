@@ -1,3 +1,4 @@
+import { supabase } from '../../lib/supabase';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Trophy, Plus, Trash2, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 
@@ -41,7 +42,14 @@ export const EventRoundsSection: React.FC<Props> = ({ session, approvedRegs, pus
   const [selectedRound, setSelectedRound] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [feedbackEditing, setFeedbackEditing] = useState<Record<string, string>>({});
-  const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzUwMDE0MSwiZXhwIjoyMDczMDc2MTQxfQ.RiLXG5KPvN62KlnW1v8c2mVbg6Nu3bEYHjKUhvlSYJM';
+  const apiUrl = import.meta.env.VITE_SUPABASE_URL;
+  const authenticatedFetch = async (url: string, init: RequestInit = {}) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Your session expired. Please sign in again.');
+    return fetch(url, { ...init, headers: { ...init.headers,
+      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${session.access_token}` } });
+  };
 
   const eventId = session?.eventId ? String(session.eventId) : null;
 
@@ -49,35 +57,33 @@ export const EventRoundsSection: React.FC<Props> = ({ session, approvedRegs, pus
     if (!eventId) return;
     setLoading(true);
     try {
-      // Fetch rounds using service-role authenticated fetch
-      const roundsResp = await fetch(
-        `https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/event_rounds?event_id=eq.${eventId}&order=round_number.asc`,
+      // Fetch only rounds permitted by the current coordinator session.
+      const roundsResp = await authenticatedFetch(
+        `${apiUrl}/rest/v1/event_rounds?event_id=eq.${eventId}&order=round_number.asc`,
         {
           headers: {
-            'apikey': SERVICE_KEY,
-            'Authorization': `Bearer ${SERVICE_KEY}`,
             'Content-Type': 'application/json',
           }
         }
       );
-      const roundsData: EventRound[] = roundsResp.ok ? await roundsResp.json() : [];
+      if (!roundsResp.ok) throw new Error(await roundsResp.text());
+      const roundsData: EventRound[] = await roundsResp.json();
       setRounds(roundsData);
 
       if (roundsData.length > 0) {
         if (!selectedRound) setSelectedRound(roundsData[roundsData.length - 1].id);
         // Fetch statuses for all rounds
         const roundIds = roundsData.map(r => r.id).join(',');
-        const statusResp = await fetch(
-          `https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/registration_rounds?round_id=in.(${roundIds})`,
+        const statusResp = await authenticatedFetch(
+          `${apiUrl}/rest/v1/registration_rounds?round_id=in.(${roundIds})`,
           {
             headers: {
-              'apikey': SERVICE_KEY,
-              'Authorization': `Bearer ${SERVICE_KEY}`,
               'Content-Type': 'application/json',
             }
           }
         );
-        const statusData: RegistrationRound[] = statusResp.ok ? await statusResp.json() : [];
+        if (!statusResp.ok) throw new Error(await statusResp.text());
+        const statusData: RegistrationRound[] = await statusResp.json();
         // Group by round_id
         const grouped: Record<string, RegistrationRound[]> = {};
         statusData.forEach(s => {
@@ -88,6 +94,7 @@ export const EventRoundsSection: React.FC<Props> = ({ session, approvedRegs, pus
       }
     } catch (err) {
       console.error('[EventRounds] fetch error:', err);
+      push({ message: 'Could not load rounds. Check your coordinator session.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -101,14 +108,12 @@ export const EventRoundsSection: React.FC<Props> = ({ session, approvedRegs, pus
     if (!eventId || !newRoundName.trim()) return;
     setAddingRound(true);
     try {
-      const nextNum = rounds.length + 1;
-      const resp = await fetch(
-        `https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/event_rounds`,
+      const nextNum = Math.max(0, ...rounds.map(round => round.round_number)) + 1;
+      const resp = await authenticatedFetch(
+        `${apiUrl}/rest/v1/event_rounds`,
         {
           method: 'POST',
           headers: {
-            'apikey': SERVICE_KEY,
-            'Authorization': `Bearer ${SERVICE_KEY}`,
             'Content-Type': 'application/json',
             'Prefer': 'return=representation',
           },
@@ -129,10 +134,11 @@ export const EventRoundsSection: React.FC<Props> = ({ session, approvedRegs, pus
   const deleteRound = async (roundId: string) => {
     if (!window.confirm('Delete this round and all its qualification data?')) return;
     try {
-      await fetch(`https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/event_rounds?id=eq.${roundId}`, {
+      const response = await authenticatedFetch(`${apiUrl}/rest/v1/event_rounds?id=eq.${roundId}`, {
         method: 'DELETE',
-        headers: { 'apikey': SERVICE_KEY, 'Authorization': `Bearer ${SERVICE_KEY}` }
+        headers: {}
       });
+      if (!response.ok) throw new Error(await response.text());
       if (selectedRound === roundId) setSelectedRound(null);
       await fetchRounds();
       push({ message: 'Round deleted', type: 'info' });
@@ -183,11 +189,9 @@ export const EventRoundsSection: React.FC<Props> = ({ session, approvedRegs, pus
         if (prizeRank !== undefined) payload.prize_rank = prizeRank || null;
         if (feedback !== undefined) payload.feedback = feedback || null;
 
-        const resp = await fetch(`https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/registration_rounds?on_conflict=registration_id,round_id`, {
+        const resp = await authenticatedFetch(`${apiUrl}/rest/v1/registration_rounds?on_conflict=registration_id,round_id`, {
           method: 'POST',
           headers: {
-            'apikey': SERVICE_KEY,
-            'Authorization': `Bearer ${SERVICE_KEY}`,
             'Content-Type': 'application/json',
             'Prefer': 'resolution=merge-duplicates,return=representation',
           },

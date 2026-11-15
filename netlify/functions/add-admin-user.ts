@@ -9,11 +9,9 @@ export const handler: Handler = async (event) => {
 
   const authHeader = event.headers['authorization'] || event.headers['Authorization']
   const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key']
-  const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
+  const MASTER_KEY = process.env.MASTER_PASSWORD;
 
-  const isMasterAuthorized = (masterKey === process.env.MASTER_BYPASS_KEY) || 
-                              (masterKey === process.env.MASTER_BYPASS_KEY) || 
-                              (MASTER_KEY && masterKey === MASTER_KEY);
+  const isMasterAuthorized = !!(MASTER_KEY && masterKey === MASTER_KEY);
 
   if (!isMasterAuthorized) {
     if (!authHeader) {

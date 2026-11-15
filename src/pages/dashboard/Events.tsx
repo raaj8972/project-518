@@ -1,4 +1,6 @@
 import React from 'react';
+import { addEventToCalendar, shareEvent } from '../../utils/eventActions';
+import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { Calendar, ChevronRight, Clock, CalendarDays, Share2, ArrowRight } from 'lucide-react';
@@ -72,7 +74,7 @@ const Events: React.FC = () => {
                     {/* Live badge */}
                     <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1 rounded-xl" style={{ background: 'rgba(14,17,23,0.85)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.06)' }}>
                       <Clock className="w-3 h-3 text-indigo-400 animate-pulse" />
-                      <span className="text-white text-[9px] uppercase font-black tracking-widest">Confirmed</span>
+                      <span className="text-white text-[9px] uppercase font-black tracking-widest">{reg.status?.replace(/_/g, ' ') || 'Pending'}</span>
                     </div>
                   </div>
                 )}
@@ -84,7 +86,7 @@ const Events: React.FC = () => {
                       {reg.event?.title || reg.event_title || 'Untitled Event'}
                     </h3>
                     <span className="flex-shrink-0 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
-                      Confirmed
+                      {reg.status?.replace(/_/g, ' ') || 'Pending'}
                     </span>
                   </div>
 
@@ -103,13 +105,13 @@ const Events: React.FC = () => {
 
                   {/* Actions */}
                   <div className="flex flex-wrap gap-3 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                    <button onClick={() => navigate('/events')} className="neu-nav-item px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                    <button onClick={() => navigate(`/events?event=${encodeURIComponent(String(reg.event_id))}`)} className="neu-nav-item px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors flex items-center gap-2">
                       View Details <ChevronRight className="w-3 h-3" />
                     </button>
-                    <button className="neu-nav-item px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-cyan-400 transition-colors flex items-center gap-2">
+                    <button onClick={() => { try { addEventToCalendar({ ...reg.event, id: reg.event_id, title: reg.event?.title || reg.event_title }); } catch (e) { toast.error((e as Error).message); } }} className="neu-nav-item px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-cyan-400 transition-colors flex items-center gap-2">
                       <CalendarDays className="w-3.5 h-3.5" /> Add to Cal
                     </button>
-                    <button className="neu-nav-item px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-violet-400 transition-colors flex items-center gap-2">
+                    <button onClick={() => { shareEvent({ ...reg.event, id: reg.event_id, title: reg.event?.title || reg.event_title }).then(() => { if (!navigator.share) toast.success("Event link copied"); }).catch(e => { if (e.name !== "AbortError") toast.error("Could not share event"); }); }} className="neu-nav-item px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-violet-400 transition-colors flex items-center gap-2">
                       <Share2 className="w-3.5 h-3.5" /> Share
                     </button>
                   </div>
@@ -129,7 +131,7 @@ const Events: React.FC = () => {
           </p>
           <button 
             onClick={() => navigate('/events')}
-            className="px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest text-white transition-all flex items-center gap-2"
+            className="student-festival-primary px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest text-white transition-all flex items-center gap-2"
             style={{ background: 'linear-gradient(135deg, #6366f1, #7c3aed)', boxShadow: '0 8px 24px rgba(99,102,241,0.4)' }}
           >
             Explore Cultural Events <ArrowRight className="w-4 h-4" />

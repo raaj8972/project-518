@@ -18,11 +18,13 @@ import { CommandPalette } from './CommandPalette';
 import { SiteSettings, HomepageSettings } from '../../../types/data';
 import { BrandLogo3D } from '../../BrandLogo3D';
 import { BRAND_YEAR } from '../../../constants/brand';
+import { OwnerAdminLayout } from './OwnerAdminLayout';
+import { DashboardThemeToggle } from './DashboardThemeToggle';
 
 
-export type TabType = 'theme' | 'overview' | 'announcements' | 'support-chat' | 'shoutouts' | 'protection-center' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'face-indexing' | 'sponsors' | 'registrations' | 'student-passes' | 'student-approvals' | 'student-system' | 'registration-photos' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports' | 'sports-team' | 'sports-seasons' | 'sports-teams' | 'sports-matches' | 'sports-players' | 'sports-auction' | 'sports-registrations' | 'sports-registration-model' | 'sports-announcements' | 'annual-events' | 'annual-schedule' | 'annual-registrations' | 'annual-registration-model' | 'band' | 'artist' | 'guest-artists' | 'chief-guest' | 'chief-guests' | 'sponsorship-packages' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes' | 'council-access' | 'admin-passcodes' | 'audit-logs' | 'rico-family';
+export type TabType = 'overview' | 'announcements' | 'support-chat' | 'shoutouts' | 'protection-center' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'face-indexing' | 'sponsors' | 'registrations' | 'student-passes' | 'student-approvals' | 'student-system' | 'registration-photos' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports' | 'sports-team' | 'sports-seasons' | 'sports-teams' | 'sports-matches' | 'sports-players' | 'sports-auction' | 'sports-registrations' | 'sports-registration-model' | 'sports-announcements' | 'annual-events' | 'annual-schedule' | 'annual-registrations' | 'annual-registration-model' | 'band' | 'artist' | 'guest-artists' | 'chief-guest' | 'chief-guests' | 'sponsorship-packages' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'site-settings' | 'admin-users' | 'notifications' | 'coordinator-passwords' | 'security-passes' | 'council-access' | 'admin-passcodes' | 'audit-logs' | 'rico-family';
 
-interface AdminLayoutProps {
+export interface AdminLayoutProps {
   user: any;
   isOwner: boolean;
   isAdmin: boolean;
@@ -43,7 +45,7 @@ interface AdminLayoutProps {
 }
 
 
-export const AdminLayout: React.FC<AdminLayoutProps> = ({
+const LegacyAdminLayout: React.FC<AdminLayoutProps> = ({
   user,
   isOwner,
   activeTab,
@@ -268,6 +270,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
           {/* Sidebar Footer - RICO Style */}
           <div className="p-6 border-t border-white/5 bg-white/[0.01] space-y-4">
+             <DashboardThemeToggle />
              <div className="flex items-center gap-3">
                 <button 
                   onMouseEnter={() => { try { import('../../../pages/Home'); } catch {} }}
@@ -361,7 +364,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </div>
             
             <div className="flex items-center gap-4 animate-in fade-in slide-in-from-right-4 duration-700">
-               <button className="p-3 rounded-2xl bg-white/[0.02] border border-white/10 text-gray-400 hover:text-white hover:bg-white/[0.05] hover:border-white/20 transition-all duration-300 relative group shadow-xl">
+               <button aria-label="Open notifications" onClick={() => navigateToTab("notifications")} className="p-3 rounded-2xl bg-white/[0.02] border border-white/10 text-gray-400 hover:text-white hover:bg-white/[0.05] hover:border-white/20 transition-all duration-300 relative group shadow-xl">
                  <Bell size={20} className="group-hover:rotate-12 transition-transform" />
                  <span className="absolute top-3.5 right-3.5 w-2 h-2 bg-indigo-500 rounded-full border-2 border-[#050508] shadow-[0_0_10px_rgba(99,102,241,0.8)]"></span>
                </button>
@@ -385,9 +388,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
              <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">{BRAND_NAME_WITH_YEAR} • RICO ADMIN OS {siteSettings?.site_version || 'v10.0 PRO'}</p>
              <div className="flex items-center gap-6">
 
-                <a href="#" className="text-[10px] font-black text-gray-500 hover:text-indigo-400 transition-colors uppercase tracking-widest">Documentation</a>
-                <a href="#" className="text-[10px] font-black text-gray-500 hover:text-indigo-400 transition-colors uppercase tracking-widest">Support</a>
-                <a href="#" className="text-[10px] font-black text-gray-500 hover:text-indigo-400 transition-colors uppercase tracking-widest">Logs</a>
+                <button onClick={() => setIsCommandPaletteOpen(true)} className="text-[10px] font-black text-gray-500 hover:text-indigo-400 transition-colors uppercase tracking-widest">Find a section</button>
+                <button onClick={() => navigateToTab("support-chat")} className="text-[10px] font-black text-gray-500 hover:text-indigo-400 transition-colors uppercase tracking-widest">Support</button>
+                <button onClick={() => navigateToTab("audit-logs")} className="text-[10px] font-black text-gray-500 hover:text-indigo-400 transition-colors uppercase tracking-widest">Logs</button>
              </div>
           </footer>
         </div>
@@ -425,3 +428,5 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     </div>
   );
 };
+
+export const AdminLayout: React.FC<AdminLayoutProps> = props => props.isOwner || props.isAdmin ? <OwnerAdminLayout {...props} /> : <LegacyAdminLayout {...props} />;

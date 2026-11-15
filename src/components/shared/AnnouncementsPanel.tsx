@@ -1,3 +1,4 @@
+import { SITE_FEATURES } from '../../constants/siteFeatures';
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Trash2, Pencil, Check, X, Bell, Globe, Users, AlertCircle, Tag, ArrowRight } from 'lucide-react';
@@ -154,7 +155,7 @@ export const AnnouncementsPanel: React.FC<AnnouncementsPanelProps> = ({
 
         const { data, error } = await query;
         if (!error && data) {
-          let filtered = data as Announcement[];
+          let filtered = (data as Announcement[]).filter(ann => SITE_FEATURES.sports || ann.category !== 'sports');
 
           // For students: filter coordinator announcements to only show ones from registered events
           if (mode === 'student') {
@@ -189,6 +190,7 @@ export const AnnouncementsPanel: React.FC<AnnouncementsPanelProps> = ({
             const newAnn = payload.new as Announcement;
             // Default category for legacy realtime rows
             if (!newAnn.category) newAnn.category = 'general';
+            if (!SITE_FEATURES.sports && newAnn.category === 'sports') return;
             // If a category filter is active, skip announcements that don't match
             if (defaultCategory && newAnn.category !== defaultCategory) return;
             if (!newAnn.deleted_at) {
@@ -212,7 +214,7 @@ export const AnnouncementsPanel: React.FC<AnnouncementsPanelProps> = ({
           }
           if (payload.eventType === 'UPDATE') {
             const upAnn = payload.new as Announcement;
-            if (upAnn.deleted_at) {
+            if (upAnn.deleted_at || (!SITE_FEATURES.sports && upAnn.category === 'sports')) {
               setAnnouncements(prev => prev.filter(a => a.id !== upAnn.id));
             } else {
               setAnnouncements(prev => prev.map(a => a.id === upAnn.id ? upAnn : a));
@@ -502,7 +504,7 @@ export const AnnouncementsPanel: React.FC<AnnouncementsPanelProps> = ({
               {/* Category selector — hidden if panel already has a locked defaultCategory */}
               {!defaultCategory && (
                 <div className="flex gap-2 flex-wrap">
-                  {(Object.keys(CATEGORY_META) as AnnouncementCategory[]).map(cat => {
+                  {(Object.keys(CATEGORY_META) as AnnouncementCategory[]).filter(category => SITE_FEATURES.sports || category !== 'sports').map(cat => {
                     const meta = CATEGORY_META[cat];
                     return (
                       <button

@@ -2,11 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOutletContext } from 'react-router-dom';
 import { 
-  Users, User, Check, X, Bell, Sparkles, Clock, Plus, Trash2, Search, UserPlus, Crown, AlertCircle, ArrowRight
-} from 'lucide-react';
+  Users, User, Check, X, Bell, Sparkles, Clock, Plus, Trash2, Search, UserPlus, Crown, AlertCircle} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { BRAND_NAME } from '../../constants/brand';
 import ProfileModal from '../../components/dashboard/ProfileModal';
 
 interface DashboardContextType {
@@ -44,8 +42,8 @@ interface GroupMember {
 
 export const Teams: React.FC = () => {
   const { 
-    user, profile, registrations, fetchUserRegistrations, 
-    pendingInvitesCount, setPendingInvitesCount 
+    user, profile, fetchUserRegistrations,
+    setPendingInvitesCount
   } = useOutletContext<DashboardContextType>();
 
   const [invitations, setInvitations] = useState<any[]>([]);

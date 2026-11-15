@@ -1,5 +1,6 @@
+import { SITE_FEATURES, isSportsContent } from '../constants/siteFeatures';
+import { useDomainRealtime } from '../hooks/useDomainRealtime';
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
 import { dualInsert, dualUpdate, dualDelete, dualUpsert, dualRead } from '../lib/dualDb';
 import { 
   Event, EventCoordinator, EventCategory, ScheduleDay, ScheduleEvent, 
@@ -91,13 +92,18 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
     console.log('[EventsContext] fetchEventsData started');
     const start = Date.now();
     try {
-      const [eventsRes, coordinatorsRes, categoriesRes, scheduleRes, roadmapRes] = await Promise.all([
+      const results = await Promise.allSettled([
         fetchAllEvents().then(r => { console.log('✔ events'); return r; }),
         dualRead({ table: 'event_coordinators' }).then(r => { console.log('✔ event_coordinators'); return r; }),
         dualRead({ table: 'event_categories' }).then(r => { console.log('✔ event_categories'); return r; }),
         dualRead({ table: 'schedule_days' }).then(r => { console.log('✔ schedule_days'); return r; }),
-        dualRead({ table: 'roadmap_milestones', order: ['order_position', { ascending: true }] }).then(r => { console.log('✔ roadmap_milestones'); return r; })
+        dualRead({ table: 'roadmap_milestones', order: ['order_position', { ascending: true }] }),
+        dualRead({ table: 'schedule_events' }),
+        dualRead({ table: 'event_winners' }),
+        dualRead({ table: 'notifications' })
       ]);
+
+      const [eventsRes, coordinatorsRes, categoriesRes, scheduleRes, roadmapRes, scheduleEventsRes, winnersRes, notifyRes] = results.map(result => result.status === 'fulfilled' ? result.value : { data: [] });
 
       if (eventsRes.data) setEvents(eventsRes.data || []);
       if (coordinatorsRes.data) setEventCoordinators(coordinatorsRes.data || []);
@@ -105,7 +111,7 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
       
       if (scheduleRes.data) {
         const days = scheduleRes.data || [];
-        const { data: allScheduleEvents } = await dualRead({ table: 'schedule_events' });
+        const allScheduleEvents = scheduleEventsRes.data || [];
         console.log('✔ schedule_events');
         
         const mappedSchedule = days.map((day: any) => {
@@ -129,7 +135,6 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
         setRoadmapMilestones(roadmapRes.data || []);
       }
       // Fetch winners
-      const winnersRes = await dualRead({ table: 'event_winners' });
       console.log('✔ event_winners');
       if (winnersRes.data) {
         setEventWinners(winnersRes.data || []);
@@ -137,7 +142,7 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
 
       console.log('[EventsContext] Fetching notifications...');
       const nowIso = new Date().toISOString();
-      const { data: notifyData } = await dualRead({ table: 'notifications' });
+      const notifyData = notifyRes.data;
       console.log('✔ notifications');
       
       const filteredNotifications = (notifyData || []).filter((n: any) => 
@@ -163,21 +168,23 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
     }
   }, [fetchEventsData, refreshTrigger, user?.id, enabled]);
 
-  // Real-time: re-fetch when any events-related table changes
+  useDomainRealtime('events-context-realtime', enabled, ['events', 'event_categories', 'event_coordinators', 'schedule_days', 'schedule_events', 'event_winners', 'notifications', 'roadmap_milestones'], fetchEventsData);
+
+  // Realtime is primary; a lightweight events-only refresh recovers missed counter updates.
   useEffect(() => {
-    const channel = supabase
-      .channel('events-context-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => fetchEventsData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_categories' }, () => fetchEventsData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_coordinators' }, () => fetchEventsData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_days' }, () => fetchEventsData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_events' }, () => fetchEventsData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_winners' }, () => fetchEventsData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => fetchEventsData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'roadmap_milestones' }, () => fetchEventsData())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchEventsData]);
+    if (!enabled) return;
+    let active = true; let running = false;
+    const refreshCounts = async () => {
+      if (!active || running || document.hidden) return;
+      running = true;
+      try { const result = await dualRead({ table: 'events', forceRefresh: true, order: ['display_order', { ascending: true }] }); if (active && result.data) setEvents(result.data); }
+      catch { /* Keep the last known events during a temporary connection failure. */ }
+      finally { running = false; }
+    };
+    const timer = window.setInterval(() => void refreshCounts(), 60000);
+    const focused = () => void refreshCounts(); window.addEventListener('focus', focused);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', focused); };
+  }, [enabled]);
 
   const addEvent = async (event: Partial<Event>) => {
     await dualInsert('events', {
@@ -364,12 +371,12 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
   };
 
   const value: EventsContextType = {
-    events,
+    events: SITE_FEATURES.sports ? events : events.filter(event => !isSportsContent(event.category)),
     eventCoordinators,
-    eventCategories,
-    schedule,
-    eventWinners,
-    notifications,
+    eventCategories: SITE_FEATURES.sports ? eventCategories : eventCategories.filter(category => !isSportsContent(category.name)),
+    schedule: SITE_FEATURES.sports ? schedule : schedule.map(day => ({ ...day, events: day.events.filter(item => !isSportsContent(item.type) && !events.some(event => event.id === item.event_id && isSportsContent(event.category))) })),
+    eventWinners: SITE_FEATURES.sports ? eventWinners : eventWinners.filter(winner => !isSportsContent(winner.category) && !events.some(event => event.id === winner.event_id && isSportsContent(event.category))),
+    notifications: SITE_FEATURES.sports ? notifications : notifications.filter(notification => !isSportsContent(notification.category)),
     roadmapMilestones,
     loading,
     isLoaded,

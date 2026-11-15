@@ -1,126 +1,41 @@
-import { Handler } from '@netlify/functions';
-import crypto from 'crypto';
-import { createClient } from '@supabase/supabase-js';
-
-// Load environment variables for local testing
+import type { Handler } from '@netlify/functions';
+import crypto from 'node:crypto';
+import { hashResetCode, normalizeResetEmail, resetHeaders as headers } from './lib/admin-reset';
 import 'dotenv/config';
+import { invitationBaseUrl } from './lib/admin-invitations';
 
 export const handler: Handler = async (event) => {
-  const headers = {
-    // 'Access-Control-Allow-Origin': '*' // Restricted by policy,
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
-  }
-
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: 'Method Not Allowed' };
-  }
-
+  const reply = (statusCode: number, data: object) => ({ statusCode, headers, body: JSON.stringify(data) });
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+  if (event.httpMethod !== 'POST') return reply(405, { error: 'Method not allowed' });
+  let input;
+  try { input = JSON.parse(event.body || '{}'); } catch { return reply(400, { error: 'Invalid request' }); }
+  const email = normalizeResetEmail(input?.email);
+  if (!email) return reply(400, { error: 'Enter a valid email address' });
   try {
-    const { email } = JSON.parse(event.body || '{}');
-    if (!email) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Email is required' }) };
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // 1. Initialize Supabase
     const { getSupabaseClient } = await import('./lib/supabase');
-    const supabase = getSupabaseClient(true); // privileged client
-
-    // 2. Check if email is an authorized user (admin or owner)
-    const { data: adminUser, error: adminErr } = await supabase
-      .from('admin_users')
-      .select('email, role')
-      .eq('email', normalizedEmail)
-      .in('role', ['admin', 'owner'])
-      .maybeSingle();
-
-    if (adminErr) {
-      console.error('[request-password-reset] Database error:', adminErr);
-      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Internal server error during verification' }) };
-    }
-
-    if (!adminUser) {
-      console.log(`🚫 Password reset REJECTED for ${normalizedEmail}: Not an admin or owner. Skipping email to save tokens.`);
-      // Security best practice: don't reveal if user exists or has correct role.
-      return { 
-        statusCode: 200, 
-        headers, 
-        body: JSON.stringify({ success: true, message: 'If that email is registered and authorized, you will receive a reset link shortly.' }) 
-      };
-    }
-
-    // 3. Generate secure token
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes
-
-    // 4. Store token in Firestore (or Supabase). 
-    // Since the project uses Firestore as primary for some admin meta, let's use it.
-    const { firebaseAdmin } = await import('./lib/auth-verify');
-    if (!firebaseAdmin) {
-       // Fallback to Supabase if Firebase Admin is not configured
-       const { error: insertErr } = await supabase
-          .from('admin_reset_tokens')
-          .upsert({ email: normalizedEmail, token, expires_at: expiresAt }, { onConflict: 'email' });
-       
-       if (insertErr) {
-          console.error('[request-password-reset] Supabase token store error:', insertErr);
-          return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to store reset token' }) };
-       }
-    } else {
-       const db = firebaseAdmin.firestore();
-       // Using email as doc ID to prevent multiple active reset links per user
-       await db.collection('admin_reset_tokens').doc(normalizedEmail).set({
-          email: normalizedEmail,
-          token,
-          expires_at: expiresAt,
-          created_at: new Date().toISOString()
-       });
-    }
-
-    // 5. Send email
+    const supabase = getSupabaseClient(true);
+    const { data: admin, error } = await supabase.from('admin_users').select('email, role').eq('email', email).in('role', ['admin', 'owner']).maybeSingle();
+    if (error) throw error;
+    const success = { success: true, message: 'If this email is registered for admin access, a 6-digit verification code will arrive shortly.' };
+    if (!admin) return reply(200, success);
+    const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+    const codeHash = hashResetCode(email, code);
+    const { data: issued, error: issueError } = await supabase.rpc('issue_admin_reset_otp', { p_email: email, p_code_hash: codeHash });
+    if (issueError) throw issueError;
+    if (!issued) return reply(429, { error: 'Please wait 60 seconds before requesting another code.' });
     const { sendEmail } = await import('./lib/email');
-    const resetLink = `${process.env.URL || 'http://localhost:5173'}/reset-password?token=${token}`;
-    
-    const emailHtml = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-        <h2 style="color: #333;">Password Reset Request</h2>
-        <p>You requested a password reset for your ${adminUser.role} account at RICORRENZA.</p>
-        <p>Please click the button below to set a new password. This link will expire in 15 minutes.</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${resetLink}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Reset Password</a>
-        </div>
-        <p style="color: #666; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-        <p style="font-size: 12px; color: #999;">Link: ${resetLink}</p>
-      </div>
-    `;
-
-    const emailRes = await sendEmail({
-      to: normalizedEmail,
-      subject: 'RICORRENZA Admin - Password Reset Request',
-      html: emailHtml,
-      provider: 'resend' // Explicitly use Resend
+    const recoveryUrl=`${invitationBaseUrl(event)}/forgot-password?email=${encodeURIComponent(email)}&amp;codeSent=1`;
+    const result = await sendEmail({
+      to: email, subject: 'RICORRENZA — Password reset verification code', provider: 'resend',
+      html: `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:28px;background:#11131b;color:#f8eee4;border:1px solid #82634e;border-radius:16px"><h2>Password reset verification</h2><p>Enter this code on the RICORRENZA recovery screen:</p><p style="font-size:34px;letter-spacing:10px;color:#edc399;font-weight:bold">${code}</p><p><a href="${recoveryUrl}" style="color:#edc399">Open password recovery</a></p><p>This code expires in 10 minutes. Never share it with anyone.</p><p>If you did not request this, ignore this email.</p></div>`,
     });
-
-    if (!emailRes.success) {
-      console.error('[request-password-reset] Email send failed:', emailRes.error);
-      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to send reset email' }) };
+    if (!result.success) {
+      await supabase.from('admin_reset_otps').delete().eq('email', email).eq('code_hash', codeHash);
+      throw new Error('Email delivery failed');
     }
-
-    return { 
-      statusCode: 200, 
-      headers, 
-      body: JSON.stringify({ success: true, message: 'If that email is registered, you will receive a reset link shortly.' }) 
-    };
-
-  } catch (err: any) {
-    console.error('[request-password-reset] Fatal error:', err);
-    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message || 'Internal Server Error' }) };
+    return reply(200, success);
+  } catch {
+    return reply(500, { error: 'Unable to send a verification code. Please try again shortly.' });
   }
 };

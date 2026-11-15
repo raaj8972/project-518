@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Copy, CheckCircle, ExternalLink, AlertCircle, Loader2, IndianRupee, Smartphone, Hash } from 'lucide-react';
 import { supabase } from '../lib/supabase';

@@ -1,36 +1,9 @@
+import { getAdminSections } from '../constants/adminSections';
+import { legacyAccessSections } from '../utils/adminAccessRoutes';
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AdminLayout, TabType } from '../components/admin/layout/AdminLayout';
-import { 
-  BarChart3, 
-  Calendar, 
-  Settings, 
-  Users, 
-  Image, 
-  Clock, 
-  Lock, 
-  Shield, 
-  Palette, 
-  History as HistoryIcon,
-  Info,
-  CheckCircle,
-  Share2,
-  Star,
-  Building,
-  UserCheck,
-  PartyPopper,
-  Trophy,
-  Flag,
-  Gavel,
-
-  Activity,
-  ArrowRight,
-  AlertTriangle,
-  Bell,
-  Scan,
-  QrCode,
-  MessageSquare,
-} from 'lucide-react';
+import { Shield, PartyPopper, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AnnouncementsPanel } from '../components/shared/AnnouncementsPanel';
 import { ChatPanel } from '../components/shared/ChatPanel';
@@ -47,9 +20,6 @@ const RegistrationManagement = React.lazy(() => import('../components/admin/Regi
 const StudentManagement = React.lazy(() => import('../components/admin/StudentManagement').then(m => ({ default: m.StudentManagement })));
 const EventCategoriesManagement = React.lazy(() => import('../components/admin/EventCategoriesManagement').then(m => ({ default: m.EventCategoriesManagement })));
 const SocialMediaManagement = React.lazy(() => import('../components/admin/SocialMediaManagement').then(m => ({ default: m.SocialMediaManagement })));
-const SecuritySettings = React.lazy(() => import('../components/admin/SecuritySettings').then(m => ({ default: m.SecuritySettings })));
-const FacultyHeadsManagement = React.lazy(() => import('../components/admin/FacultyHeadsManagement').then(m => ({ default: m.FacultyHeadsManagement })));
-const CoreTeamManagement = React.lazy(() => import('../components/admin/CoreTeamManagement').then(m => ({ default: m.CoreTeamManagement })));
 const RicoFamilyManagement = React.lazy(() => import('../components/admin/RicoFamilyManagement').then(m => ({ default: m.RicoFamilyManagement })));
 const SportsTeamManagement = React.lazy(() => import('../components/admin/SportsTeamManagement').then(m => ({ default: m.SportsTeamManagement })));
 const SportsSeasonAdmin = React.lazy(() => import('../components/admin/SportsSeasonAdmin').then(m => ({ default: m.SportsSeasonAdmin })));
@@ -79,19 +49,14 @@ const ShoutoutManagement = React.lazy(() => import('../components/admin/Shoutout
 const StudentPassManagement = React.lazy(() => import('../components/admin/StudentPassManagement').then(m => ({ default: m.StudentPassManagement })));
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useRegistrations } from '../hooks/useRegistrations';
-import { StatsOverview } from '../components/admin/dashboard/StatsOverview';
+import { OwnerOverview } from '../components/admin/dashboard/OwnerOverview';
 import { WelcomeSplash } from '../components/admin/dashboard/WelcomeSplash';
-import { AIBrainHUD } from '../components/admin/dashboard/AIBrainHUD';
 const StorageOverview = React.lazy(() => import('../components/admin/StorageOverview').then(m => ({ default: m.StorageOverview })));
 const RegistrationPhotosPanel = React.lazy(() => import('../components/admin/RegistrationPhotosPanel'));
-const ThemeManagement = React.lazy(() => import('../components/admin/ThemeManagement').then(m => ({ default: m.ThemeManagement })));
 const SiteSettingsPanel = React.lazy(() => import('../components/admin/SiteSettingsPanel').then(m => ({ default: m.SiteSettingsPanel })));
-const AdminUsersPanel = React.lazy(() => import('../components/admin/AdminUsersPanel').then(m => ({ default: m.AdminUsersPanel })));
 const ConnectionOverview = React.lazy(() => import('../components/admin/ConnectionOverview').then(m => ({ default: m.ConnectionOverview })));
+const PasswordsAccessCenter = React.lazy(() => import('../components/admin/PasswordsAccessCenter').then(module => ({ default: module.PasswordsAccessCenter })));
 const SecurityManagement = React.lazy(() => import('../components/admin/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
-const OwnerApprovalCenter = React.lazy(() => import('../components/admin/OwnerApprovalCenter').then(m => ({ default: m.OwnerApprovalCenter })));
-const CoordinatorPasswordManagement = React.lazy(() => import('../components/admin/CoordinatorPasswordManagement').then(m => ({ default: m.CoordinatorPasswordManagement })));
-const AdminPasscodesPanel = React.lazy(() => import('../components/admin/AdminPasscodesPanel').then(m => ({ default: m.AdminPasscodesPanel })));
 const AuditLogPanel = React.lazy(() => import('../components/admin/AuditLogPanel').then(m => ({ default: m.AuditLogPanel })));
 const GalleryFaceIndexer = React.lazy(() => import('../components/admin/GalleryFaceIndexer').then(m => ({ default: m.GalleryFaceIndexer })));
 const ProtectionCenter = React.lazy(() => import('../components/admin/ProtectionCenter').then(m => ({ default: m.ProtectionCenter })));
@@ -115,7 +80,6 @@ export const AdminDashboard: React.FC = () => {
     memberships,
 
     myPermissions,
-    connectionStatus,
     adminUsers,
     siteSettings,
     homepageSettings,
@@ -125,8 +89,13 @@ export const AdminDashboard: React.FC = () => {
   const location = useLocation();
   const activeTab: TabType = useMemo(() => {
     const path = location.pathname.replace(/^\/admin\/?/, '').replace(/\/$/, '');
-    return (path || 'overview') as TabType;
+    return (legacyAccessSections[path] ? 'security' : path || 'overview') as TabType;
   }, [location.pathname]);
+
+  useEffect(() => {
+    const oldTab=location.pathname.replace(/^\/admin\/?/, '').replace(/\/$/, '');
+    if(legacyAccessSections[oldTab]) navigate(`/admin/security?section=${legacyAccessSections[oldTab]}`, { replace:true });
+  }, [location.pathname,navigate]);
 
   // Navigate-based tab setter (replaces old localStorage-based setActiveTab)
   const setActiveTab = useCallback((tab: TabType) => {
@@ -136,14 +105,8 @@ export const AdminDashboard: React.FC = () => {
   const [autoLogoutEnabled, setAutoLogoutEnabled] = useLocalStorage<boolean>('admin_auto_logout', false);
   const [authGrace, setAuthGrace] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [showSplash, setShowSplash] = useState(true);
   const [stuckLoading, setStuckLoading] = useState(false);
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Failsafe for stuck loading
   useEffect(() => {
@@ -167,21 +130,14 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [isAuthenticated, authGrace]);
 
-  const getGreeting = () => {
-    const hour = currentTime.getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
-  };
-
   // Determine if current user is the OWNER
 
 
   // Fetch registration stats for badges
   // Fetch registration stats for badges
-  const { stats: registrationStats, registrations } = useRegistrations({ 
-    page: 1, 
-    pageSize: 5, 
+  const { stats: registrationStats, registrations, isLoading: registrationsLoading, error: registrationsError, refresh: refreshRegistrations } = useRegistrations({
+    page: 1,
+    pageSize: 5,
     filters: {} // No filters to get global stats
   });
 
@@ -321,10 +277,10 @@ export const AdminDashboard: React.FC = () => {
       clearTimeout(logoutTimer.current);
       logoutTimer.current = null;
     }
-    
+
     // Clear state immediately to avoid re-renders with stale data
     await logout();
-    
+
     // Direct window location for a clean break (clears all memory state)
     window.location.href = '/';
   };
@@ -367,74 +323,18 @@ export const AdminDashboard: React.FC = () => {
     };
   }, [autoLogoutEnabled, isAuthenticated, logout, navigate]);
 
-  // Tabs and visibility/permissions (computed early so hooks can follow)
-  // Tabs and visibility/permissions (computed early so hooks can follow)
-  const tabs = [
-    // DASHBOARD
-    { id: 'overview' as TabType, name: 'Overview', icon: BarChart3, group: 'DASHBOARD' },
-    { id: 'announcements' as TabType, name: 'Announcements', icon: Bell, group: 'DASHBOARD' },
-    { id: 'support-chat' as TabType, name: 'Support Chat', icon: MessageSquare, group: 'DASHBOARD' },
-    ...(isOwner ? [{ id: 'notifications' as TabType, name: 'Notifications', icon: Info, group: 'DASHBOARD' }] : []),
-    { id: 'protection-center' as TabType, name: 'Protection Center', icon: Shield, group: 'DASHBOARD' },
+  const tabs = useMemo(() => getAdminSections(isOwner, !!siteSettings?.annual_sports_mode_enabled), [isOwner, siteSettings?.annual_sports_mode_enabled]);
 
-    // CONTENT
-    { id: 'homepage' as TabType, name: 'Homepage', icon: Settings, group: 'CONTENT' },
-    { id: 'gallery' as TabType, name: 'Gallery', icon: Image, group: 'CONTENT' },
-    { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image, group: 'CONTENT' },
-    { id: 'social' as TabType, name: 'Social Media', icon: Share2, group: 'CONTENT' },
-    { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star, group: 'CONTENT' },
-    { id: 'shoutouts' as TabType, name: 'Shout-outs', icon: MessageSquare, group: 'CONTENT' },
-    { id: 'about' as TabType, name: 'About', icon: Info, group: 'CONTENT' },
+  const unavailableReason = tabs.find(tab => tab.id === activeTab)?.unavailableReason;
 
-    // FESTIVAL
-    { id: 'events' as TabType, name: 'Events', icon: Calendar, group: 'FESTIVAL' },
-    { id: 'schedule' as TabType, name: 'Schedule', icon: Clock, group: 'FESTIVAL' },
-    { id: 'categories' as TabType, name: 'Categories', icon: Palette, group: 'FESTIVAL' },
-    { id: 'sponsors' as TabType, name: 'Sponsors', icon: Building, group: 'FESTIVAL' },
-    { id: 'homebound' as TabType, name: 'Homebound', icon: Settings, group: 'FESTIVAL' },
-
-    // REGISTRATIONS
-    { id: 'registrations' as TabType, name: 'Event Reg', icon: UserCheck, group: 'REGISTRATIONS' },
-    { id: 'student-system' as TabType, name: 'ID Approval', icon: Shield, group: 'REGISTRATIONS' },
-    { id: 'student-passes' as TabType, name: 'Entry Passes', icon: QrCode, group: 'REGISTRATIONS' },
-    { id: 'reg-photos' as TabType, name: 'Reg Photos', icon: Image, group: 'REGISTRATIONS' },
-    { id: 'auditions' as TabType, name: 'Auditions', icon: Users, group: 'REGISTRATIONS' },
-    { id: 'memberships' as TabType, name: 'Memberships', icon: Users, group: 'REGISTRATIONS' },
-    { id: 'registration-modal' as TabType, name: 'Batch Model', icon: UserCheck, group: 'REGISTRATIONS' },
-
-    // SPORTS LEAGUE
-    { id: 'sports-seasons' as TabType, name: 'Seasons', icon: Trophy, group: 'SPORTS LEAGUE' },
-    { id: 'sports-teams' as TabType, name: 'Teams', icon: Flag, group: 'SPORTS LEAGUE' },
-    { id: 'sports-matches' as TabType, name: 'Matches', icon: Calendar, group: 'SPORTS LEAGUE' },
-    { id: 'sports-auction' as TabType, name: 'Auction', icon: Gavel, group: 'SPORTS LEAGUE' },
-    { id: 'sports-registrations' as TabType, name: 'Registrations', icon: UserCheck, group: 'SPORTS LEAGUE' },
-    { id: 'sports-registration-model' as TabType, name: 'Sports Model', icon: Settings, group: 'SPORTS LEAGUE' },
-    { id: 'sports-announcements' as TabType, name: 'Announce', icon: Bell, group: 'SPORTS LEAGUE' },
-    { id: 'annual-events' as TabType, name: 'Annual Events', icon: Trophy, group: 'SPORTS LEAGUE' },
-    { id: 'annual-schedule' as TabType, name: 'Annual Schedule', icon: Calendar, group: 'SPORTS LEAGUE' },
-    { id: 'annual-registrations' as TabType, name: 'Annual Reg', icon: UserCheck, group: 'SPORTS LEAGUE' },
-    { id: 'annual-registration-model' as TabType, name: 'Annual Model', icon: Settings, group: 'SPORTS LEAGUE' },
-
-    // PEOPLE
-    { id: 'rico-family' as TabType, name: 'Rico Family', icon: Users, group: 'PEOPLE' },
-    { id: 'band' as TabType, name: 'Band', icon: Users, group: 'PEOPLE' },
-    { id: 'sports-team' as TabType, name: 'Legacy Teams', icon: Users, group: 'PEOPLE' },
-    { id: 'guest-artists' as TabType, name: 'Artists', icon: Star, group: 'PEOPLE' },
-    { id: 'chief-guests' as TabType, name: 'Chief Guests', icon: Star, group: 'PEOPLE' },
-
-    // SYSTEM
-    { id: 'admin-users' as TabType, name: 'Admins', icon: Shield, group: 'SYSTEM' },
-    { id: 'theme' as TabType, name: 'Theme', icon: Palette, group: 'SYSTEM' },
-    { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings, group: 'SYSTEM' },
-    { id: 'security' as TabType, name: 'Security', icon: Shield, group: 'SYSTEM' },
-    ...(isOwner ? [{ id: 'owner-approvals' as TabType, name: 'Approvals', icon: CheckCircle, group: 'SYSTEM' }] : []),
-    ...(isOwner ? [{ id: 'admin-passcodes' as TabType, name: 'Global Passcodes', icon: Lock, group: 'SYSTEM' }] : []),
-    ...(isOwner ? [{ id: 'coordinator-passwords' as TabType, name: 'Coordinator Passwords', icon: Lock, group: 'SYSTEM' }] : []),
-    ...(isOwner ? [{ id: 'security-passes' as TabType, name: 'Pass Security', icon: Shield, group: 'SYSTEM' }] : []),
-    ...(isOwner ? [{ id: 'council-access' as TabType, name: 'Council', icon: Lock, group: 'SYSTEM' }] : []),
-    ...(isOwner ? [{ id: 'audit-logs' as TabType, name: 'Audit Logs', icon: HistoryIcon, group: 'SYSTEM' }] : []),
-    ...(isOwner ? [{ id: 'face-indexing' as TabType, name: 'Face Indexer', icon: Scan, group: 'SYSTEM' }] : []),
-  ];
+  const integratedHomepageAlias = ['hero-media','about','social','roadmap'].includes(activeTab) && (isOwner || (!!(myPermissions as any)?.page_access_configured && ((myPermissions as any)?.allowed_pages || []).includes('homepage') && ((myPermissions as any)?.allowed_pages || []).includes(activeTab)));
+  useEffect(() => {
+    if (integratedHomepageAlias) { navigate(`/admin/homepage?edit=${activeTab === 'hero-media' ? 'media' : activeTab}`, { replace: true }); return; }
+    if (!isOwner) return;
+    if (activeTab === 'faculty' || activeTab === 'core-team') {
+      navigate(`/admin/rico-family?section=${activeTab === 'faculty' ? 'faculty' : 'members'}`, { replace: true });
+    }
+  }, [isOwner, activeTab, navigate, integratedHomepageAlias]);
 
   // Determine if current user is an ADMIN (owner OR admin role)
   const isAdmin = (() => {
@@ -452,12 +352,16 @@ export const AdminDashboard: React.FC = () => {
 
   // Filter visible tabs based on permissions (owner sees all)
   const isCouncil = !isOwner && (
-    adminUsers?.some((a: any) => a.user_id === user?.id && a.role === 'council') || 
+    adminUsers?.some((a: any) => a.user_id === user?.id && a.role === 'council') ||
     user?.email?.toLowerCase().includes('sports.council')
   );
 
   const visibleTabs = (() => {
   if (isOwner) return tabs;
+  if ((myPermissions as any)?.page_access_configured) {
+    const allowedPages = new Set<string>((myPermissions as any).allowed_pages || []);
+    return tabs.filter(tab => tab.id === 'security' || allowedPages.has(tab.id));
+  }
     // Non-owners: do NOT show Overview or Security by default
     const allowedIds = new Set<TabType>();
   // Allow the Security tab for non-owner/non-council admins so they can manage their own 2FA
@@ -482,6 +386,10 @@ export const AdminDashboard: React.FC = () => {
       allowedIds.add('registrations');
       allowedIds.add('student-system');
     }
+    if (myPermissions?.can_guest_artists) allowedIds.add('guest-artists');
+    if (myPermissions?.can_chief_guests) allowedIds.add('chief-guests');
+    if (myPermissions?.can_homebound) allowedIds.add('homebound');
+    if (myPermissions?.can_security_passes) allowedIds.add('security-passes');
     if (myPermissions?.can_registration_photos) allowedIds.add('reg-photos');
     if (myPermissions?.can_faculty || myPermissions?.can_core_team) allowedIds.add('rico-family');
     if (myPermissions?.can_sports || (isCouncil && user?.email?.toLowerCase().includes('sports'))) {
@@ -512,13 +420,15 @@ export const AdminDashboard: React.FC = () => {
 
   // Ensure activeTab is always one of the visible tabs for current user
   useEffect(() => {
+    if (authLoading || !isAuthenticated || !user) return;
     const ids = new Set(visibleTabs.map((t) => t.id));
     // If non-owner has no tabs, leave activeTab as-is; main content will show a guidance panel
     if (!isOwner && visibleTabs.length === 0) return;
+    if (isOwner && (activeTab === 'faculty' || activeTab === 'core-team')) return;
     if (!ids.has(activeTab)) {
       setActiveTab(visibleTabs[0]?.id || 'overview');
     }
-  }, [myPermissions, isOwner, visibleTabs, activeTab, setActiveTab]);
+  }, [authLoading, isAuthenticated, user, myPermissions, isOwner, visibleTabs, activeTab, setActiveTab]);
 
 
 
@@ -547,13 +457,13 @@ export const AdminDashboard: React.FC = () => {
             The admin node is taking longer than expected to verify your security clearance. This could be due to a network interruption or heavy traffic.
           </p>
           <div className="space-y-4">
-            <button 
+            <button
               onClick={() => window.location.reload()}
               className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-400 transition-all active:scale-95"
             >
               Reboot Terminal
             </button>
-            <button 
+            <button
               onClick={() => navigate('/login')}
               className="w-full py-4 bg-white/5 text-white/60 font-black uppercase tracking-widest rounded-2xl hover:bg-white/10 transition-all"
             >
@@ -566,7 +476,7 @@ export const AdminDashboard: React.FC = () => {
   }
 
   // Show Splash (only if we have a user to welcome and NOT logging out)
-  if (showSplash && (isAuthenticated || authGrace) && user && !isLoggingOut) {
+  if (!isOwner && showSplash && (isAuthenticated || authGrace) && user && !isLoggingOut) {
     return <WelcomeSplash user={user} onComplete={() => setShowSplash(false)} />;
   }
 
@@ -604,7 +514,6 @@ export const AdminDashboard: React.FC = () => {
 
 
   const pendingRegistrations = registrationStats.pending;
-  const approvedRegistrations = registrationStats.approved;
   const pendingAuditions = auditions.filter(a => a.status === 'pending').length;
   const pendingMemberships = memberships.filter(m => m.status === 'pending').length;
 
@@ -637,7 +546,7 @@ export const AdminDashboard: React.FC = () => {
       homepageSettings={homepageSettings}
     >
 
-      <React.Suspense fallback={
+      {(!visibleTabs.some(tab => tab.id === activeTab) || integratedHomepageAlias) ? <div className="owner-panel p-6" role="status">{isOwner || integratedHomepageAlias ? <p>Opening workspace…</p> : <><h2>Page access not assigned</h2><p>Your owner has not granted access to this section. Contact the owner to update your page permissions.</p></>}</div> : <React.Suspense fallback={
         <div className="flex flex-col items-center justify-center min-h-[50vh] text-gray-500">
                <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                <p>Loading panel...</p>
@@ -649,348 +558,37 @@ export const AdminDashboard: React.FC = () => {
                 <p className="text-gray-600">Your account is authenticated but doesn’t have access to any admin sections yet. Please contact the owner to grant permissions.</p>
               </div>
             )}
-            {isOwner && activeTab === 'overview' && (
-              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                {/* RICO V3 Welcome Hero */}
-                <div className="rico-glass-card rounded-[3rem] p-8 sm:p-12 relative overflow-hidden group">
-                   {/* Decorative background effects */}
-                   <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-[80px] group-hover:bg-indigo-500/15 transition-all duration-1000"></div>
-                   <div className="absolute bottom-0 left-0 w-64 h-64 bg-violet-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[60px]"></div>
-
-                   <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
-                      <div className="space-y-4">
-                         <div className="flex items-center gap-3">
-                            <div className="w-1 h-12 bg-gradient-to-b from-indigo-500 to-transparent rounded-full"></div>
-                            <h2 className="text-4xl sm:text-5xl font-black text-white tracking-tighter">
-                               {getGreeting()}, <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin'}</span>
-                            </h2>
-                         </div>
-                         <div className="flex items-center gap-4 pl-4">
-                            <div className="flex items-center gap-2">
-                               <Clock className="w-5 h-5 text-indigo-400" />
-                               <span className="text-white/80 tabular-nums text-lg font-medium">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            </div>
-                            <div className="w-1.5 h-1.5 rounded-full bg-white/10"></div>
-                            <span className="uppercase tracking-[0.1em] text-xs font-black text-gray-500">{currentTime.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</span>
-                         </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-4">
-                         <div className="bg-white/[0.03] backdrop-blur-xl rounded-[1.5rem] px-6 py-3 border border-white/10 flex items-center gap-3 shadow-2xl">
-                            <div className={`w-2.5 h-2.5 rounded-full ${connectionStatus === 'ok' ? 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.6)] animate-pulse' : 'bg-indigo-400'}`}></div>
-                            <span className="text-white/80 text-xs font-black uppercase tracking-[0.2em]">Neural Link: Active</span>
-                         </div>
-                         {isTOTPEnabled && (
-                            <div className="bg-indigo-500/10 backdrop-blur-xl rounded-[1.5rem] px-6 py-3 border border-indigo-500/20 flex items-center gap-3 shadow-2xl">
-                               <Shield className="w-5 h-5 text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.4)]" />
-                               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.2em]">Tier-1 Security</span>
-                            </div>
-                         )}
-                      </div>
-                   </div>
-                </div>
-
-                {/* AI Intelligence HUD */}
-                <AIBrainHUD stats={{
-                   pendingRegistrations,
-                   approvedRegistrations,
-                   totalEvents: events.length,
-                   systemHealth: connectionStatus === 'ok' ? 'optimal' : 'warning',
-                   facesIndexed: galleryImages.filter(img => (img as any).faces_indexed).length,
-                   totalFaces: galleryImages.length
-                }} />
-
-                {/* ─── ADMIN ANNOUNCEMENTS BROADCAST ─── */}
-                 <div className="rico-glass-card rounded-[2.5rem] p-8 relative overflow-hidden">
-                   <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
-                   <div className="relative z-10">
-                    <AnnouncementsPanel 
-                      mode="admin" 
-                      compact={true} 
-                      onMore={(id) => {
-                        window.location.hash = `#announcement-${id}`;
-                        setActiveTab('announcements');
-                      }}
-                    />
-                   </div>
-                 </div>
-
-                {/* Priority Attention Vector */}
-                {(pendingRegistrations > 0 || pendingAuditions > 0 || pendingMemberships > 0) && (
-                   <div className="rico-glass-card rounded-[2.5rem] p-8 border-indigo-500/10 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[50px]"></div>
-
-                      <div className="flex items-center gap-4 mb-8 relative z-10">
-                         <div className="p-3 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5">
-                            <Bell className="w-6 h-6 text-indigo-400 animate-bounce" />
-                         </div>
-                         <div>
-                            <h3 className="text-2xl font-black text-white tracking-tighter">Priority Intercepts</h3>
-                            <p className="text-gray-500 text-[10px] uppercase tracking-[0.3em] font-black">System requires operator input</p>
-                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
-                         {pendingRegistrations > 0 && (
-                            <div
-                               className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
-                               onClick={() => navigate('/admin/registrations')}
-                            >
-                               <div className="flex items-center justify-between mb-4">
-                                  <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 group-hover/action:scale-110 transition-transform">
-                                     <UserCheck size={24} />
-                                  </div>
-                                  <span className="px-3 py-1 bg-indigo-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-indigo-500/20">{pendingRegistrations}</span>
-                               </div>
-                               <h4 className="text-white font-black tracking-tight mb-1">Registrations</h4>
-                               <p className="text-gray-500 text-[10px] uppercase font-black tracking-widest flex items-center gap-2">
-                                  PENDING REVIEW <ArrowRight size={10} className="group-hover/action:translate-x-2 transition-transform" />
-                               </p>
-                            </div>
-                         )}
-                         {pendingAuditions > 0 && (
-                            <div
-                               className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-violet-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
-                               onClick={() => navigate('/admin/auditions')}
-                            >
-                               <div className="flex items-center justify-between mb-4">
-                                  <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 group-hover/action:scale-110 transition-transform">
-                                     <Users size={24} />
-                                  </div>
-                                  <span className="px-3 py-1 bg-violet-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-violet-500/20">{pendingAuditions}</span>
-                               </div>
-                               <h4 className="text-white font-black tracking-tight mb-1">Auditions</h4>
-                               <p className="text-gray-500 text-[10px] uppercase font-black tracking-widest flex items-center gap-2">
-                                  PENDING REVIEW <ArrowRight size={10} className="group-hover/action:translate-x-2 transition-transform" />
-                               </p>
-                            </div>
-                         )}
-                         {pendingMemberships > 0 && (
-                            <div
-                               className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-violet-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
-                               onClick={() => navigate('/admin/memberships')}
-                            >
-                               <div className="flex items-center justify-between mb-4">
-                                  <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 group-hover/action:scale-110 transition-transform">
-                                     <Star size={24} />
-                                  </div>
-                                  <span className="px-3 py-1 bg-indigo-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-indigo-500/20">{pendingMemberships}</span>
-                               </div>
-                               <h4 className="text-white font-black tracking-tight mb-1">Memberships</h4>
-                               <p className="text-gray-500 text-[10px] uppercase font-black tracking-widest flex items-center gap-2">
-                                  PENDING REVIEW <ArrowRight size={10} className="group-hover/action:translate-x-2 transition-transform" />
-                               </p>
-                            </div>
-                         )}
-                      </div>
-                   </div>
-                )}
-
-                {/* RICO Real-time Stats */}
-                <StatsOverview stats={{
-                  eventsCount: events.length,
-                  registrationsCount: registrations.length,
-                  galleryCount: galleryImages.length,
-                  sponsorsCount: sponsors.length
-                }} />
-
-                {/* Main Dashboard Hub */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Recent Activity */}
-                  <div className="lg:col-span-2 space-y-8">
-                    <div className="rico-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-                      <div className="flex justify-between items-center mb-8">
-                        <h3 className="text-xl font-black text-white flex items-center gap-4">
-                          <div className="p-3 bg-indigo-500/15 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5">
-                            <Activity className="w-6 h-6 text-indigo-400" />
-                          </div>
-                          Recent Registrations
-                        </h3>
-                        <button
-                          onClick={() => navigate('/admin/registrations')}
-                          className="px-6 py-2.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 rounded-2xl text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] transition-all flex items-center gap-3 group"
-                        >
-                          Access Logs <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </button>
-                      </div>
-
-                      {registrations.length > 0 ? (
-                        <div className="space-y-4">
-                          {registrations.slice(0, 5).map((registration, idx) => (
-                            <div key={registration.id}
-                              className="flex items-center justify-between p-5 bg-white/[0.02] hover:bg-white/[0.05] rounded-[2rem] border border-white/5 hover:border-white/10 transition-all group animate-in fade-in slide-in-from-right-4 duration-500"
-                              style={{ animationDelay: `${300 + idx * 100}ms` }}
-                            >
-                              <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 bg-gradient-to-br from-indigo-500/20 to-violet-500/20 rounded-2xl flex items-center justify-center font-black text-indigo-400 text-xl border border-white/5 group-hover:scale-110 transition-transform shadow-xl">
-                                  {registration.full_name.charAt(0)}
-                                </div>
-                                <div>
-                                  <div className="font-black text-white text-lg group-hover:text-indigo-300 transition-colors tracking-tight">{registration.full_name}</div>
-                                  <div className="text-[10px] text-gray-500 font-black uppercase tracking-[0.1em]">{registration.email}</div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg ${
-                                  registration.status === 'pending' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' :
-                                  registration.status === 'approved' ? 'bg-cyan-500/10 text-cyan-500 border border-cyan-500/20' :
-                                  'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20'
-                                }`}>
-                                  {registration.status}
-                                </span>
-                                <div className="text-[10px] text-gray-400 font-black mt-3 uppercase tracking-tighter opacity-70">
-                                  System Node: {new Date(registration.registration_date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-20 bg-white/[0.01] rounded-[2rem] border border-dashed border-white/10">
-                          <div className="bg-white/5 w-20 h-20 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 border border-white/5 shadow-inner">
-                            <Users className="w-10 h-10 text-gray-700" />
-                          </div>
-                          <p className="text-gray-500 text-xs font-black uppercase tracking-[0.3em]">No activity streams detected</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Team Pulse & Applications */}
-                    <div className="grid md:grid-cols-2 gap-8">
-                      <div className="rico-glass-card rounded-[2.5rem] p-8 group animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
-                        <h3 className="text-lg font-black text-white mb-8 flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-lg shadow-blue-500/5">
-                            <Users className="w-6 h-6 text-blue-400" />
-                          </div>
-                          Personnel Matrix
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          {[
-                            { label: 'Core Team', val: coreTeamMembers?.length || 0, color: 'text-blue-400' },
-                            { label: 'Committees', val: coreCommittees?.length || 0, color: 'text-indigo-400' },
-                            { label: 'Live Band', val: bandMembers?.length || 0, color: 'text-indigo-400' },
-                            { label: 'Guest Artists', val: guestArtists?.length || 0, color: 'text-violet-400' },
-                          ].map((item) => (
-                            <div key={item.label} className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl group-hover:bg-white/[0.05] transition-all duration-500 shadow-lg">
-                              <div className={`text-3xl font-black ${item.color} drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] mb-1`}>{item.val}</div>
-                              <div className="text-gray-500 text-[9px] font-black uppercase tracking-[0.2em]">{item.label}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="rico-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-400">
-                        <h3 className="text-lg font-black text-white mb-8 flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 shadow-lg shadow-indigo-500/5">
-                            <Star className="w-6 h-6 text-indigo-400" />
-                          </div>
-                          Application HUD
-                        </h3>
-                        <div className="space-y-4">
-                           <div className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:bg-white/[0.05] transition-all group/aud cursor-pointer" onClick={() => navigate('/admin/auditions')}>
-                            <div>
-                               <div className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">Band Auditions</div>
-                               <div className="text-2xl font-black text-white group-hover/aud:text-indigo-400 transition-colors">{auditions?.length || 0}</div>
-                            </div>
-                            {pendingAuditions > 0 && (
-                              <div className="bg-indigo-500/20 text-indigo-400 text-[10px] font-black px-4 py-1.5 rounded-xl uppercase border border-indigo-500/20 animate-pulse shadow-lg shadow-indigo-500/10">{pendingAuditions} Pending</div>
-                            )}
-                          </div>
-                           <div className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:bg-white/[0.05] transition-all group/mem cursor-pointer" onClick={() => navigate('/admin/memberships')}>
-                            <div>
-                               <div className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">Memberships</div>
-                               <div className="text-2xl font-black text-white group-hover/mem:text-indigo-400 transition-colors">{memberships?.length || 0}</div>
-                            </div>
-                            {pendingMemberships > 0 && (
-                              <div className="bg-indigo-500/20 text-indigo-400 text-[10px] font-black px-4 py-1.5 rounded-xl uppercase border border-indigo-500/20 animate-pulse shadow-lg shadow-indigo-500/10">{pendingMemberships} Pending</div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Sidebar Components Dashboard */}
-                  <div className="lg:col-span-1 space-y-8">
-                    {/* Quick Launchpad */}
-                    <div className="rico-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-right-8 duration-700 delay-500">
-                      <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em] mb-8 text-center">Neural Navigator</h4>
-                      <div className="grid grid-cols-2 gap-5">
-                        {[
-                          { id: 'events', label: 'Events', icon: Calendar, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-                          { id: 'gallery', label: 'Gallery', icon: Image, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-                          { id: 'sponsors', label: 'Sponsors', icon: Building, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-                          { id: 'security', label: 'Security', icon: Shield, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-                        ]
-                        .filter(item => visibleTabs.some(vt => vt.id === item.id))
-                        .map((item, idx) => (
-                          <button
-                            key={item.id}
-                            onClick={() => navigate(`/admin/${item.id}`)}
-                            className="flex flex-col items-center justify-center p-7 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:scale-[1.03] hover:bg-white/[0.06] hover:border-white/20 transition-all duration-500 group shadow-2xl animate-in fade-in slide-in-from-right-4 duration-700"
-                            style={{ animationDelay: `${700 + idx * 100}ms` }}
-                          >
-                            <div className={`w-14 h-14 ${item.bg} rounded-2xl flex items-center justify-center mb-4 group-hover:rotate-12 transition-transform shadow-inner border border-white/5`}>
-                              <item.icon size={26} className={`${item.color} drop-shadow-[0_0_12px_currentColor]`} />
-                            </div>
-                            <span className="text-[10px] font-black text-white/70 uppercase tracking-[0.2em] group-hover:text-white transition-colors">{item.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Security Card */}
-                    {!isTOTPEnabled && (
-                      <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-[2.5rem] p-8 shadow-2xl text-white relative overflow-hidden group animate-in fade-in zoom-in duration-700 delay-700">
-                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
-                        <div className="relative z-10">
-                          <h4 className="text-xl font-black mb-3 flex items-center gap-3">
-                              <AlertTriangle className="w-6 h-6 animate-pulse" />
-                              Security Alert
-                          </h4>
-                          <p className="text-white/80 text-sm mb-8 leading-relaxed font-medium">Your operator profile is unprotected. Enable Tier-1 Authentication to secure system data.</p>
-                          <button
-                            onClick={() => navigate('/admin/security')}
-                            className="w-full bg-white text-indigo-600 font-black py-4 rounded-3xl hover:bg-gray-50 transition-all flex items-center justify-center gap-3 group/btn shadow-xl"
-                          >
-                            Shield Upgrade <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Bottom Full-Width System Section */}
-                <div className="space-y-10 pt-12 border-t border-white/5">
-                  <div className="flex items-center gap-4 mb-2">
-                    <div className="p-3 bg-indigo-500/10 rounded-2xl">
-                      <Activity className="w-6 h-6 text-indigo-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-black text-white tracking-tight">Core Pulse Analytics</h3>
-                      <p className="text-gray-500 text-[10px] uppercase font-black tracking-[0.3em]">System Telemetry & Health</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="rico-glass-card rounded-[2.5rem] overflow-hidden p-1 border-white/5 hover:border-white/10 transition-colors">
-                      <ConnectionOverview />
-                    </div>
-                    <div className="rico-glass-card rounded-[2.5rem] overflow-hidden p-1 border-white/5 hover:border-white/10 transition-colors">
-                      <StorageOverview />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            {isOwner && activeTab === 'overview' && <OwnerOverview
+              name={user?.user_metadata?.full_name}
+              eventsCount={events.length}
+              registrations={registrations}
+              stats={registrationStats}
+              pendingAuditions={pendingAuditions}
+              pendingMemberships={pendingMemberships}
+              loading={registrationsLoading}
+              error={registrationsError}
+              refresh={refreshRegistrations}
+              siteClosed={!!(siteSettings?.site_closed || (siteSettings?.coming_soon_enabled && (!siteSettings.coming_soon_until || Date.now() < new Date(siteSettings.coming_soon_until).getTime())))}
+              isTOTPEnabled={isTOTPEnabled}
+              directory={[
+                { label: 'Core team', count: coreTeamMembers?.length || 0, tab: 'rico-family?section=members' },
+                { label: 'Committees', count: coreCommittees?.length || 0, tab: 'rico-family?section=committees' },
+                { label: 'Band members', count: bandMembers?.length || 0, tab: 'band' },
+                { label: 'Guest artists', count: guestArtists?.length || 0, tab: 'guest-artists' },
+                { label: 'Gallery photos', count: galleryImages?.length || 0, tab: 'gallery' },
+                { label: 'Sponsors', count: sponsors?.length || 0, tab: 'sponsors' },
+              ]}
+              diagnostics={<><ConnectionOverview /><StorageOverview /></>}
+            />}
             {(isOwner || myPermissions?.can_sports || (isCouncil && user?.email?.toLowerCase().includes('sports'))) && activeTab === 'sports-team' && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <SportsTeamManagement />
               </div>
             )}
+            {unavailableReason && <div className="owner-notice" role="status"><h2>Annual Sports mode is enabled</h2><p>{unavailableReason}</p><button className="owner-button" onClick={() => setActiveTab('annual-events')}>Manage annual events</button></div>}
             {activeTab === 'sports-seasons' && <SportsSeasonAdmin />}
-            {activeTab === 'sports-teams' && !siteSettings?.annual_sports_mode_enabled && <SportsTeamsAdmin />}
-            {activeTab === 'sports-auction' && !siteSettings?.annual_sports_mode_enabled && <SportsAuctionAdmin />}
+            {activeTab === 'sports-teams' && !unavailableReason && <SportsTeamsAdmin />}
+            {activeTab === 'sports-auction' && !unavailableReason && <SportsAuctionAdmin />}
             {activeTab === 'sports-matches' && <SportsMatchesAdmin />}
             {activeTab === 'sports-registrations' && <SportsRegistrationAdmin />}
             {activeTab === 'sports-registration-model' && <SportsRegistrationModalSettings />}
@@ -1016,22 +614,9 @@ export const AdminDashboard: React.FC = () => {
                 <SecurityManagement />
               </React.Suspense>
             )}
-            {activeTab === 'council-access' && (
-              <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Council Access...</div>}>
-                <SecurityManagement defaultTab="council" />
-              </React.Suspense>
-            )}
-            {activeTab === 'theme' && <ThemeManagement />}
-
             {activeTab === 'site-settings' && (
               <SiteSettingsPanel />
             )}
-            {activeTab === 'admin-users' && (
-              <AdminUsersPanel 
-                onManage2FA={() => setActiveTab('security')} 
-              />
-            )}
-
             {activeTab === 'announcements' && (
               <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="rico-glass-card rounded-[2rem] p-8 relative overflow-hidden">
@@ -1057,7 +642,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'homepage' && <HomepageManagement />}
             {activeTab === 'shoutouts' && <ShoutoutManagement />}
             {activeTab === 'notifications' && isOwner && <NotificationsManagement />}
-            {activeTab === 'events' && <EventsManagement />}
+            {activeTab === 'events' && (new URLSearchParams(location.search).get('edit') === 'background' ? (visibleTabs.some(tab => tab.id === 'hero-media') ? <HeroMediaManagement pageKey="events" /> : <div className="owner-notice" role="alert">Background editing requires Hero Media page access.</div>) : <EventsManagement />)}
             {activeTab === 'homebound' && <HomeBoundSettings />}
             {activeTab === 'schedule' && <ScheduleManagement />}
             {activeTab === 'gallery' && <GalleryManagement />}
@@ -1083,16 +668,13 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'auditions' && <AuditionManagement />}
             {activeTab === 'memberships' && <MembershipManagement />}
             {activeTab === 'form-settings' && <FormSettingsManagement />}
-            {activeTab === 'security' && <SecuritySettings />}
-            {activeTab === 'admin-passcodes' && isOwner && <AdminPasscodesPanel />}
-            {activeTab === 'owner-approvals' && <OwnerApprovalCenter />}
-            {activeTab === 'coordinator-passwords' && <CoordinatorPasswordManagement />}
+            {activeTab === 'security' && <PasswordsAccessCenter />}
             {activeTab === 'audit-logs' && isOwner && <AuditLogPanel />}
             {activeTab === 'face-indexing' && isOwner && <GalleryFaceIndexer />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
   {activeTab === 'about' && <AboutSettings />}
-            </React.Suspense>
+            </React.Suspense>}
     </AdminLayout>
   );
 };

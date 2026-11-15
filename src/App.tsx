@@ -1,7 +1,8 @@
-import React, { useMemo, useState, useEffect, lazy, PropsWithChildren, ReactElement } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { SITE_FEATURES } from './constants/siteFeatures';
+import React, { useMemo, useState, useEffect, useLayoutEffect, useSyncExternalStore, lazy, PropsWithChildren, ReactElement } from 'react';
 console.log('[App.tsx] Module loaded');
-import { createBrowserRouter, RouterProvider, Outlet, useLocation } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { pendingLandingPath } from './utils/dataScope';
 import { HelmetProvider } from 'react-helmet-async';
 // components (lazy loaded)
 const Navbar = lazy(() => import('./components/Navbar').then(m => ({ default: m.Navbar })));
@@ -9,7 +10,8 @@ const Footer = lazy(() => import('./components/Footer').then(m => ({ default: m.
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { StudentAuthProvider } from './context/StudentAuthContext';
-import { DataProvider, useData } from './context/DataContext';
+import { DataProvider } from './context/DataContext';
+import { useCoreData } from './context/CoreDataContext';
 import { CombinedDataProvider, useSystemStatus } from './context/CombinedDataProvider';
 import { ToastProvider } from './components/ToastProvider';
 import { SavingProgressProvider } from './context/SavingProgressContext';
@@ -24,12 +26,18 @@ import { AudioController } from './components/ui/AudioController';
 import { SmoothScroll } from './components/ui/SmoothScroll';
 
 import LockedPageGuard from './components/LockedPageGuard';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { SiteSpiderEffects } from './components/ui/spider/SiteSpiderEffects';
+import { SpiderWebTransition } from './components/ui/spider/SpiderWebTransition';
+import { recordDocumentRoute } from './components/cinematic/documentIntro';
+import { FestivalLoadingPreview } from './components/ui/FestivalLoadingPreview';
+import { FestivalSceneProvider, useFestivalSceneReadiness } from './components/ui/festival/FestivalSceneReadiness';
+import { isPortalRoute, isFestivalRoute } from './utils/portalRoutes';
 import { EventCartProvider } from './context/EventCartContext';
-import { Preloader } from './components/ui/Preloader';
 
 // lazy loads
 const Home = lazy(() => import('./pages/Home').then(m => ({ default: m.Home }))) as unknown as React.ComponentType<any>;
+const CinematicHome = lazy(() => import('./components/cinematic/CinematicHome'));
 const Events = lazy(() => import('./pages/Events').then(m => ({ default: (m as any).Events }))) as unknown as React.ComponentType<any>;
 const Schedule = lazy(() => import('./pages/Schedule').then(m => ({ default: (m as any).Schedule }))) as unknown as React.ComponentType<any>;
 const Gallery = lazy(() => import('./pages/Gallery').then(m => ({ default: (m as any).Gallery }))) as unknown as React.ComponentType<any>;
@@ -62,10 +70,10 @@ const SecurityDashboard = lazy(() => import('./pages/SecurityDashboard').then(m 
 const ComingSoon = lazy(() => import('./pages/ComingSoon').then(m => ({ default: (m as any).ComingSoon }))) as unknown as React.ComponentType<any>;
 const NotFound = lazy(() => import('./pages/NotFound').then(m => ({ default: (m as any).NotFound }))) as unknown as React.ComponentType<any>;
 const MasterGate = lazy(() => import('./pages/MasterGate').then(m => ({ default: (m as any).MasterGate }))) as unknown as React.ComponentType<any>;
-const SportsLogin = lazy(() => import('./pages/SportsLogin').then(m => ({ default: (m as any).SportsLogin }))) as unknown as React.ComponentType<any>;
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword')) as unknown as React.ComponentType<any>;
 const StudentForgotPassword = lazy(() => import('./pages/StudentForgotPassword').then(m => ({ default: m.StudentForgotPassword }))) as unknown as React.ComponentType<any>;
 const StudentResetPassword = lazy(() => import('./pages/StudentResetPassword').then(m => ({ default: m.StudentResetPassword }))) as unknown as React.ComponentType<any>;
+const AcceptAdminInvite = lazy(() => import('./pages/AcceptAdminInvite'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword')) as unknown as React.ComponentType<any>;
 const CRLogin = lazy(() => import('./pages/CRLogin').then(m => ({ default: m.CRLogin }))) as unknown as React.ComponentType<any>;
 const CRDashboard = lazy(() => import('./pages/CRDashboard').then(m => ({ default: m.CRDashboard }))) as unknown as React.ComponentType<any>;
@@ -100,19 +108,15 @@ class RouteErrorBoundary extends React.Component<PropsWithChildren<{}>, { hasErr
 
 const AppShell: React.FC = () => {
   const location = useLocation();
+  const { theme } = useTheme();
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const core = useData();
+  const core = useCoreData();
+  const { setSettled } = useFestivalSceneReadiness();
   useSystemStatus();
   const [msg, setMsg] = useState<string | null>(null);
 
-  const isAdminOrOwner = useMemo(() => {
-    try {
-      const uid = user?.id;
-      if (!uid || !Array.isArray(core.adminUsers)) return false;
-      if (user?.user_metadata?.is_super_admin) return true;
-      return !!core.adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
-    } catch { return false; }
-  }, [user, core.adminUsers]);
+  const isAdminOrOwner = useMemo(() => ['owner', 'admin'].includes(user?.user_metadata?.role), [user]);
 
 
   useEffect(() => {
@@ -147,24 +151,17 @@ const AppShell: React.FC = () => {
                                location.pathname.startsWith('/student/forgot-password') || 
                                location.pathname.startsWith('/student/reset-password');
   const isDashboardRoute = location.pathname.startsWith('/dashboard');
+  const isStaffRoute = ['/coordinator', '/cr/', '/security-', '/sports-admin', '/forgot-password', '/reset-password', '/master-node-access'].some(path => location.pathname.startsWith(path));
 
-  // Handling Dynamic Landing Page Redirect (Once per session for guests)
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (core.loading) return; 
-
-    const landing = (core.siteSettings as any)?.default_landing_page;
-    const isRoot = location.pathname === '/';
-    
-    // Check if we have already landed in this session
-    const hasAlreadyLanded = sessionStorage.getItem('rico_landed');
-    
-    if (isRoot && landing && landing !== '/' && !isAdminOrOwner && !hasAlreadyLanded) {
-      console.log('[App] Performing initial landing redirect:', landing);
-      sessionStorage.setItem('rico_landed', 'true');
-      window.location.replace(landing);
-    }
-  }, [location.pathname, core.siteSettings, isAdminOrOwner, core.loading]);
+  const landingPath = pendingLandingPath(location.pathname, (core.siteSettings as any)?.default_landing_page, isAdminOrOwner);
+  useEffect(() => {
+    if (core.isLoaded && gateActive && !isAdminOrOwner) setSettled(true);
+  }, [core.isLoaded, gateActive, isAdminOrOwner, setSettled]);
+  useEffect(() => {
+    if (!core.isLoaded || !landingPath) return;
+    try { sessionStorage.setItem('rico_landed', 'true'); } catch { /* Optional browser storage. */ }
+    navigate(landingPath, { replace: true });
+  }, [core.isLoaded, landingPath, navigate]);
 
   // Dynamic Favicon Update: Automatically syncs the browser favicon with the branded logo
   React.useEffect(() => {
@@ -198,7 +195,8 @@ const AppShell: React.FC = () => {
 
   return (
     <RouteErrorBoundary>
-      <div className="min-h-screen bg-[#0a0a0a]">
+      <div className={`min-h-screen bg-[#0a0a0a]${isFestivalRoute(location.pathname) ? ' festival-site-shell' : ''}`}>
+        <SpiderWebTransition enabled={theme === 'spiderman' && core.isLoaded && isFestivalRoute(location.pathname)} />
         <NoiseOverlay />
         <BollywoodThemeOverlay />
         <AudioController />
@@ -225,8 +223,8 @@ const AppShell: React.FC = () => {
         </React.Suspense>
 
         
-        <main id="main-content" className="relative">
-          {gateActive && !isAdminRoute && !isLoginRoute && !isStudentLoginRoute && !isDashboardRoute && !isAdminOrOwner ? (
+        <main id="main-content" className={`relative${!isPortalRoute(location.pathname) ? ' festival-public-content' : ''}`}>
+          {(!core.isLoaded && !isStaffRoute && !isAdminRoute && !isLoginRoute && !isStudentLoginRoute && !isDashboardRoute) || landingPath ? (theme === 'spiderman' ? <FestivalLoadingPreview /> : null) : gateActive && !isStaffRoute && !isAdminRoute && !isLoginRoute && !isStudentLoginRoute && !isDashboardRoute && !isAdminOrOwner ? (
             <React.Suspense fallback={<div className="min-h-screen" />}><ComingSoon /></React.Suspense>
           ) : (
             <Outlet />
@@ -249,14 +247,14 @@ const InnerRouter: React.FC = () => {
       path: '/',
       element: <AppShell />,
       children: [
-        { index: true, element: <React.Suspense fallback={<div className="min-h-screen bg-[#0a0a0a]" />}><LockedPageGuard pageKey="home"><Home /></LockedPageGuard></React.Suspense> },
+        { index: true, element: <React.Suspense fallback={<FestivalLoadingPreview />}><LockedPageGuard pageKey="home"><CinematicHome><Home /></CinematicHome></LockedPageGuard></React.Suspense> },
         { path: 'events', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="events"><Events /></LockedPageGuard></React.Suspense> },
         { path: 'schedule', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="schedule"><Schedule /></LockedPageGuard></React.Suspense> },
         { path: 'gallery', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="gallery"><Gallery /></LockedPageGuard></React.Suspense> },
         { path: 'home-bound', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="home-bound"><HomeBound /></LockedPageGuard></React.Suspense> },
         { path: 'rico-family', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="rico-family"><RicoFamily /></LockedPageGuard></React.Suspense> },
         { path: 'sponsors', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="sponsors"><Sponsors /></LockedPageGuard></React.Suspense> },
-        { path: 'sports', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="sports"><Sports /></LockedPageGuard></React.Suspense> },
+        { path: 'sports', element: SITE_FEATURES.sports ? <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="sports"><Sports /></LockedPageGuard></React.Suspense> : <Navigate to="/" replace /> },
         { path: 'login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Login /></React.Suspense> },
         { path: 'student/login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><StudentLogin /></React.Suspense> },
         { 
@@ -268,7 +266,7 @@ const InnerRouter: React.FC = () => {
             { path: 'messages', element: <React.Suspense fallback={null}><DashboardMessages /></React.Suspense> },
             { path: 'passes', element: <React.Suspense fallback={null}><DashboardPasses /></React.Suspense> },
             { path: 'events', element: <React.Suspense fallback={null}><DashboardEvents /></React.Suspense> },
-            { path: 'sports', element: <React.Suspense fallback={null}><DashboardSports /></React.Suspense> },
+            { path: 'sports', element: SITE_FEATURES.sports ? <React.Suspense fallback={null}><DashboardSports /></React.Suspense> : <Navigate to="/dashboard" replace /> },
             { path: 'vibes', element: <React.Suspense fallback={null}><DashboardVibes /></React.Suspense> },
             { path: 'socialfeed', element: <React.Suspense fallback={null}><DashboardSocialFeed /></React.Suspense> },
             { path: 'community', element: <React.Suspense fallback={null}><DashboardCommunity /></React.Suspense> },
@@ -282,7 +280,7 @@ const InnerRouter: React.FC = () => {
         { path: 'cr/login', element: <React.Suspense fallback={null}><CRLogin /></React.Suspense> },
         { path: 'cr/dashboard', element: <React.Suspense fallback={null}><CRDashboard /></React.Suspense> },
         { path: 'admin/*', element: <React.Suspense fallback={null}><AdminDashboard /></React.Suspense> },
-        { path: 'sports-admin', element: <React.Suspense fallback={null}><SportsLogin /></React.Suspense> },
+        { path: 'sports-admin', element: <Navigate to="/login" replace /> },
         { path: 'security-login', element: <React.Suspense fallback={null}><SecurityLogin /></React.Suspense> },
         { path: 'security-dashboard', element: <React.Suspense fallback={null}><SecurityDashboard /></React.Suspense> },
         { path: 'health', element: <React.Suspense fallback={null}><Home /></React.Suspense> },
@@ -294,64 +292,49 @@ const InnerRouter: React.FC = () => {
         { path: '*', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><NotFound /></React.Suspense> }
       ]
     },
+    { path: 'accept-admin-invite', element: <React.Suspense fallback={null}><AcceptAdminInvite /></React.Suspense> },
     { path: 'council', element: <React.Suspense fallback={null}><CouncilLogin /></React.Suspense> },
     { path: 'council-dashboard', element: <React.Suspense fallback={null}><CouncilDashboard /></React.Suspense> }
   ], {
     future: { v7_startTransition: true, v7_relativeSplatPath: true }
   } as any), []);
 
-  const { isReady, stage } = useSystemStatus();
-  const [showPreloader, setShowPreloader] = useState(true);
+  const { isReady, setPathname } = useSystemStatus();
+  const { theme } = useTheme();
+  useEffect(() => router.subscribe(state => setPathname(state.location.pathname)), [router, setPathname]);
 
-  // Bypass preloader completely for staff portals, login pages, and dashboards to make them load instantly
-  const isDashboardOrPortal = typeof window !== 'undefined' && (() => {
-    const path = window.location.pathname;
-    return path.startsWith('/dashboard') ||
-      path.startsWith('/admin') ||
-      path.startsWith('/coordinator') ||
-      path.startsWith('/cr') ||
-      path.startsWith('/security') ||
-      path.startsWith('/council') ||
-      path === '/login' ||
-      path === '/student/login';
-  })();
+  // Subscribe to the router so entering a portal unmounts effects immediately on navigation.
+  const pathname = useSyncExternalStore(router.subscribe, () => router.state.location.pathname);
+  const isDashboardOrPortal = isPortalRoute(pathname);
+  useLayoutEffect(() => {
+    recordDocumentRoute(pathname);
+    const scope = isFestivalRoute(pathname) ? 'festival' : 'staff';
+    document.documentElement.dataset.festivalScope = scope;
+    document.body.dataset.festivalScope = scope;
+    return () => {
+      delete document.documentElement.dataset.festivalScope;
+      delete document.body.dataset.festivalScope;
+    };
+  }, [pathname]);
 
-  const actuallyShowLoader = !isDashboardOrPortal && (showPreloader || !isReady);
+  const actuallyShowLoader = !isDashboardOrPortal && !isReady;
 
   return (
     <>
-      <AnimatePresence>
-        {actuallyShowLoader && (
-          <Preloader 
-            loading={!isReady} 
-            stage={stage} 
-            onComplete={() => setShowPreloader(false)} 
-          />
+      <FestivalSceneProvider required={pathname === '/' && theme === 'spiderman'}>
+        <SiteSpiderEffects pathname={pathname} theme={theme} isReady={isReady} />
+        {actuallyShowLoader && theme !== 'spiderman' && (
+          <div role="progressbar" aria-label="Loading" className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0a0a0a]">
+            <span className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-400/20 border-t-cyan-400" />
+          </div>
         )}
-      </AnimatePresence>
-      <RouterProvider router={router} />
+        <RouterProvider router={router} />
+      </FestivalSceneProvider>
     </>
   );
 };
 
 export default function App() {
-  // Quick preview override: if the URL contains ?theme=bollywood or ?theme=cyberpunk
-  // we force the body class so you can preview the landing page without changing site settings.
-  React.useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const forced = params.get('theme');
-      if (forced === 'bollywood') {
-        document.body.classList.add('theme-bollywood');
-        document.body.classList.remove('theme-cyberpunk');
-      } else if (forced === 'cyberpunk') {
-        document.body.classList.add('theme-cyberpunk');
-        document.body.classList.remove('theme-bollywood');
-      }
-    } catch (e) {
-      // ignore if window is unavailable
-    }
-  }, []);
 
   return (
     <ErrorBoundary>

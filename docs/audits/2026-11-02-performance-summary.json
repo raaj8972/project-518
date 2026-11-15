@@ -1,0 +1,106 @@
+{
+  "scope": "local only; production means local production-build preview",
+  "runs": [
+    {
+      "file": "2026-11-02-performance-browser-dev-home-normal-cache.json",
+      "mode": "dev",
+      "route": "/",
+      "conditions": "fresh isolated desktop headless browser; browser cache enabled (starts empty); service workers blocked; no CPU/network throttle; 25s after DOMContentLoaded; anonymous, no form submissions",
+      "collectedAt": "2026-11-02T11:07:34.600Z",
+      "totalRequests": 1722,
+      "transferBytes": 25463224,
+      "scriptRequests": 1568,
+      "scriptTransferBytes": 20471828,
+      "lucideModuleRequests": 1439,
+      "dbGetRequests": 63,
+      "dbPreflightRequests": 63,
+      "dbReadMedianMs": 245,
+      "dbReadP95Ms": 667,
+      "htmlTtfbMs": 16.5,
+      "firstContentfulPaintMs": 2076,
+      "loaderRemovedMs": 11685,
+      "longTasks": 2,
+      "longTaskTotalMs": 385,
+      "failures": [
+        {
+          "url": "https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/security_settings_public",
+          "status": 404
+        },
+        {
+          "url": "https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/security_settings_public",
+          "status": 404
+        },
+        {
+          "url": "https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/hero_media",
+          "status": 400
+        },
+        {
+          "url": "https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/hero_media",
+          "status": 400
+        }
+      ]
+    },
+    {
+      "file": "2026-11-02-performance-browser-production-home-normal-cache.json",
+      "mode": "production",
+      "route": "/",
+      "conditions": "fresh isolated desktop headless browser; browser cache enabled (starts empty); service workers blocked; no CPU/network throttle; 25s after DOMContentLoaded; anonymous, no form submissions",
+      "collectedAt": "2026-11-02T11:06:44.680Z",
+      "totalRequests": 184,
+      "transferBytes": 6433044,
+      "scriptRequests": 57,
+      "scriptTransferBytes": 1580158,
+      "lucideModuleRequests": 0,
+      "dbGetRequests": 50,
+      "dbPreflightRequests": 50,
+      "dbReadMedianMs": 256,
+      "dbReadP95Ms": 506,
+      "htmlTtfbMs": 1.5999999940395355,
+      "firstContentfulPaintMs": 776,
+      "loaderRemovedMs": 10812.59999999404,
+      "longTasks": 4,
+      "longTaskTotalMs": 591,
+      "failures": [
+        {
+          "url": "https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/security_settings_public",
+          "status": 404
+        },
+        {
+          "url": "https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/hero_media",
+          "status": 400
+        }
+      ]
+    },
+    {
+      "file": "2026-11-02-performance-browser-production-events-normal-cache.json",
+      "mode": "production",
+      "route": "/events",
+      "conditions": "fresh isolated desktop headless browser; browser cache enabled (starts empty); service workers blocked; no CPU/network throttle; 25s after DOMContentLoaded; anonymous, no form submissions",
+      "collectedAt": "2026-11-02T11:05:19.840Z",
+      "totalRequests": 146,
+      "transferBytes": 2211025,
+      "scriptRequests": 33,
+      "scriptTransferBytes": 1089494,
+      "lucideModuleRequests": 0,
+      "dbGetRequests": 45,
+      "dbPreflightRequests": 45,
+      "dbReadMedianMs": 263,
+      "dbReadP95Ms": 902,
+      "htmlTtfbMs": 2.800000011920929,
+      "firstContentfulPaintMs": 944,
+      "loaderRemovedMs": 7140.299999982119,
+      "longTasks": 1,
+      "longTaskTotalMs": 89,
+      "failures": [
+        {
+          "url": "https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/security_settings_public",
+          "status": 404
+        },
+        {
+          "url": "https://isfqhascrdzaoebhuohs.supabase.co/rest/v1/registration_rounds",
+          "status": 400
+        }
+      ]
+    }
+  ]
+}

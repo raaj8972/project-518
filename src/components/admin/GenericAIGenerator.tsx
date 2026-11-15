@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Loader2, AlertCircle, RefreshCw, Wand2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -9,6 +9,7 @@ interface GenericAIGeneratorProps {
   systemInstruction: string;
   onGenerated: (data: any) => void;
   className?: string;
+  onGeneratingChange?: (busy: boolean) => void;
 }
 
 export const GenericAIGenerator: React.FC<GenericAIGeneratorProps> = ({
@@ -17,12 +18,14 @@ export const GenericAIGenerator: React.FC<GenericAIGeneratorProps> = ({
   placeholder,
   systemInstruction,
   onGenerated,
-  className = ""
+  className = "",
+  onGeneratingChange
 }) => {
   const { getValidToken } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => { onGeneratingChange?.(isGenerating); return () => onGeneratingChange?.(false); }, [isGenerating,onGeneratingChange]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -113,7 +116,7 @@ export const GenericAIGenerator: React.FC<GenericAIGeneratorProps> = ({
           />
           <div className="absolute bottom-2 right-2 flex items-center gap-2">
             <span className="text-[9px] text-gray-500 font-bold uppercase tracking-widest hidden sm:inline-block">Cmd + Enter to Generate</span>
-            <button
+            <button type="button"
               onClick={handleGenerate}
               disabled={isGenerating || !prompt.trim()}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
@@ -142,7 +145,7 @@ export const GenericAIGenerator: React.FC<GenericAIGeneratorProps> = ({
             <AlertCircle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
             <div className="flex-grow">
               <p className="text-xs text-red-400 font-bold leading-tight">{error}</p>
-              <button 
+              <button type="button"
                 onClick={handleGenerate} 
                 className="mt-1 flex items-center gap-1 text-[10px] text-red-300 hover:text-red-200 font-black uppercase tracking-widest transition-colors"
               >

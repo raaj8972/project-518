@@ -1614,6 +1614,9 @@ export type Database = {
       }
       guest_artists: {
         Row: {
+          card_media_url: string | null
+          card_media_is_video: boolean
+          detail_music_url: string | null
           achievements: string[] | null
           countdown_enabled: boolean | null
           created_at: string | null
@@ -1637,6 +1640,9 @@ export type Database = {
           youtube_url: string | null
         }
         Insert: {
+          card_media_url?: string | null
+          card_media_is_video?: boolean
+          detail_music_url?: string | null
           achievements?: string[] | null
           countdown_enabled?: boolean | null
           created_at?: string | null
@@ -1660,6 +1666,9 @@ export type Database = {
           youtube_url?: string | null
         }
         Update: {
+          card_media_url?: string | null
+          card_media_is_video?: boolean
+          detail_music_url?: string | null
           achievements?: string[] | null
           countdown_enabled?: boolean | null
           created_at?: string | null

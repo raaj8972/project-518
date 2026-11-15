@@ -23,6 +23,8 @@ export const HomeBound: React.FC = () => {
       id: String(member.id)
     }));
 
+  const musicUrl = enabledBandMembers.map(member => member.social_links?.youtube || member.social_links?.spotify).find(Boolean);
+
   return (
     <div className="bg-[#121212] text-white min-h-screen font-sans antialiased selection:bg-green-500/30 pb-20">
       <SEO 
@@ -68,7 +70,7 @@ export const HomeBound: React.FC = () => {
 
         {/* PLAY CONTROLS */}
         <div className="flex items-center gap-6 mb-12">
-           <button className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-green-500 hover:bg-green-400 hover:scale-105 transition-all flex items-center justify-center shadow-[0_8px_24px_rgba(29,185,84,0.3)]">
+           <button aria-label="Listen to Homebound" disabled={!musicUrl} title={musicUrl ? "Open Homebound music" : "Music has not been linked yet"} onClick={() => { if (musicUrl) window.open(musicUrl, "_blank", "noopener,noreferrer"); }} className="disabled:opacity-30 disabled:cursor-not-allowed w-14 h-14 md:w-16 md:h-16 rounded-full bg-green-500 hover:bg-green-400 hover:scale-105 transition-all flex items-center justify-center shadow-[0_8px_24px_rgba(29,185,84,0.3)]">
              <Play fill="black" size={28} className="ml-1 text-black" />
            </button>
            

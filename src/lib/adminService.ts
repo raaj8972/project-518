@@ -1,10 +1,12 @@
 // Firebase imports removed for Supabase Auth migration
 
-import { dualInsert, dualUpdate, dualDelete, dualRead, dualUpsert } from './dualDb';
+import { dualInsert, dualUpdate, dualRead } from './dualDb';
 import { isMasterOwner } from '../constants/owners';
 
 
 export interface AdminPermissions {
+  allowed_pages?: string[];
+  page_access_configured?: boolean;
   can_events?: boolean;
   can_schedule?: boolean;
   can_gallery?: boolean;
@@ -40,58 +42,17 @@ export const AdminService = {
   /**
    * Orchestrates the creation of a new admin account.
    */
-  async createPrimeAdmin(email: string, password: string, role: 'owner' | 'admin' = 'admin', permissions: AdminPermissions = {}, token: string, displayName?: string): Promise<AdminUser> {
-    console.log(`[AdminService] Creating Prime Admin: ${email} with role: ${role} and name: ${displayName}`);
-    
-    // 1. Create Identity via Backend Service (Supabase Auth)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // Increased to 60s
-
-    try {
-      const res = await fetch('/.netlify/functions/create-admin', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-Master-Key': import.meta.env.VITE_MASTER_BYPASS_KEY || ''
-        },
-        body: JSON.stringify({ 
-          email: email.trim().toLowerCase(), 
-          password,
-          role,
-          displayName,
-          permissions
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Identity Service Error: ${errorText || 'Unknown failure'}`);
-      }
-
-      const responseData = await res.json();
-      if (!responseData.success || !responseData.user) throw new Error('Failed to create identity correctly.');
-
-      const userId = responseData.user.user_id;
-      const now = new Date().toISOString();
-
-      // Return synthetic AdminUser object for UI update
-      return { 
-        user_id: userId,
-        email: email.trim().toLowerCase(),
-        display_name: displayName,
-        role: role,
-        is_primary: role === 'owner',
-        created_at: now,
-        permissions 
-      };
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      throw err;
-    }
+  async inviteAdmin(email: string, displayName: string, role: 'owner' | 'admin', allowedPages: string[], token: string) {
+    const response = await fetch('/api/create-admin', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ email: email.trim().toLowerCase(), displayName, role, allowedPages }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not send admin invitation');
+    return result as { success: boolean; invitation: { id: string; email: string }; delivery: string; message: string };
+  },
+  async manageInvitations(action: string, payload: Record<string, unknown>, token: string) {
+    const response = await fetch('/api/admin-invitations', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ action, ...payload }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not update admin access');
+    return result;
   },
 
 
@@ -134,45 +95,10 @@ export const AdminService = {
    * Note: This deletes data records. Actual Auth deletion is usually handled via Admin SDK (not browser).
    */
   async removeAdmin(userId: string, token?: string): Promise<void> {
-    const { data: user } = await dualRead({ table: 'admin_users', eq: ['user_id', userId], maybeSingle: true });
-    if (user?.email && isMasterOwner(user.email)) {
-      throw new Error('SYSTEM CRITICAL: Master Owner cannot be terminated from the core node.');
-    }
-
-    // 1. Revoke UI/DB permissions immediately
-    await Promise.all([
-      dualDelete('admin_users', userId, 'user_id'),
-      dualDelete('admin_permissions', userId, 'user_id')
-    ]);
-
-    // 2. Purge from Backend Identity (Supabase Auth + Firebase Auth)
-    if (token) {
-      console.log(`[AdminService] Requesting backend identity purge for: ${userId}`);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s
-      try {
-        const res = await fetch('/.netlify/functions/delete-admin-user', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'X-Master-Key': import.meta.env.VITE_MASTER_BYPASS_KEY || ''
-          },
-          body: JSON.stringify({ user_id: userId }),
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        if (!res.ok) {
-          const text = await res.text();
-          console.warn('[AdminService] Backend identity purge returned error:', text);
-          throw new Error(text || 'Deactivation failed');
-        }
-      } catch (e: any) {
-        clearTimeout(timeoutId);
-        console.error('[AdminService] Backend identity purge failed:', e);
-        throw e;
-      }
-    }
+    if (!token) throw new Error('Sign in as an owner to remove admin accounts.');
+    const response = await fetch('/api/delete-admin-user', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ user_id: userId }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not revoke admin access');
   },
 
   /**
@@ -265,7 +191,7 @@ export const AdminService = {
         headers: { 
           'Content-Type': 'application/json', 
           'Authorization': `Bearer ${token}`,
-          'X-Master-Key': import.meta.env.VITE_MASTER_BYPASS_KEY || ''
+
         },
         body: JSON.stringify({ userId, role }),
         signal: controller.signal
@@ -296,7 +222,7 @@ export const AdminService = {
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'X-Master-Key': import.meta.env.VITE_MASTER_BYPASS_KEY || ''
+
         },
         body: JSON.stringify({ userId, password }),
         signal: controller.signal
@@ -404,46 +330,15 @@ export const AdminService = {
       } };
     }
     
-    // Direct lookup by ID is O(1) and fetches only 1 record
-    const key = email.toLowerCase().trim().replace(/[.@]/g, '_');
-    const { data } = await dualRead({ 
-      table: 'allowed_admins', 
-      eq: ['id', key],
-      maybeSingle: true 
-    });
-
-    console.log(`[AdminService] isEmailAllowed check for ${email}:`, { key, foundInWhitelist: !!data, role: data?.role });
-
-    if (data) {
-      return { allowed: true, role: data.role || 'admin', display_name: data.display_name, permissions: data.permissions || {} };
-    }
-    
-    // Safety Fallback: If user already exists in the admin_users table, they are clearly allowed
-    const searchEmail = email.toLowerCase().trim();
-    const { data: existingUser } = await dualRead({ 
-      table: 'admin_users', 
-      eq: ['email', searchEmail],
-      maybeSingle: true 
-    });
-
-    if (existingUser) {
-      console.log(`[AdminService] isEmailAllowed - Found user in admin_users fallback:`, { email, role: existingUser.role });
-      return { allowed: true, role: existingUser.role || 'admin', display_name: existingUser.display_name };
-    }
-    
-    console.warn(`[AdminService] isEmailAllowed - NO MATCH found for ${email} in any table.`);
-    
-    // Fallback: also try to query by exact email string just in case the ID format got messed up
-    const { data: fallbackData } = await dualRead({ 
-      table: 'allowed_admins', 
-      eq: ['email', email.toLowerCase().trim()],
-      maybeSingle: true 
-    });
-
-    if (fallbackData) {
-       return { allowed: true, role: fallbackData.role || 'admin', display_name: fallbackData.display_name };
-    }
-
+    // Access checks always hit the authoritative tables; cached rows must not restore a deleted account.
+    const { supabase } = await import('./supabase');
+    const normalized = email.trim().toLowerCase();
+    const {data: member,error: memberError} = await supabase.from('admin_users').select('user_id,role,display_name').eq('email',normalized).maybeSingle();
+    if(memberError) throw memberError;
+    if(member) return {allowed:true,role:member.role || 'admin',display_name:member.display_name || undefined};
+    const {data: permitted,error: permitError} = await supabase.from('allowed_admins').select('role,display_name,permissions').eq('email',normalized).maybeSingle();
+    if(permitError) throw permitError;
+    if(permitted) return {allowed:true,role:permitted.role || 'admin',display_name:permitted.display_name || undefined,permissions:permitted.permissions as AdminPermissions || {}};
     return { allowed: false, role: '' };
   }
 };

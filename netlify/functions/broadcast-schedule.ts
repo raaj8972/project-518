@@ -19,13 +19,14 @@ export default async (req: Request) => {
 
     const { getSupabaseClient } = await import('./lib/supabase');
     const supabaseAdmin = getSupabaseClient(true);
-    const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (!user) return new Response(JSON.stringify({ error: 'Invalid Token' }), { status: 401, headers });
-
-    const { data: adminUser } = await supabaseAdmin.from('admin_users').select('role').eq('user_id', user.id).single();
-    if (!adminUser) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 403, headers });
-
-    const { provider = 'smtp' } = await req.json();
+    const scheduled = !!process.env.CRON_SECRET && req.method === 'GET' && authHeader === `Bearer ${process.env.CRON_SECRET}`;
+    if (!scheduled) {
+      if (req.method !== 'POST') return Response.json({ error: 'Method not allowed' }, { status: 405, headers });
+      const { verifyAdmin } = await import('./lib/auth-verify');
+      const { isAdmin } = await verifyAdmin(authHeader, supabaseAdmin);
+      if (!isAdmin) return Response.json({ error: 'Administrator access required' }, { status: 403, headers });
+    }
+    const { provider = 'smtp' } = scheduled ? {} : await req.json();
 
     // Fetch ALL distinct emails from approved registrations
     const { data: registrations } = await supabaseAdmin

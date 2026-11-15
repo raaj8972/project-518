@@ -12,6 +12,7 @@ interface Announcement {
   sender_role: string;
   sender_id: string;
   event_id: string | null;
+  category?: string;
   created_at: string;
 }
 
@@ -82,6 +83,7 @@ const AnnouncementsTicker: React.FC = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newAnn = payload.new as Announcement;
+          if (newAnn.category && newAnn.category !== 'general') return;
           if (newAnn.sender_role === 'admin' || (newAnn.event_id && registeredEventIds.has(String(newAnn.event_id)))) {
             setAnnouncements((prev: any) => [newAnn, ...prev].slice(0, 10));
           }

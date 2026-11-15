@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { getRankingData, subscribeRankingData, invalidateRankingData } from '../services/rankingData';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 export interface TopStarProfile {
   id: string;
@@ -28,40 +28,18 @@ export interface TopStarProfile {
 
 export function useTopStars(limit: number = 20) {
   const [stars, setStars] = useState<TopStarProfile[]>([]);
-  const [majorEvents, setMajorEvents] = useState<string[]>(['Fashion Show', 'Treasure Hunt']);
+  const [majorEvents, setMajorEvents] = useState<string[]>([]);
+  const requestId = useRef(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchStars = useCallback(async () => {
+    const request = ++requestId.current;
+    setError(null);
     try {
-      // 1. Fetch profiles and student_xp
-      const { data: profiles, error: pError } = await supabase
-        .from('profiles')
-        .select(`
-          id, 
-          full_name, 
-          username,
-          avatar_url, 
-          aura_color,
-          background_url,
-          batch, 
-          likes_count, 
-          student_xp ( tier, xp_total )
-        `)
-        .eq('is_approved', true)
-        .not('full_name', 'is', null);
-
-      if (pError) throw pError;
-
-      // 2. Fetch registrations, rounds, and event rounds in parallel
-      const [regsResponse, roundsResponse, eventRoundsResponse] = await Promise.all([
-        supabase.from('registrations').select('id, user_id, status, is_active, event_id, event:events(id, title)'),
-        supabase.from('registration_rounds').select('id, registration_id, status, round_id, prize_rank'),
-        supabase.from('event_rounds').select('id, name')
-      ]);
-
-      const regs = regsResponse.data || [];
-      const rounds = roundsResponse.data || [];
-      const eventRounds = eventRoundsResponse.data || [];
+      const { profiles: approvedProfiles, registrations: regs, rounds, eventRounds } = await getRankingData();
+      if (request !== requestId.current) return;
+      const profiles = approvedProfiles.filter(profile => profile.full_name !== null);
 
       // Create a map of round_id to round name
       const roundNameMap: Record<string, string> = {};
@@ -74,7 +52,7 @@ export function useTopStars(limit: number = 20) {
       regs.forEach(r => {
         if (r.status === 'approved' && r.event_id && r.event) {
           if (!eventCounts[r.event_id]) {
-            eventCounts[r.event_id] = { title: r.event.title, count: 0 };
+            eventCounts[r.event_id] = { title: (Array.isArray(r.event) ? r.event[0]?.title : (r.event as { title: string }).title) || '', count: 0 };
           }
           eventCounts[r.event_id].count++;
         }
@@ -91,7 +69,7 @@ export function useTopStars(limit: number = 20) {
       // Fallback if there are less than 2 events with approved registrations
       const finalMajorNames = computedMajorNames.length >= 2
         ? computedMajorNames
-        : [...computedMajorNames, ...['Fashion Show', 'Treasure Hunt'].slice(computedMajorNames.length)];
+        : computedMajorNames;
 
       setMajorEvents(finalMajorNames);
 
@@ -201,7 +179,7 @@ export function useTopStars(limit: number = 20) {
           };
         });
 
-        console.log('useTopStars computed scores:', formatted.map(f => ({ name: f.full_name, score: f.hype_score, likes: f.likes_count, xp: f.xp })));
+
 
         const sorted = formatted
           .sort((a, b) => b.hype_score - a.hype_score)
@@ -212,42 +190,16 @@ export function useTopStars(limit: number = 20) {
       }
     } catch (err) {
       console.error('[useTopStars] Error fetching stars:', err);
+      if (request === requestId.current) setError('Live rankings could not load.');
     } finally {
-      setLoading(false);
+      if (request === requestId.current) setLoading(false);
     }
   }, [limit]);
 
   useEffect(() => {
     fetchStars();
 
-    // Subscribe to changes in profiles (likes_count)
-    const profileSubscription = supabase
-      .channel('top-stars-profiles')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'profiles' 
-      }, () => {
-        fetchStars();
-      })
-      .subscribe();
-
-    // Subscribe to changes in student_xp
-    const xpSubscription = supabase
-      .channel('top-stars-xp')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'student_xp' 
-      }, () => {
-        fetchStars();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(profileSubscription);
-      supabase.removeChannel(xpSubscription);
-    };
+    return subscribeRankingData(() => { void fetchStars(); });
   }, [fetchStars]);
 
   const updateStar = useCallback((id: string, delta: number) => {
@@ -256,5 +208,6 @@ export function useTopStars(limit: number = 20) {
     ));
   }, []);
 
-  return { stars, majorEvents, loading, refetch: fetchStars, updateStar };
+  const refreshStars = useCallback(() => { invalidateRankingData(); return fetchStars(); }, [fetchStars]);
+  return { stars, majorEvents, loading, error, refetch: refreshStars, updateStar };
 }

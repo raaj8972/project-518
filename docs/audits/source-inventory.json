@@ -1,0 +1,387 @@
+{
+  "files": 376,
+  "buttons": 1124,
+  "buttonsWithoutOwnAction": [
+    {
+      "file": "src/components/HomeBound/ArtistScrollSection.tsx",
+      "line": 38,
+      "text": "<button > <Play fill=\"black\" size={24} /> </button>"
+    },
+    {
+      "file": "src/components/WatchLiveButton.tsx",
+      "line": 193,
+      "text": "<button type=\"button\" className={classes} disabled title={tooltip || 'Live stream will unlock at start time'} aria-disabled=\"true\" > {/* Waiting sheen (slow, subtle) */} <span aria-hidden /> {commonContent} <span ref={liveRegionRef} aria-live=\"polite\" /> </button>"
+    },
+    {
+      "file": "src/components/admin/GuestArtistForm.tsx",
+      "line": 734,
+      "text": "<button type=\"submit\" form=\"guest-artist-form\" disabled={isSubmitting} > {isSubmitting ? ( <span >Saving...</span> ) : ( <> <Save size={18} /> {initialData ? 'Update Artist' : 'Save Artist'} </> )} </button>"
+    },
+    {
+      "file": "src/components/admin/ProtectionCenter.tsx",
+      "line": 178,
+      "text": "<button > <Terminal /> <div >Logs Cache</div> </button>"
+    },
+    {
+      "file": "src/components/admin/ProtectionCenter.tsx",
+      "line": 259,
+      "text": "<button > Download Security Audit PDF </button>"
+    },
+    {
+      "file": "src/components/admin/StudentPassManagement.tsx",
+      "line": 571,
+      "text": "<button > <ChevronRight size={18} /> </button>"
+    },
+    {
+      "file": "src/components/admin/dashboard/IdentityDatabase.tsx",
+      "line": 34,
+      "text": "<button > Full Archive </button>"
+    },
+    {
+      "file": "src/components/admin/dashboard/IdentityDatabase.tsx",
+      "line": 87,
+      "text": "<button > Protocol <ArrowRight size={12} /> </button>"
+    },
+    {
+      "file": "src/components/admin/layout/AdminLayout.tsx",
+      "line": 364,
+      "text": "<button > <Bell size={20} /> <span ></span> </button>"
+    },
+    {
+      "file": "src/components/dashboard/EntryPass.tsx",
+      "line": 233,
+      "text": "<button disabled={pass.is_used} > <Wallet /> <span >Add to Wallet</span> </button>"
+    },
+    {
+      "file": "src/components/dashboard/EntryPass.tsx",
+      "line": 240,
+      "text": "<button > <Navigation /> <span >Directions</span> </button>"
+    },
+    {
+      "file": "src/components/dashboard/EntryPass.tsx",
+      "line": 246,
+      "text": "<button > <Activity /> <span >Gate Status</span> </button>"
+    },
+    {
+      "file": "src/pages/HomeBound.tsx",
+      "line": 71,
+      "text": "<button > <Play fill=\"black\" size={28} /> </button>"
+    },
+    {
+      "file": "src/pages/HomeBound.tsx",
+      "line": 85,
+      "text": "<button disabled > Follow </button>"
+    },
+    {
+      "file": "src/pages/dashboard/Events.tsx",
+      "line": 109,
+      "text": "<button > <CalendarDays /> Add to Cal </button>"
+    },
+    {
+      "file": "src/pages/dashboard/Events.tsx",
+      "line": 112,
+      "text": "<button > <Share2 /> Share </button>"
+    }
+  ],
+  "endpointCalls": [
+    {
+      "file": "src/components/admin/AIChatScanner.tsx",
+      "line": 166,
+      "path": "/api/ai-chat",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/AdminPasscodesPanel.tsx",
+      "line": 223,
+      "path": "/api/admin-security-controls",
+      "exists": false
+    },
+    {
+      "file": "src/components/admin/ConnectionOverview.tsx",
+      "line": 45,
+      "path": "/api/health",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/ConnectionOverview.tsx",
+      "line": 121,
+      "path": "/api/heartbeat",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/ConnectionOverview.tsx",
+      "line": 124,
+      "path": "/api/heartbeat_fallback",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/ConnectionOverview.tsx",
+      "line": 147,
+      "path": "/api/install-heartbeat",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/EventWinnersEditor.tsx",
+      "line": 24,
+      "path": "/.netlify/functions/get-event-candidates",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/EventsManagement.tsx",
+      "line": 149,
+      "path": "/api/notify-event-update",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/EventsManagement.tsx",
+      "line": 741,
+      "path": "/api/notify-event-update",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/GalleryFaceIndexer.tsx",
+      "line": 85,
+      "path": "/api/index-faces-batch",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/GalleryManagement.tsx",
+      "line": 38,
+      "path": "/api/index-faces-batch",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/GenericAIGenerator.tsx",
+      "line": 35,
+      "path": "/api/ai-generate-content",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/InlineDescriptionAI.tsx",
+      "line": 41,
+      "path": "/api/ai-generate-content",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/RegistrationManagement.tsx",
+      "line": 869,
+      "path": "/api/send-custom-email",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/RegistrationManagement.tsx",
+      "line": 918,
+      "path": "/api/send-rejection",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/ScheduleManagement.tsx",
+      "line": 278,
+      "path": "/api/broadcast-schedule",
+      "exists": true
+    },
+    {
+      "file": "src/components/admin/SecuritySettings.tsx",
+      "line": 107,
+      "path": "/api/admin-security-controls",
+      "exists": false
+    },
+    {
+      "file": "src/components/admin/SecuritySettings.tsx",
+      "line": 139,
+      "path": "/api/admin-security-controls",
+      "exists": false
+    },
+    {
+      "file": "src/components/admin/SecuritySettings.tsx",
+      "line": 171,
+      "path": "/api/admin-security-controls",
+      "exists": false
+    },
+    {
+      "file": "src/context/GalleryContext.tsx",
+      "line": 185,
+      "path": "/.netlify/functions/sync-drive-folders",
+      "exists": true
+    },
+    {
+      "file": "src/context/GalleryContext.tsx",
+      "line": 202,
+      "path": "/.netlify/functions/sync-google-drive",
+      "exists": true
+    },
+    {
+      "file": "src/context/GalleryContext.tsx",
+      "line": 222,
+      "path": "/.netlify/functions/sync-google-drive",
+      "exists": true
+    },
+    {
+      "file": "src/context/ManagementContext.tsx",
+      "line": 288,
+      "path": "/.netlify/functions/update-admin-email",
+      "exists": true
+    },
+    {
+      "file": "src/context/ManagementContext.tsx",
+      "line": 322,
+      "path": "/.netlify/functions/update-admin-password",
+      "exists": true
+    },
+    {
+      "file": "src/lib/adminService.ts",
+      "line": 51,
+      "path": "/.netlify/functions/create-admin",
+      "exists": true
+    },
+    {
+      "file": "src/lib/adminService.ts",
+      "line": 154,
+      "path": "/.netlify/functions/delete-admin-user",
+      "exists": true
+    },
+    {
+      "file": "src/lib/adminService.ts",
+      "line": 263,
+      "path": "/.netlify/functions/grant-permissions",
+      "exists": true
+    },
+    {
+      "file": "src/lib/adminService.ts",
+      "line": 294,
+      "path": "/.netlify/functions/update-admin-password",
+      "exists": true
+    },
+    {
+      "file": "src/lib/firebase.ts",
+      "line": 32,
+      "path": "/api/admin-security-controls",
+      "exists": false
+    },
+    {
+      "file": "src/pages/CouncilLogin.tsx",
+      "line": 55,
+      "path": "/api/verify-council",
+      "exists": true
+    },
+    {
+      "file": "src/pages/ForgotPassword.tsx",
+      "line": 17,
+      "path": "/.netlify/functions/request-password-reset",
+      "exists": true
+    },
+    {
+      "file": "src/pages/Login.tsx",
+      "line": 267,
+      "path": "/.netlify/functions/admin-security-controls",
+      "exists": false
+    },
+    {
+      "file": "src/pages/ResetPassword.tsx",
+      "line": 42,
+      "path": "/.netlify/functions/confirm-password-reset",
+      "exists": true
+    },
+    {
+      "file": "src/pages/SportsLogin.tsx",
+      "line": 20,
+      "path": "/api/verify-sports",
+      "exists": true
+    },
+    {
+      "file": "src/services/adminDataService.ts",
+      "line": 170,
+      "path": "/api/send-confirmation",
+      "exists": true
+    },
+    {
+      "file": "src/utils/r2Utils.ts",
+      "line": 14,
+      "path": "/api/get-r2-upload-url",
+      "exists": true
+    },
+    {
+      "file": "src/utils/r2Utils.ts",
+      "line": 76,
+      "path": "/api/delete-r2-file",
+      "exists": true
+    }
+  ],
+  "parseErrors": [
+    {
+      "file": "src/components/Lightfall.jsx",
+      "line": 353,
+      "message": "'>' expected."
+    },
+    {
+      "file": "src/components/Lightfall.jsx",
+      "line": 353,
+      "message": "')' expected."
+    },
+    {
+      "file": "src/components/Lightfall.jsx",
+      "line": 354,
+      "message": "Property assignment expected."
+    },
+    {
+      "file": "src/components/Lightfall.jsx",
+      "line": 355,
+      "message": "Property assignment expected."
+    },
+    {
+      "file": "src/components/Lightfall.jsx",
+      "line": 356,
+      "message": "Declaration or statement expected."
+    },
+    {
+      "file": "src/components/Lightfall.jsx",
+      "line": 357,
+      "message": "Declaration or statement expected."
+    },
+    {
+      "file": "src/components/Lightfall.jsx",
+      "line": 358,
+      "message": "Unterminated regular expression literal."
+    },
+    {
+      "file": "src/components/Lightfall.jsx",
+      "line": 359,
+      "message": "Declaration or statement expected."
+    },
+    {
+      "file": "src/components/Lightfall.jsx",
+      "line": 360,
+      "message": "Declaration or statement expected."
+    },
+    {
+      "file": "src/components/admin/events/EventForm.tsx",
+      "line": 127,
+      "message": "JSX expressions must have one parent element."
+    },
+    {
+      "file": "src/components/admin/events/EventForm.tsx",
+      "line": 227,
+      "message": "')' expected."
+    },
+    {
+      "file": "src/components/admin/events/EventForm.tsx",
+      "line": 228,
+      "message": "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?"
+    },
+    {
+      "file": "src/components/admin/events/EventForm.tsx",
+      "line": 490,
+      "message": "')' expected."
+    },
+    {
+      "file": "src/components/admin/events/EventForm.tsx",
+      "line": 491,
+      "message": "Expression expected."
+    },
+    {
+      "file": "src/components/admin/events/EventForm.tsx",
+      "line": 492,
+      "message": "Declaration or statement expected."
+    }
+  ]
+}

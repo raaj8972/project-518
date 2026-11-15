@@ -1,19 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
-import { Users, Zap, TrendingUp, Award } from 'lucide-react';
+import { Users, Zap, TrendingUp } from 'lucide-react';
 
 interface BatchStats {
   batch: string;
   count: number;
 }
 
-const DUMMY_WAR: BatchStats[] = [
-  { batch: 'Undergraduate', count: 124 },
-  { batch: 'Postgraduate', count: 86 },
-  { batch: 'Faculty', count: 52 },
-  { batch: 'Alumni', count: 31 },
-];
 
 const BatchWar: React.FC = () => {
   const [stats, setStats] = useState<BatchStats[]>([]);

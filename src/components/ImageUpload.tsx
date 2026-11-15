@@ -40,6 +40,8 @@ const rotateSize = (width: number, height: number, rotation: number) => {
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
   currentImage?: string;
+  /** Display the active site fallback without treating it as an uploaded draft asset. */
+  previewFallback?: string;
   className?: string;
   bucket: 'event-images' | 'gallery-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'guest-artist-audio' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos' | 'sports-images' | 'hero_v2' | 'team-branding';
   folder?: string;
@@ -56,11 +58,13 @@ interface ImageUploadProps {
   onBatchComplete?: (results: { url: string; file: File }[]) => void;
   onProcessingChange?: (busy: boolean) => void;
   isDirty?: boolean;
+  preserveExistingMedia?: boolean;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({ 
   onImageSelect, 
-  currentImage, 
+  currentImage,
+  previewFallback,
   className = '',
   bucket,
   folder = '',
@@ -76,9 +80,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   allowMultiple = false,
   onBatchComplete,
   onProcessingChange,
-  isDirty = false
+  isDirty = false,
+  preserveExistingMedia = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadRootRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
   
   // Local preview state
@@ -112,6 +118,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     error,
     setError,
     pendingImage,
+    setPendingImage,
     uploadHint,
     missingBucket,
     handleUploadProcess,
@@ -120,13 +127,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     bucket,
     folder,
     onImageSelect,
-    maxImageBytes
+    maxImageBytes,
+    preserveExistingMedia
   });
+
+  useEffect(() => {
+    if (preserveExistingMedia) { setLocalPreview(''); setPendingImage(''); }
+  }, [currentImage, preserveExistingMedia, setPendingImage]);
 
   // Relay processing state to parent
   useEffect(() => {
-    onProcessingChange?.(isProcessing || uploading);
-  }, [isProcessing, uploading, onProcessingChange]);
+    onProcessingChange?.(isProcessing || uploading || !!cropSrc);
+    return () => onProcessingChange?.(false);
+  }, [isProcessing, uploading, cropSrc, onProcessingChange]);
 
   // Check owner status
   useEffect(() => {
@@ -443,14 +456,14 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   const handleDelete = async () => {
     const target = pendingImage || currentImage;
-    if (target) await deleteStorageFileByPublicUrl(target);
+    if (target && !preserveExistingMedia) await deleteStorageFileByPublicUrl(target);
     resetUploadState();
     onImageSelect('');
     setLocalPreview('');
     setShowDeleteConfirm(false);
   };
   
-  const displayImageRaw = localPreview || pendingImage || currentImage;
+  const displayImageRaw = localPreview || pendingImage || currentImage || previewFallback;
   const displayImage = (() => {
     const sanitized = sanitizeUrl?.(displayImageRaw) || displayImageRaw || '';
     return sanitized;
@@ -516,7 +529,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   useBodyScrollLock(!!cropSrc); // Changed from showCropper to cropSrc
 
   return (
-    <div className={`relative ${className}`}>
+    <div ref={uploadRootRef} className={`relative ${className}`}>
       <input 
         ref={fileInputRef} 
         type="file" 
@@ -533,7 +546,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             <p className="text-sm text-indigo-100 font-medium">{error || `Bucket '${missingBucket}' missing`}</p>
             {missingBucket && <p className="text-xs text-indigo-300 mt-1">Please contact admin to initialize storage.</p>}
           </div>
-          <button onClick={() => { setError(''); }} className="text-indigo-400 hover:text-indigo-200"><X size={16} /></button>
+          <button type="button" onClick={() => { setError(''); }} className="text-indigo-400 hover:text-indigo-200"><X size={16} /></button>
         </div>
       )}
 
@@ -596,10 +609,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               {!hideControls && (
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
                   <div className="flex items-center justify-center gap-3 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                     <button onClick={() => fileInputRef.current?.click()} className="p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white transition-all hover:scale-110 shadow-lg" title="Change">
+                     <button type="button" onClick={() => fileInputRef.current?.click()} className="p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white transition-all hover:scale-110 shadow-lg" title="Change">
                        <RotateCcw size={18} />
                      </button>
-                     <button onClick={() => setShowDeleteConfirm(true)} className="p-3 rounded-full bg-indigo-500/20 hover:bg-indigo-500/40 backdrop-blur-md border border-indigo-500/30 text-indigo-200 transition-all hover:scale-110 shadow-lg" title="Delete">
+                     <button type="button" disabled={!localPreview && !pendingImage && !currentImage} onClick={() => setShowDeleteConfirm(true)} className="p-3 rounded-full bg-indigo-500/20 hover:bg-indigo-500/40 backdrop-blur-md border border-indigo-500/30 text-indigo-200 transition-all hover:scale-110 shadow-lg" title="Delete">
                         <Trash2 size={18} />
                      </button>
                   </div>
@@ -612,7 +625,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   <button onClick={() => fileInputRef.current?.click()} type="button" className="text-xs font-bold text-gray-200 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
                     <RotateCcw size={14} /> Change
                   </button>
-                  <button onClick={() => setShowDeleteConfirm(true)} type="button" className="text-xs font-bold text-indigo-400 flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors">
+                  <button disabled={!localPreview && !pendingImage && !currentImage} onClick={() => setShowDeleteConfirm(true)} type="button" className="text-xs font-bold text-indigo-400 flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors">
                     <Trash2 size={14} /> Remove
                   </button>
                </div>
@@ -620,7 +633,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             
             <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5 pointer-events-none">
               <div className="px-2.5 py-1.5 rounded-lg bg-black/60 border border-white/10 text-white text-[10px] font-medium backdrop-blur-md shadow-lg">
-                <span className="font-medium truncate max-w-[150px]">{currentImage ? (isVideoUpload ? 'Video URL' : (isAudioUpload ? 'Audio URL' : 'Image URL')) : 'None'}</span>
+                <span className="font-medium truncate max-w-[150px]">{currentImage ? (isVideoUpload ? 'Video URL' : (isAudioUpload ? 'Audio URL' : 'Image URL')) : previewFallback ? 'Current website media' : 'None'}</span>
               </div>
               
               {isDirty && (
@@ -660,19 +673,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             <div className="w-12 h-12 rounded-full bg-indigo-500/20 flex items-center justify-center mb-4">
               <Trash2 className="w-6 h-6 text-indigo-500" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Delete File?</h3>
-            <p className="text-sm text-zinc-400 mb-6">This action cannot be undone. The file will be permanently removed from storage.</p>
+            <h3 className="text-lg font-bold text-white mb-2">{preserveExistingMedia ? 'Remove from draft?' : 'Delete File?'}</h3>
+            <p className="text-sm text-zinc-400 mb-6">{preserveExistingMedia ? 'This removes the image from your draft. The saved file is kept.' : 'This action cannot be undone. The file will be permanently removed from storage.'}</p>
             <div className="flex gap-3">
-              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium text-sm transition-colors border border-white/5">
+              <button type="button" onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium text-sm transition-colors border border-white/5">
                 Cancel
               </button>
-              <button onClick={handleDelete} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold text-sm shadow-[0_4px_20px_rgba(239,68,68,0.3)] transition-all">
-                Delete
+              <button type="button" onClick={handleDelete} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold text-sm shadow-[0_4px_20px_rgba(239,68,68,0.3)] transition-all">
+                {preserveExistingMedia ? 'Remove' : 'Delete'}
               </button>
             </div>
           </div>
         </div>,
-        document.body
+        uploadRootRef.current?.closest('dialog') || document.body
       )}
 
       {cropSrc && createPortal(
@@ -683,7 +696,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             {/* Mobile Header (Only visible on smallest screens/touch) */}
             <div className="w-full h-14 bg-black/50 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 lg:hidden sticky top-0 z-20">
               <h3 className="text-white font-medium">Crop & Adjust Image</h3>
-              <button
+              <button type="button"
                 onClick={() => setCropSrc(null)}
                 disabled={isProcessing}
                 className="p-2 text-zinc-400 hover:text-white transition-colors"
@@ -709,7 +722,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               />
               
               {/* Desktop Close Button */}
-              <button
+              <button type="button"
                 onClick={() => setCropSrc(null)}
                 className="hidden lg:flex items-center justify-center absolute top-6 right-6 z-10 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all hover:scale-105 border border-white/10 shadow-lg"
               >
@@ -742,7 +755,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   </label>
                   <div className="flex flex-col gap-2.5">
                     {ASPECT_RATIOS.map((ratio) => (
-                      <button
+                      <button type="button"
                         key={ratio.label}
                         onClick={() => setCropAspectLocal(ratio.value || 0)} // react-easy-crop takes undefined for free aspect, we'll map below
                         className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all w-full flex items-center justify-between border ${
@@ -822,14 +835,14 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               {/* Sticky Actions Container */}
               <div className="sticky bottom-0 left-0 right-0 p-5 lg:p-8 bg-zinc-950/90 backdrop-blur-xl border-t border-white/10 space-y-4 z-20">
                 <div className="flex items-center justify-between text-zinc-500 mb-2">
-                  <button
+                  <button type="button"
                     onClick={handleReset}
                     disabled={isProcessing}
                     className="flex items-center gap-2 text-xs font-medium hover:text-white transition-colors"
                   >
                     <RefreshCw size={12} /> Reset
                   </button>
-                  <button
+                  <button type="button"
                     onClick={onConfirmFull}
                     disabled={isProcessing}
                     className="text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
@@ -838,14 +851,14 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   </button>
                 </div>
                 <div className="flex gap-3">
-                  <button
+                  <button type="button"
                     onClick={() => setCropSrc(null)}
                     disabled={isProcessing}
                     className="flex-1 py-3.5 border border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl disabled:opacity-50 font-medium transition-all shadow-sm"
                   >
                     Cancel
                   </button>
-                  <button
+                  <button type="button"
                     onClick={onConfirmCrop}
                     disabled={isProcessing}
                     className="flex-[2] py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl hover:from-indigo-500 hover:to-violet-500 shadow-[0_4px_20px_rgba(79,70,229,0.4)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.6)] disabled:opacity-50 font-bold transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
@@ -867,7 +880,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             </div>
           </div>
         </div>,
-        document.body
+        uploadRootRef.current?.closest('dialog') || document.body
       )}
     </div>
   );

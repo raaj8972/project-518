@@ -11,7 +11,7 @@ type Props = {
 const DailyScheduleSection: React.FC<Props> = ({ day, idx, now }) => {
   return (
     <div
-      className="animate-fade-in-up"
+      className="festival-schedule-day animate-fade-in-up"
       style={{ animationDelay: `${idx * 150}ms`, animationFillMode: 'both' }}
     >
       <div className="flex items-center gap-6 mb-10">

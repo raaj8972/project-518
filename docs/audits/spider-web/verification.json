@@ -1,0 +1,21 @@
+{
+  "errors": [],
+  "conditions": "Isolated desktop and touch-enabled mobile Chromium; software WebGL, not a physical-device FPS test.",
+  "desktopHover": {
+    "visible": true,
+    "pointerEvents": "none",
+    "width": 75.0625,
+    "height": 36
+  },
+  "desktopClick": true,
+  "cardHover": true,
+  "keyboardFocus": true,
+  "mobileTap": true,
+  "noStickyTouchHover": true,
+  "mobileSingleTapNavigation": true,
+  "mobileCardTap": true,
+  "scrollClearsHighlight": true,
+  "mobileSpiderMoves": true,
+  "mobileNoOverflow": true,
+  "reducedMotion": true
+}

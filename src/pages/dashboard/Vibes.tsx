@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, TrendingUp } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import ShoutOutBoard from '../../components/dashboard/ShoutOutBoard';
 
 const Vibes: React.FC = () => {

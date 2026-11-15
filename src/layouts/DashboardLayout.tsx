@@ -1,3 +1,6 @@
+import { SITE_FEATURES } from '../constants/siteFeatures';
+import {registrationBatches} from '../utils/registrationBatches';
+import { getRankingData } from '../services/rankingData';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, Outlet, NavLink } from 'react-router-dom';
 import { useStudentAuth } from '../context/StudentAuthContext';
@@ -16,19 +19,17 @@ import {
   Bell,
   QrCode,
   Sparkles,
-  Zap,
   Crown,
   Star,
-  ChevronRight,
   Home,
   Users,
-  AtSign,
   Menu,
   X
 } from 'lucide-react';
 import { useCoreData } from '../context/CoreDataContext';
 import { toast } from 'react-hot-toast';
-import { BRAND_NAME } from '../constants/brand';
+import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
+import '../styles/StudentFestival.css';
 import WalletPassModal from '../components/dashboard/WalletPassModal';
 import XPRing from '../components/dashboard/XPRing';
 import AnnouncementsTicker from '../components/dashboard/AnnouncementsTicker';
@@ -45,7 +46,7 @@ const NAV_SECTIONS = [
       { id: 'events',        label: 'Events',            icon: Calendar,        path: '/dashboard/events' },
       { id: 'active-events', label: 'Active Events',      icon: Star,            path: '/dashboard/active-events' },
       { id: 'teams',         label: 'My Teams',           icon: Users,           path: '/dashboard/teams' },
-      { id: 'sports',        label: 'Sports Events',     icon: Trophy,          path: '/dashboard/sports' },
+      ...(SITE_FEATURES.sports ? [{ id: 'sports', label: 'Sports Events', icon: Trophy, path: '/dashboard/sports' }] : []),
     ],
   },
   {
@@ -117,17 +118,8 @@ const DashboardLayout: React.FC = () => {
   const [compCollege, setCompCollege] = useState(profile?.college || '');
   const [compBatch, setCompBatch] = useState(profile?.batch || '');
 
-  const rawPt = (siteSettings as any)?.registration_participant_types;
-  const rawBo = (siteSettings as any)?.batch_options;
+  const batchOptions = useMemo(() => registrationBatches(siteSettings), [siteSettings]);
 
-  const batchOptions = useMemo(() => {
-    const pt = Array.isArray(rawPt) ? rawPt.filter(Boolean) : [];
-    const bo = Array.isArray(rawBo) ? rawBo.filter(Boolean) : [];
-    if (pt.length > 0) return pt;
-    if (bo.length > 0) return bo;
-    return ['Batch 2024', 'Batch 2025', 'Batch 2026', 'Batch 2027'];
-  }, [rawPt, rawBo]);
-  
   const showCollege = false;
 
   useEffect(() => {
@@ -211,8 +203,8 @@ const DashboardLayout: React.FC = () => {
     setDataLoading(true);
     try {
       const [{ data: regData, error: regErr }, { data: sportsData, error: sportsErr }, { data: passesData, error: passesErr }, xpResult] = await Promise.all([
-        supabase.from('registrations').select('*, event:events(id, title, image, category, payment_enabled, payment_amount, coordinator_upi_id, coordinator_upi_name), teams(name, code)').eq('user_id', user.id),
-        supabase.from('annual_sports_registrations').select('*, event:annual_sports_events(name, category, image_url), teams(name, code)').eq('user_id', user.id),
+        supabase.from('registrations').select('*, event:events(id, title, image, category, date, time, venue, description, payment_enabled, payment_amount, coordinator_upi_id, coordinator_upi_name), teams(name, code)').eq('user_id', user.id),
+        SITE_FEATURES.sports ? supabase.from('annual_sports_registrations').select('*, event:annual_sports_events(name, category, image_url), teams(name, code)').eq('user_id', user.id) : Promise.resolve({ data: [], error: null }),
         supabase.from('entry_passes').select('*').eq('user_id', user.id).eq('is_active', true).order('day_number', { ascending: true }),
         supabase.from('student_xp').select('xp_total, tier').eq('id', user.id).single()
       ]);
@@ -224,20 +216,7 @@ const DashboardLayout: React.FC = () => {
       setEntryPasses(passesData || []);
       if (!xpResult.error && xpResult.data) setXpData({ total_xp: (xpResult.data as any).xp_total, tier: (xpResult.data as any).tier });
 
-      const { data: allProfiles } = await supabase
-        .from('profiles')
-        .select('id, username, likes_count, student_xp(xp_total)')
-        .eq('is_approved', true);
-
-      const [regsResponse, roundsResponse, eventRoundsResponse] = await Promise.all([
-        supabase.from('registrations').select('id, user_id, status, is_active, event_id, event:events(id, title)'),
-        supabase.from('registration_rounds').select('id, registration_id, status, round_id, prize_rank'),
-        supabase.from('event_rounds').select('id, name')
-      ]);
-
-      const regsList = regsResponse.data || [];
-      const roundsList = roundsResponse.data || [];
-      const eventRounds = eventRoundsResponse.data || [];
+      const { profiles: allProfiles, registrations: regsList, rounds: roundsList, eventRounds } = await getRankingData();
 
       // Map round id to name
       const roundNameMap: Record<string, string> = {};
@@ -406,7 +385,7 @@ const DashboardLayout: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen neu-bg flex items-center justify-center">
+      <div className="student-festival min-h-[100dvh] neu-bg flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
           <div className="neu-card p-8 rounded-3xl flex items-center justify-center">
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-400 rounded-full" />
@@ -422,7 +401,7 @@ const DashboardLayout: React.FC = () => {
   // Profile Completion Gate
   if (!isProfileComplete) {
     return (
-      <div className="min-h-screen neu-bg flex items-center justify-center px-4 relative overflow-hidden">
+      <div className="student-festival min-h-[100dvh] neu-bg flex items-center justify-center px-4 relative overflow-hidden">
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-violet-800/10 rounded-full blur-[120px] pointer-events-none" />
         
@@ -473,7 +452,7 @@ const DashboardLayout: React.FC = () => {
   // Verification Pending Gate
   if (!isApproved) {
     return (
-      <div className="min-h-screen neu-bg flex items-center justify-center px-4 relative overflow-hidden">
+      <div className="student-festival min-h-[100dvh] neu-bg flex items-center justify-center px-4 relative overflow-hidden">
         <div className="absolute top-1/3 -left-32 w-96 h-96 bg-violet-600/8 rounded-full blur-[120px] pointer-events-none" />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md w-full z-10">
           <div className="neu-card p-10 rounded-3xl text-center">
@@ -500,7 +479,7 @@ const DashboardLayout: React.FC = () => {
   const firstName = profile?.full_name?.split(' ')[0] || 'Student';
 
   return (
-    <div className="min-h-screen neu-bg flex flex-col pt-6 lg:pt-8 pb-28 lg:pb-10 px-3 sm:px-5 lg:px-8 relative overflow-x-hidden">
+    <div className="student-festival min-h-[100dvh] neu-bg flex flex-col pt-6 lg:pt-8 pb-28 lg:pb-10 px-3 sm:px-5 lg:px-8 relative overflow-x-hidden">
       
 
 
@@ -522,12 +501,16 @@ const DashboardLayout: React.FC = () => {
       )}
 
       <div className="max-w-7xl mx-auto w-full space-y-6 relative z-10">
+        <div className="student-festival-brandline">
+          <NavLink to="/" className="student-festival-wordmark">{BRAND_NAME} <em>{BRAND_YEAR}</em></NavLink>
+          <span>STUDENT ACCESS <span aria-hidden="true">/</span> {BRAND_YEAR}</span>
+        </div>
         
         {/* Header Greeting Banner — Premium Sci-fi / Cyber Styling */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }} 
           animate={{ opacity: 1, y: 0 }} 
-          className="relative overflow-hidden rounded-3xl p-4 sm:p-6 md:p-8 border border-white/[0.08]"
+          className="student-festival-welcome relative overflow-hidden rounded-3xl p-4 sm:p-6 md:p-8 border border-white/[0.08]"
           style={{
             background: 'linear-gradient(135deg, rgba(16, 18, 24, 0.85) 0%, rgba(9, 10, 13, 0.95) 100%)',
             boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
@@ -552,7 +535,7 @@ const DashboardLayout: React.FC = () => {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                   <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-wider">
-                    <ShieldCheck className="w-3 h-3" /> <span>{isNightMode ? '🌙 Night Mode' : 'Verified'}</span>
+                    <ShieldCheck className="w-3 h-3" /> <span>{isNightMode ? 'Evening session' : 'Verified student'}</span>
                   </div>
                 </div>
                 <h1 className="text-lg sm:text-2xl md:text-4xl font-black text-white truncate tracking-tight">
@@ -565,7 +548,7 @@ const DashboardLayout: React.FC = () => {
                     onClick={() => navigate('/dashboard/settings')} 
                     className="inline-flex items-center gap-1.5 px-3 py-1 mt-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[9px] font-black uppercase tracking-widest animate-pulse hover:bg-rose-500/20 transition-all"
                   >
-                    ⚠️ Set @username
+                    Set @username
                   </button>
                 )}
               </div>
@@ -605,7 +588,7 @@ const DashboardLayout: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
           
           {/* Desktop Sidebar — sticky at top-6/8 below viewport edge */}
-          <aside className="hidden lg:flex flex-col lg:col-span-3 sticky top-6 lg:top-8 h-[calc(100vh-4rem)] space-y-4">
+          <aside className="student-festival-sidebar hidden lg:flex flex-col lg:col-span-3 sticky top-6 lg:top-8 h-[calc(100vh-4rem)] space-y-4">
             <div className="neu-card p-4 rounded-2xl flex items-center gap-3">
               <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 neu-icon-btn flex items-center justify-center">
                 {profile?.avatar_url ? (
@@ -658,7 +641,7 @@ const DashboardLayout: React.FC = () => {
           </aside>
 
           {/* Main Content Area */}
-          <main className="lg:col-span-9 min-w-0">
+          <main className="student-festival-content lg:col-span-9 min-w-0">
             <AnimatePresence mode="wait">
               <Outlet context={{ 
                 user, profile, registrations, sportsRegistrations, entryPasses, 
@@ -733,7 +716,7 @@ const DashboardLayout: React.FC = () => {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="fixed inset-x-0 bottom-0 z-[50] max-h-[85vh] bg-[#0c0d10] border-t border-white/[0.08] rounded-t-[2.5rem] shadow-[0_-20px_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden lg:hidden"
+              className="student-festival-menu fixed inset-x-0 bottom-0 z-[50] max-h-[85vh] bg-[#0c0d10] border-t border-white/[0.08] rounded-t-[2.5rem] shadow-[0_-20px_50px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden lg:hidden"
             >
               {/* Drag Handle */}
               <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto my-4 flex-shrink-0" />

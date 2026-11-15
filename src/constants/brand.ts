@@ -5,6 +5,7 @@
 
 export const BRAND_YEAR = '2026';
 export const BRAND_NAME = 'RICORRENZA';
+export const DESIGNER_INSTAGRAM_URL = 'https://www.instagram.com/i_amraaj__/';
 export const BRAND_NAME_WITH_YEAR = `${BRAND_NAME} ${BRAND_YEAR}`;
 
 // Used for copyright notices (usually current year or future)

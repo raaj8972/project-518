@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Crown, Star } from 'lucide-react';
+import { ExternalLink, Star } from 'lucide-react';
 import { SpotlightCard } from '../ui/SpotlightCard';
 import PreserveNewlines from '../PreserveNewlines';
 
@@ -24,9 +24,7 @@ const SponsorCard: React.FC<SponsorCardProps> = ({
   index, 
   type, 
   hexToRgba, 
-  getCategoryColor,
-  intensityFromTier
-}) => {
+  getCategoryColor}) => {
   const isTitle = type === 'title';
   const isCo = type === 'co';
 

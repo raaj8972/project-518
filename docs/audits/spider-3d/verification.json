@@ -1,0 +1,32 @@
+{
+  "errors": [],
+  "conditions": "local isolated headless Chromium with software WebGL; not a real-device FPS benchmark",
+  "video": {
+    "playing": true,
+    "muted": true,
+    "loop": true,
+    "advanced": true,
+    "readyState": 4,
+    "width": 854,
+    "src": "http://localhost:8081/hero-preview.mp4"
+  },
+  "descent": {
+    "phase": "descending",
+    "silkOpacity": "0.72",
+    "renderer": "WebGL 2.0 (OpenGL ES 3.0 Chromium)"
+  },
+  "moving": true,
+  "pauseWorks": true,
+  "videoContinuesWhileSpiderPaused": true,
+  "crawlPhase": "crawling",
+  "survivesNavigation": true,
+  "clickThrough": true,
+  "mobile": {
+    "overflow": false,
+    "canvasWidth": 304,
+    "spiderWidth": 304.1875,
+    "videoPlaying": true
+  },
+  "reducedMotion": true,
+  "webglFallback": true
+}

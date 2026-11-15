@@ -28,7 +28,7 @@ const XPRing: React.FC<XPRingProps> = ({ profile, registrationsCount, sportsCoun
   ];
   const aura = isLegendary ? auraGradients[(rank - 1) % 5] : null;
 
-  const { xp, level, percent, tier, color } = useMemo(() => {
+  const { level, percent, tier, color } = useMemo(() => {
     let total = realXP ?? 0;
     if (realXP === undefined) {
       if (profile?.full_name) total += 10;
@@ -63,13 +63,9 @@ const XPRing: React.FC<XPRingProps> = ({ profile, registrationsCount, sportsCoun
   const circumference = 2 * Math.PI * radius;
   const strokeDash = (percent / 100) * circumference;
 
-  const glowColor = isLegendary ? 'shadow-2xl brightness-125' : 
-                    tier === 'PLATINUM' ? 'shadow-purple-500/50' : 
-                    tier === 'GOLD' ? 'shadow-yellow-500/50' : 
-                    tier === 'SILVER' ? 'shadow-slate-400/50' : 'shadow-red-500/30';
 
   return (
-    <div className="flex flex-col items-center gap-2 sm:gap-3">
+    <div className="student-festival-xp flex flex-col items-center gap-2 sm:gap-3">
       <div className={`relative w-20 h-20 sm:w-28 sm:h-28 rounded-full transition-all duration-700`}>
         
         {/* SVG Ring */}

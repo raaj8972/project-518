@@ -1,3 +1,5 @@
+import { getSupabaseClient } from './lib/supabase';
+import { verifyToken } from './lib/auth-verify';
 import { Handler } from '@netlify/functions';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -27,6 +29,15 @@ const handler: Handler = async (event) => {
   }
 
   try {
+    const client = getSupabaseClient(true);
+    const user = await verifyToken(event.headers.authorization, client);
+    if (!user) return { statusCode: 401, body: JSON.stringify({ error: 'Sign in before uploading' }) };
+    const { data: settings, error: settingsError } = await client.from('security_settings').select('panic_mode').eq('id', 1).single();
+    if (settingsError) throw settingsError;
+    if (settings.panic_mode) {
+      const { data: admin } = await client.from('admin_users').select('role').eq('user_id', user.id).maybeSingle();
+      if (admin?.role !== 'owner') return { statusCode: 503, body: JSON.stringify({ error: 'Uploads are temporarily paused' }) };
+    }
     const { filename: clientFilename, filetype } = JSON.parse(event.body || '{}');
 
     if (!clientFilename || !filetype) {

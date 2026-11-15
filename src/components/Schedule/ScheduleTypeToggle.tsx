@@ -7,8 +7,9 @@ type Props = {
 
 const ScheduleTypeToggle: React.FC<Props> = ({ scheduleType, setScheduleType }) => {
   return (
-    <div className="flex justify-center gap-6 mb-16">
+    <div className="festival-schedule-toggle flex justify-center gap-6 mb-16">
       <button 
+        aria-pressed={scheduleType === 'prelims'}
         onClick={() => setScheduleType('prelims')}
         className={`relative px-10 py-4 font-black tracking-[0.2em] transition-all duration-500 rounded-2xl uppercase border-2 ${
           scheduleType === 'prelims' 
@@ -19,6 +20,7 @@ const ScheduleTypeToggle: React.FC<Props> = ({ scheduleType, setScheduleType }) 
         Prelims
       </button>
       <button 
+        aria-pressed={scheduleType === 'mains'}
         onClick={() => setScheduleType('mains')}
         className={`relative px-10 py-4 font-black tracking-[0.2em] transition-all duration-500 rounded-2xl uppercase border-2 ${
           scheduleType === 'mains' 

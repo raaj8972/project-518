@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Trash2, Shield, ShieldOff, MessageSquare, Search, Filter, User, Settings, Power, Clock, Infinity as InfinityIcon } from 'lucide-react';
+import { Trash2, Shield, ShieldOff, MessageSquare, Search, User, Settings, Power, Infinity as InfinityIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../../context/DataContext';
 
@@ -9,7 +9,10 @@ export const ShoutoutManagement: React.FC = () => {
   const [shoutouts, setShoutouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('all');
+  const [filter, setFilter] = useState<'all' | 'recent' | 'expired'>('all');
+  const [now,setNow]=useState(Date.now);
+  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),60000);return()=>clearInterval(timer);},[]);
+  const isRecent=(shout:any)=>{const created=Date.parse(shout.created_at);return Number.isFinite(created)&&created>=now-(siteSettings?.shoutouts_expiry_hours ?? 24)*3600000;};
   const [updatingSettings, setUpdatingSettings] = useState(false);
 
   const handleUpdateSetting = async (patch: any) => {
@@ -27,30 +30,26 @@ export const ShoutoutManagement: React.FC = () => {
   const fetchShoutouts = useCallback(async () => {
     setLoading(true);
     try {
-      let query = supabase
+      const query = supabase
         .from('shoutouts')
         .select('*, profiles(full_name, avatar_url, batch)')
         .order('created_at', { ascending: false });
 
-      if (filter === 'pending') {
-        query = query.eq('is_approved', false);
-      } else if (filter === 'approved') {
-        query = query.eq('is_approved', true);
-      }
-
       const { data, error } = await query;
       if (error) throw error;
-      setShoutouts(data || []);
+      setShoutouts((data || []).filter(item=>item&&typeof item==='object'));
     } catch (err: any) {
       toast.error('Failed to load shout-outs');
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
-    fetchShoutouts();
+    void fetchShoutouts();
+    const channel=supabase.channel('admin-community-messages').on('postgres_changes',{event:'*',schema:'public',table:'shoutouts'},()=>void fetchShoutouts()).subscribe();
+    return()=>{supabase.removeChannel(channel);};
   }, [fetchShoutouts]);
 
   const handleDelete = async (id: string) => {
@@ -70,24 +69,10 @@ export const ShoutoutManagement: React.FC = () => {
     }
   };
 
-  const handleToggleApproval = async (id: string, currentStatus: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('shoutouts')
-        .update({ is_approved: !currentStatus })
-        .eq('id', id);
-
-      if (error) throw error;
-      toast.success(currentStatus ? 'Shout-out hidden' : 'Shout-out approved');
-      setShoutouts(prev => prev.map(s => s.id === id ? { ...s, is_approved: !currentStatus } : s));
-    } catch (err: any) {
-      toast.error('Failed to update status');
-    }
-  };
-
-  const filteredShoutouts = shoutouts.filter(s => 
-    s.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (s.profiles?.full_name || 'Anonymous').toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredShoutouts = shoutouts.filter(s =>
+    (filter==='all'||filter==='recent'&&isRecent(s)||filter==='expired'&&!isRecent(s)) &&
+    ((typeof s.message==='string'?s.message:'').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.profiles?.full_name || 'Anonymous').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -97,9 +82,9 @@ export const ShoutoutManagement: React.FC = () => {
         <div>
           <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-3">
             <div className="w-1.5 h-8 bg-gradient-to-b from-orange-400 to-red-600 rounded-full" />
-            Shout-out Moderation
+            Community messages
           </h2>
-          <p className="text-sm text-gray-400 mt-1 ml-4.5">Monitor and manage community messages</p>
+          <p className="text-sm text-gray-400 mt-1 ml-4.5">Participant shout-outs publish automatically. No approval is needed.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -115,7 +100,7 @@ export const ShoutoutManagement: React.FC = () => {
           </div>
           
           <div className="flex bg-white/5 rounded-xl p-1 border border-white/5">
-            {(['all', 'pending', 'approved'] as const).map((t) => (
+            {(['all', 'recent', 'expired'] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setFilter(t)}
@@ -148,7 +133,7 @@ export const ShoutoutManagement: React.FC = () => {
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Board Status</label>
               <button 
-                onClick={() => handleUpdateSetting({ shoutouts_enabled: !siteSettings?.shoutouts_enabled })}
+                onClick={() => handleUpdateSetting({ shoutouts_enabled: siteSettings?.shoutouts_enabled === false })}
                 disabled={updatingSettings}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${
                   siteSettings?.shoutouts_enabled !== false 
@@ -230,9 +215,9 @@ export const ShoutoutManagement: React.FC = () => {
               <Shield className="w-5 h-5 text-yellow-400" />
             </div>
             <div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Pending Review</p>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Recent messages</p>
               <h4 className="text-2xl font-black text-white">
-                {shoutouts.filter(s => !s.is_approved).length}
+                {shoutouts.filter(isRecent).length}
               </h4>
             </div>
           </div>
@@ -243,9 +228,9 @@ export const ShoutoutManagement: React.FC = () => {
               <ShieldOff className="w-5 h-5 text-green-400" />
             </div>
             <div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Approved</p>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Expired messages</p>
               <h4 className="text-2xl font-black text-white">
-                {shoutouts.filter(s => s.is_approved).length}
+                {shoutouts.filter(s => !isRecent(s)).length}
               </h4>
             </div>
           </div>
@@ -309,26 +294,15 @@ export const ShoutoutManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button 
-                        onClick={() => handleToggleApproval(shout.id, shout.is_approved)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${
-                          shout.is_approved 
-                            ? 'bg-green-500/10 border-green-500/20 text-green-500' 
-                            : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500'
-                        }`}
-                      >
-                        {shout.is_approved ? (
-                          <><Shield size={10} /> Approved</>
-                        ) : (
-                          <><ShieldOff size={10} /> Pending</>
-                        )}
-                      </button>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border ${isRecent(shout)?'bg-green-500/10 border-green-500/20 text-green-600':'bg-gray-500/10 border-gray-500/20 text-gray-500'}`}>
+                        {isRecent(shout)?'Recent':'Expired'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button 
                         onClick={() => handleDelete(shout.id)}
-                        className="p-2 text-gray-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                        title="Delete Permanently"
+                        className="p-2 text-gray-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                        title="Delete message" aria-label={`Delete message from ${shout.is_anonymous?'Anonymous':shout.profiles?.full_name || 'Participant'}`}
                       >
                         <Trash2 size={18} />
                       </button>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
 
@@ -49,7 +49,10 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string, userMetadata?: any) => {
+  const activeUser = useRef<string | null>(null);
+  const profileRequests = useRef(new Map<string, Promise<void>>());
+
+  const loadProfile = async (userId: string, userMetadata?: any) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -57,6 +60,7 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
         .eq('id', userId)
         .single();
 
+      if (activeUser.current !== userId) return;
       if (error) {
         if (error.code === 'PGRST116' && userMetadata) {
           // Profile doesn't exist, create it from metadata
@@ -78,7 +82,7 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
           if (createError) {
             console.error('[StudentAuth] Error creating profile:', createError);
           } else {
-            setProfile(newProfile as StudentProfile);
+            if (activeUser.current === userId) setProfile(newProfile as StudentProfile);
           }
         } else {
           console.error('[StudentAuth] Error fetching profile:', error);
@@ -89,8 +93,18 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error('[StudentAuth] Unexpected error fetching profile:', err);
-      setProfile(null);
+      if (activeUser.current === userId) setProfile(null);
     }
+  };
+
+  const fetchProfile = (userId: string, metadata?: any) => {
+    const current = profileRequests.current.get(userId);
+    if (current) return current;
+    const request = loadProfile(userId, metadata).finally(() => {
+      if (profileRequests.current.get(userId) === request) profileRequests.current.delete(userId);
+    });
+    profileRequests.current.set(userId, request);
+    return request;
   };
 
   const refreshProfile = async () => {
@@ -100,55 +114,34 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    console.log('[StudentAuth] Initializing session check...');
-    const initTimer = setTimeout(() => {
-      if (loading) {
-        console.warn('[StudentAuth] Session initialization timed out, forcing loading=false');
-        setLoading(false);
-      }
-    }, 5000);
-
-    // Check active sessions and sets the user
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log('[StudentAuth] getSession complete:', session?.user?.id || 'no user');
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-        }
-      } catch (err) {
-        console.error('[StudentAuth] getSession error:', err);
-      } finally {
-        setLoading(false);
-        clearTimeout(initTimer);
-      }
-    };
-    checkSession();
-
-    // Listen for changes on auth state (logged in, signed out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('[StudentAuth] Auth state change:', _event, session?.user?.id);
-      const currentUser = session?.user ?? null;
-      
-      if (currentUser && (!profile || profile.id !== currentUser.id)) {
-        setLoading(true);
-      }
-
+    let alive = true;
+    let applied: string | undefined;
+    const initTimer = setTimeout(() => { if (alive) setLoading(false); }, 5000);
+    const applySession = (currentUser: User | null, force = false) => {
+      const key = currentUser ? currentUser.id + JSON.stringify(currentUser.user_metadata) : 'anonymous';
+      if (!force && applied === key) return;
+      applied = key;
+      activeUser.current = currentUser?.id || null;
       setUser(currentUser);
-      
-      if (currentUser) {
-        await fetchProfile(currentUser.id, currentUser.user_metadata);
-      } else {
-        setProfile(null);
+      if (!currentUser) { setProfile(null); setLoading(false); clearTimeout(initTimer); return; }
+      if (['coordinator', 'security', 'cr'].includes(currentUser.app_metadata?.role)) {
+        setProfile(null); setLoading(false); clearTimeout(initTimer); return;
       }
-      
-      setLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
+      setLoading(true);
+      // Do not await authenticated queries inside Supabase's auth callback lock.
+      setTimeout(() => {
+        if (!alive || activeUser.current !== currentUser.id) return;
+        void fetchProfile(currentUser.id, currentUser.user_metadata).finally(() => {
+          if (alive && activeUser.current === currentUser.id) setLoading(false);
+          clearTimeout(initTimer);
+        });
+      }, 0);
     };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (alive) applySession(session?.user || null, event === 'USER_UPDATED');
+    });
+    void supabase.auth.getSession().then(({ data: { session } }) => { if (alive) applySession(session?.user || null); }).catch(() => { if (alive) setLoading(false); });
+    return () => { alive = false; clearTimeout(initTimer); subscription.unsubscribe(); };
   }, []);
 
   // Realtime subscription for profile changes (approval, update, etc.)

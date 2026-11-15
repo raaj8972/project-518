@@ -94,6 +94,12 @@
     Cache-Control = "public, max-age=0, must-revalidate"
     Service-Worker-Allowed = "/"
 
+# Versioned films/posters can use the browser and edge cache, including Range requests.
+[[headers]]
+  for = "/media/cinematic/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
+
 # --- ONE-CLICK DEPLOY SETUP ---
 # This configures the "Deploy to Netlify" button to ask for these variables automatically.
 [template.environment]

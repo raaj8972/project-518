@@ -1,3 +1,4 @@
+import { SITE_FEATURES } from '../../constants/siteFeatures';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Trophy, Clock, ChevronRight, Zap, MapPin } from 'lucide-react';
@@ -70,7 +71,7 @@ const NextUpTimeline: React.FC<NextUpTimelineProps> = ({ onBrowseEvents }) => {
         .order('start_time', { ascending: true, nullsFirst: false });
 
       if (!error && data) {
-        setEvents(data as UpcomingEvent[]);
+        setEvents((data as UpcomingEvent[]).filter(item => SITE_FEATURES.sports || item.item_type !== 'sport'));
       }
       setLoading(false);
     };

@@ -1,1039 +1,271 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, ChevronRight, Trophy, Lock, ArrowLeft, UserCheck } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AlertCircle, ArrowLeft, ArrowUpRight, BarChart3, Eye, EyeOff, Lock, Crown, HeartPulse, Layers, LogIn, RotateCcw, CalendarCheck, Shield, UserCheck, Users, X, Zap } from 'lucide-react';
 import BrandLogo3D from '../components/BrandLogo3D';
-import { useData } from '../context/DataContext';
-import { useAuth } from '../context/AuthContext';
 import { SEO } from '../components/SEO';
+import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
-import { AdminService, AdminUser } from '../lib/adminService';
-import { isMasterOwner } from '../constants/owners';
-import { gsap } from 'gsap';
+import { isMasterOwner, MASTER_OWNER_EMAILS } from '../constants/owners';
+import { AdminService, type AdminUser } from '../lib/adminService';
+import '../styles/StaffLogin.css';
+
+const owner: AdminUser = { user_id: 'system-owner', email: MASTER_OWNER_EMAILS[0], role: 'owner', created_at: '' };
+const roles = [
+  { label: 'Security Node', description: 'Scan & entry verification', icon: Shield, to: '/security-login' },
+  { label: 'Coordinators', description: 'Event management', icon: Users, to: '/coordinator' },
+  { label: 'CR Portal', description: 'Batch profile verification', icon: UserCheck, to: '/cr/login' },
+  { label: 'Council', description: 'Analytics dashboard', icon: BarChart3, to: '/council' },
+];
 
 export const Login: React.FC = () => {
+  const navigate = useNavigate();
+  const { login, loginWithGoogle, isAuthenticated, loading: authLoading, lastAuthError, user } = useAuth();
+  const { homepageSettings } = useData();
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([owner]);
   const [email, setEmail] = useState('');
+  const [step,setStep] = useState<'portals'|'admin-role'|'credentials'>('portals');
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [requiresTOTP, setRequiresTOTP] = useState(false);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [showPassword, setShowPassword] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<'owner' | 'admin'>('owner');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const [showRepairModal, setShowRepairModal] = useState(false);
   const [repairEmail, setRepairEmail] = useState('');
-  const [repairMasterKey, setRepairMasterKey] = useState('');
   const [repairLoading, setRepairLoading] = useState(false);
-  const [repairMessage, setRepairMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [repairMessage, setRepairMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const totpRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const fastTrackStarted = useRef(false);
+  const isMasterActive = new URLSearchParams(window.location.search).get('mode') === 'master'
+    && !!sessionStorage.getItem('rico_master_gate_access')?.startsWith('vault_v2_');
+  const rawLogo = homepageSettings?.brand_logo_url?.trim();
+  // A stable URL keeps typing and pointer movement from reloading the logo.
+  const logo = rawLogo?.startsWith('//') ? `https:${rawLogo}` : rawLogo;
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
-  const leftPanelRef = useRef<HTMLDivElement>(null);
-  const formRef = useRef<HTMLDivElement>(null);
-  const buttonsRef = useRef<HTMLDivElement>(null);
-
-  const { login, loginWithGoogle, isAuthenticated, loading: authLoading, lastAuthError, user } = useAuth();
-  const navigate = useNavigate();
-  const { homepageSettings, isAdmin, isOwner, loading: dataLoading } = useData();
-  const supabaseHost = (useData() as any)?.supabaseHost as string | undefined;
-  const SHOW_SUPABASE = ((import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1');
-
-  // Mouse parallax
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePos({
-        x: (e.clientX / window.innerWidth - 0.5) * 2,
-        y: (e.clientY / window.innerHeight - 0.5) * 2,
-      });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+    if (step !== 'credentials') return;
+    let active = true;
+    void AdminService.getAllAdmins().then(admins => {
+      if (!active) return;
+      const unique = new Map([owner, ...admins].filter(admin => admin.email).map(admin => [admin.email.toLowerCase(), admin]));
+      setAdminUsers([...unique.values()].sort((a, b) => Number(isMasterOwner(b.email)) - Number(isMasterOwner(a.email))));
+    }).catch(() => { /* The owner entry and manual email entry remain available. */ });
+    return () => { active = false; };
+  }, [step]);
 
-  // GSAP Animations
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Left panel entrance
-      gsap.from(leftPanelRef.current, {
-        opacity: 0,
-        x: -60,
-        duration: 1.2,
-        ease: 'power3.out'
-      });
-
-      // Card entrance
-      gsap.from(cardRef.current, {
-        opacity: 0,
-        x: 60,
-        duration: 1.2,
-        ease: 'power3.out',
-        delay: 0.1
-      });
-
-      // Stagger items
-      gsap.from('.stagger-item', {
-        opacity: 0,
-        y: 20,
-        stagger: 0.08,
-        duration: 0.7,
-        ease: 'power2.out',
-        delay: 0.5
-      });
-
-      // Floating card
-      gsap.to(cardRef.current, {
-        y: '+=8',
-        duration: 3.5,
-        ease: 'sine.inOut',
-        repeat: -1,
-        yoyo: true
-      });
-
-      // Left panel subtle float
-      gsap.to(leftPanelRef.current, {
-        y: '+=5',
-        duration: 4.5,
-        ease: 'sine.inOut',
-        repeat: -1,
-        yoyo: true
-      });
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, []);
-
-  // Form toggle animation
-  useEffect(() => {
-    if (isFormOpen) {
-      gsap.to(buttonsRef.current, {
-        opacity: 0,
-        x: -20,
-        duration: 0.35,
-        ease: 'power2.in',
-        onComplete: () => {
-          if (buttonsRef.current) buttonsRef.current.style.display = 'none';
-        }
-      });
-      setTimeout(() => {
-        if (formRef.current) formRef.current.style.display = 'block';
-        gsap.fromTo(formRef.current,
-          { opacity: 0, x: 20 },
-          { opacity: 1, x: 0, duration: 0.5, ease: 'power2.out' }
-        );
-      }, 350);
-    }
-  }, [isFormOpen]);
-
-  // Video auto-restart
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    const playVideo = () => { video.play().catch(() => {}); };
-    const handleVisibilityChange = () => {
-      if (!document.hidden && video.paused) playVideo();
-    };
-    video.addEventListener('loadeddata', playVideo);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      video.removeEventListener('loadeddata', playVideo);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  // Fetch Admin Users for dropdown
-  useEffect(() => {
-    const fetchAdmins = async () => {
-      try {
-        const fetchedAdmins = await AdminService.getAllAdmins();
-        
-        // Always ensure system owners are present even if DB read fails (RLS)
-        const systemOwners: AdminUser[] = [
-          { user_id: 'hardcoded-raaj', email: 'ricorrenza.theiqcityfestival@gmail.com', role: 'owner', created_at: '' }
-        ];
-
-        // Merge and deduplicate by email
-        const merged = [...fetchedAdmins];
-        systemOwners.forEach(owner => {
-          if (!merged.find(a => a.email.toLowerCase() === owner.email.toLowerCase())) {
-            merged.push(owner);
-          }
-        });
-
-        // merged list logic remains for pre-selection
-        setAdminUsers(merged);
-        
-        // Pre-select Raaj if available
-        const raaj = merged.find(a => isMasterOwner(a.email));
-        if (raaj) setEmail(raaj.email);
-        else if (merged.length > 0) setEmail(merged[0].email);
-      } catch (err) {
-        console.error('Failed to pre-fetch admin users:', err);
-        // Minimum safety fallback
-        setEmail('ricorrenza.theiqcityfestival@gmail.com');
-      } finally {
-        // isLoading handled
-      }
-    };
-    fetchAdmins();
-  }, []);
-
-  // Fast-Track Auto-Login for Owners
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const isMasterMode = searchParams.get('mode') === 'master';
-    const gatePass = sessionStorage.getItem('rico_master_gate_access');
-    const fastTrackCreds = sessionStorage.getItem('rico_fast_track_creds');
-
-    if (isMasterMode && gatePass?.startsWith('vault_v2_') && fastTrackCreds) {
-      try {
-        const { e, p } = JSON.parse(fastTrackCreds);
-        setEmail(e);
-        setPassword(p);
-        sessionStorage.removeItem('rico_fast_track_creds');
-        const timer = setTimeout(() => {
-          const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-          handleSubmit(fakeEvent);
-        }, 500);
-        return () => clearTimeout(timer);
-      } catch (err) {
-        console.error('Fast-track failed:', err);
-        sessionStorage.removeItem('rico_fast_track_creds');
-      }
-    }
-  }, []);
-
-  // Auto-redirect if already authenticated as Admin
-  useEffect(() => {
-    if (!authLoading && isAuthenticated && user) {
-      const role = user.user_metadata?.role;
-      if (role === 'admin' || role === 'owner') {
-        console.log('[Login] User already authenticated as Admin/Owner, redirecting to Dashboard...');
-        const timer = setTimeout(() => {
-          navigate('/admin', { replace: true });
-        }, 100);
-        return () => clearTimeout(timer);
-      }
+    if (!authLoading && isAuthenticated && ['admin', 'owner'].includes(user?.user_metadata?.role)) {
+      navigate('/admin', { replace: true });
     }
   }, [authLoading, isAuthenticated, user, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (requiresTOTP) totpRef.current?.focus({ preventScroll: true });
+  }, [requiresTOTP]);
+
+  useEffect(() => {
+    if (showRepairModal) dialogRef.current?.showModal();
+    else dialogRef.current?.close();
+  }, [showRepairModal]);
+
+  useEffect(() => {
+    if (step === 'credentials' && !requiresTOTP) {
+      (selectedRole === 'owner' ? passwordRef : emailRef).current?.focus({ preventScroll:true });
+    }
+  },[step,selectedRole,requiresTOTP]);
+
+  useEffect(() => {
+    if (isMasterActive) { setStep('credentials');setSelectedRole('owner');setEmail(owner.email); }
+  },[isMasterActive]);
+
+  async function authenticate(identity: string, accessKey: string, code?: string) {
     setError('');
     setIsLoading(true);
-
     try {
-      const searchParams = new URLSearchParams(window.location.search);
-      const isMasterMode = searchParams.get('mode') === 'master';
-      const gatePass = sessionStorage.getItem('rico_master_gate_access');
-      const isGatePassValid = gatePass && gatePass.startsWith('vault_v2_');
-
-      const result = await login(
-        email,
-        password,
-        totpCode || undefined,
-        Boolean(isMasterMode && isGatePassValid)
-      );
-
+      const result = await login(identity, accessKey, code || undefined, isMasterActive);
       if (result.success) {
         navigate('/admin');
       } else if (result.requiresTOTP) {
-        if (result.role === 'owner' && (!isMasterMode || !isGatePassValid)) {
-          sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: email, p: password }));
-          setError('Security Handshake Required. Initiating Fast-Track...');
-          setIsLoading(true);
-          setTimeout(() => { navigate('/master-node-access'); }, 800);
-          return;
+        if (result.role === 'owner' && !isMasterActive) {
+          sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: identity, p: accessKey }));
+          navigate('/master-node-access');
+        } else {
+          setRequiresTOTP(true);
         }
-        setRequiresTOTP(true);
-        setError('');
-      } else {
-        setError(result.error || 'Authentication failed. Please try again.');
-      }
-    } catch (error: any) {
-      console.warn('[Auth] Login exception:', error);
-      setError(error.message || 'Authentication failed. Check your connection.');
+      } else setError(result.error || 'Authentication failed. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed. Check your connection.');
+    } finally {
+      setIsLoading(false);
     }
+  }
 
-    setIsLoading(false);
+  useEffect(() => {
+    if (!isMasterActive || fastTrackStarted.current) return;
+    const credentials = sessionStorage.getItem('rico_fast_track_creds');
+    if (!credentials) return;
+    fastTrackStarted.current = true;
+    sessionStorage.removeItem('rico_fast_track_creds');
+    try {
+      const { e, p } = JSON.parse(credentials);
+      if (typeof e !== 'string' || typeof p !== 'string') return;
+      setStep('credentials');
+      setEmail(e);
+      setPassword(p);
+      void authenticate(e, p);
+    } catch { setError('Please enter your login details again.'); }
+    // Consume the existing master-gate handoff once, using its actual credentials.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMasterActive]);
+
+  const openForm = (identity?: string) => {
+    setEmail(identity || '');setPassword('');setTotpCode('');setRequiresTOTP(false);setError('');
+    setSelectedRole(identity && isMasterOwner(identity) ? 'owner' : 'admin');
+    setStep('credentials');
   };
-
-  const handleRepairAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const resetIdentity = () => {
+    setEmail('');
+    setSelectedRole('admin');
+    setRequiresTOTP(false);
+    setTotpCode('');
+    setPassword('');
+    setError('');
+  };
+  const handleGoogle = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const result = await loginWithGoogle();
+      if (result.success) navigate('/admin');
+      else setError(result.error || 'Google sign-in failed. Please try again.');
+    } catch { setError('Google sign-in failed. Please try again.'); }
+    finally { setIsLoading(false); }
+  };
+  const handleRecovery = async (event: React.FormEvent) => {
+    event.preventDefault();
     setRepairLoading(true);
     setRepairMessage(null);
     try {
-      const res = await fetch('/.netlify/functions/admin-security-controls', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'repair_auth', 
-          email: repairEmail, 
-          masterKey: repairMasterKey 
-        })
+      const response = await fetch('/api/request-password-reset', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: repairEmail.trim() }),
       });
-      const data = await res.json();
-      if (res.ok) {
-        setRepairMessage({ type: 'success', text: data.message });
-      } else {
-        throw new Error(data.error || 'Repair failed');
-      }
-    } catch (err: any) {
-      setRepairMessage({ type: 'error', text: err.message });
-    } finally {
-      setRepairLoading(false);
-    }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not send recovery email');
+      setRepairMessage({ type: 'success', text: result.message || 'Check your email for the 6-digit verification code.' });
+    } catch (err: any) { setRepairMessage({ type: 'error', text: err.message }); }
+    finally { setRepairLoading(false); }
   };
 
-  const handleBackToPassword = () => {
-    setRequiresTOTP(false);
-    setTotpCode('');
-    setError('');
-    setIsFormOpen(false);
-
-    gsap.to(formRef.current, {
-      opacity: 0, x: 20, duration: 0.35, ease: 'power2.in',
-      onComplete: () => {
-        if (formRef.current) formRef.current.style.display = 'none';
-        if (buttonsRef.current) buttonsRef.current.style.display = 'flex';
-        gsap.fromTo(buttonsRef.current,
-          { opacity: 0, x: -20 },
-          { opacity: 1, x: 0, duration: 0.5, ease: 'power2.out' }
-        );
-      }
-    });
-  };
-
-  const isMasterActive = (() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    return searchParams.get('mode') === 'master' &&
-      sessionStorage.getItem('rico_master_gate_access')?.startsWith('vault_v2_');
-  })();
-
-  const roles = [
-    { label: 'Admin Panel', sub: 'High-level orchestration', icon: Zap, color: 'cyan', action: () => setIsFormOpen(true) },
-    { label: 'Security Node', sub: 'Scan & Entry verification', icon: Shield, color: 'purple', action: () => navigate('/security-login') },
-    { label: 'Coordinators', sub: 'Event management', icon: Users, color: 'blue', action: () => navigate('/coordinator') },
-    { label: 'CR Portal', sub: 'Batch profile verification', icon: UserCheck, color: 'blue', action: () => navigate('/cr/login') },
-    { label: 'Council', sub: 'Analytics dashboard', icon: BarChart3, color: 'emerald', action: () => navigate('/council') },
-    { label: 'Sports Admin', sub: 'Tournament & Player management', icon: Trophy, color: 'indigo', action: () => navigate('/sports-admin') },
-  ];
-
-  const colorMap: Record<string, { border: string; bg: string; text: string; glow: string; ring: string }> = {
-    cyan:    { border: 'border-cyan-500/40',    bg: 'bg-cyan-400/10',    text: 'text-cyan-400',    glow: 'shadow-cyan-500/20',   ring: 'group-hover:shadow-[0_0_22px_rgba(34,211,238,0.25)]' },
-    purple:  { border: 'border-violet-500/40',  bg: 'bg-violet-400/10',  text: 'text-violet-400',  glow: 'shadow-violet-500/20', ring: 'group-hover:shadow-[0_0_22px_rgba(139,92,246,0.25)]' },
-    blue:    { border: 'border-indigo-500/40',    bg: 'bg-indigo-400/10',    text: 'text-indigo-400',    glow: 'shadow-indigo-500/20',   ring: 'group-hover:shadow-[0_0_22px_rgba(99,102,241,0.25)]' },
-    emerald: { border: 'border-cyan-500/40', bg: 'bg-cyan-400/10', text: 'text-cyan-400', glow: 'shadow-cyan-500/20',ring: 'group-hover:shadow-[0_0_22px_rgba(34,211,238,0.25)]' },
-    indigo:  { border: 'border-indigo-500/40',  bg: 'bg-indigo-400/10',  text: 'text-indigo-400',  glow: 'shadow-indigo-500/20', ring: 'group-hover:shadow-[0_0_22px_rgba(99,102,241,0.25)]' },
-  };
+  const brandMark = (size: number) => logo
+    ? <BrandLogo3D src={logo} size={size} glowStrength={0} animated={false} alt={`${BRAND_NAME} emblem`} />
+    : <img src="/favicon.svg" width={size} height={size} alt={`${BRAND_NAME} emblem`} />;
 
   return (
-    <div className="cyberpunk-theme min-h-screen bg-[#050508] overflow-hidden font-rajdhani">
-      <SEO
-        title="Login"
-        description={`Admin login for ${BRAND_NAME} ${BRAND_YEAR} management dashboard.`}
-        canonical="https://ricorrenza.fun/login"
-      />
-
-
-      {/* Video Background */}
-      <div className="fixed inset-0 z-0">
-        <video
-          ref={videoRef}
-          autoPlay loop muted playsInline preload="metadata"
-          className="absolute inset-0 w-full h-full object-cover opacity-30 scale-105"
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        >
-          <source src="/login_page_video.mp4" type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-gradient-to-br from-black via-[#050510] to-black opacity-80" />
-        {/* Scanning line */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-15">
-          <div className="w-full h-[1px] bg-cyan-400/60 animate-scan" />
-        </div>
-      </div>
-
-      {/* Main Layout */}
-      <div ref={containerRef} className="relative z-10 min-h-screen flex items-stretch">
-
-        {/* ─── LEFT PANEL ─── */}
-        <div
-          ref={leftPanelRef}
-          className="hidden lg:flex flex-col items-center justify-center flex-1 relative overflow-hidden p-16"
-          style={{
-            transform: `translate(${mousePos.x * -8}px, ${mousePos.y * -5}px)`,
-            transition: 'transform 0.15s ease-out',
-          }}
-        >
-          {/* Grid background */}
-          <div className="absolute inset-0 left-panel-grid opacity-20" />
-          {/* Radial glow */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_50%_50%,rgba(34,211,238,0.07),transparent)]" />
-
-          {/* Corner brackets */}
-          <div className="absolute top-8 left-8 w-12 h-12 border-t-2 border-l-2 border-indigo-400/40" />
-          <div className="absolute top-8 right-8 w-12 h-12 border-t-2 border-r-2 border-indigo-400/40" />
-          <div className="absolute bottom-8 left-8 w-12 h-12 border-b-2 border-l-2 border-indigo-400/40" />
-          <div className="absolute bottom-8 right-8 w-12 h-12 border-b-2 border-r-2 border-indigo-400/40" />
-
-          {/* Content */}
-          <div className="relative z-10 text-center max-w-sm">
-            {/* Logo */}
-            <div className="mb-10 flex justify-center">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full bg-cyan-400/10 blur-3xl scale-150" />
-                {(() => {
-                  const raw = (homepageSettings as any)?.brand_logo_url as string | undefined;
-                  const accent = (homepageSettings as any)?.brand_logo_glow_color as string | undefined;
-                  if (!raw) return (
-                    <div className="relative w-28 h-28 flex items-center justify-center rounded-full bg-cyan-400/5 border border-cyan-400/20">
-                      <Shield className="w-16 h-16 text-cyan-400 opacity-80" />
-                    </div>
-                  );
-                  let u = String(raw).trim();
-                  if (u.startsWith('//')) u = 'https:' + u;
-                  const src = u.includes('?') ? `${u}&v=${Date.now()}` : `${u}?v=${Date.now()}`;
-                  return <BrandLogo3D src={src} size={110} glowStrength={2.5} glowColor={accent} />;
-                })()}
-              </div>
-            </div>
-
-            {/* Title */}
-            <p className="left-panel-eyebrow text-[10px] font-bold tracking-[0.5em] text-indigo-400/60 uppercase mb-3">
-              Authentication Gateway
-            </p>
-            <h2 className="text-5xl font-extrabold text-white tracking-tighter uppercase leading-none mb-2">
-              {BRAND_NAME}
-            </h2>
-            <p className="text-gray-500 text-sm font-medium tracking-widest uppercase mb-10">
-              Admin Control System
-            </p>
-
-            {/* Status chips */}
-            <div className="flex flex-col gap-2.5">
-              {[
-                { icon: Shield, label: 'SSL Encrypted Tunnel', color: 'indigo' },
-                { icon: Lock, label: 'Multi-Factor Auth Ready', color: 'cyan' },
-              ].map(({ icon: Icon, label, color }) => (
-                <div key={label} className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-full border ${
-                  color === 'indigo' ? 'border-indigo-500/20 bg-indigo-500/5 text-indigo-400' : 'border-cyan-500/20 bg-cyan-500/5 text-cyan-400'
-                }`}>
-                  <Icon className="w-3.5 h-3.5" />
-                  <span className="text-[11px] font-bold uppercase tracking-widest">{label}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Version */}
-            <p className="mt-10 text-[10px] font-mono text-gray-700 tracking-[0.3em] uppercase">
-              OS v2.6 · {BRAND_YEAR}
-            </p>
+    <div className="staff-login">
+      <SEO title="Login" description={`Select your role to access ${BRAND_NAME} ${BRAND_YEAR} management.`} canonical="https://ricorrenza.fun/login" />
+      <div className="staff-login-background" aria-hidden="true" />
+      <div className="staff-login-layout">
+        <aside className="staff-login-brand" aria-label="Festival management portal">
+          <div className="staff-login-college"><HeartPulse size={39} strokeWidth={1.25} /><span><strong>IQ CITY</strong><span>Medical College Hospital</span><small>Durgapur</small></span></div>
+          <div className="staff-login-brand-content">
+            <div className="staff-login-emblem">{brandMark(86)}</div>
+            <h2>Ricorren<span>z</span>a</h2>
+            <p className="staff-login-year"><span />{BRAND_YEAR}<span /></p>
+            <p className="staff-login-brand-caption">The annual cultural fest</p>
           </div>
-        </div>
-
-        {/* ─── DIVIDER ─── */}
-        <div className="hidden lg:block w-px bg-gradient-to-b from-transparent via-indigo-500/20 to-transparent" />
-
-        {/* ─── RIGHT PANEL (Login Card) ─── */}
-        <div className="flex-1 lg:flex-none lg:w-[480px] xl:w-[520px] flex items-center justify-center p-4 sm:p-8">
-          <div ref={cardRef} className="w-full max-w-md lg:max-w-none">
-            {/* Card */}
-            <div className="login-card overflow-hidden">
-              {/* Top accent bar */}
-              <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
-
-              <div className="p-6 sm:p-8">
-
-                {/* ── Header ── */}
-                <div className="mb-8 stagger-item">
-                  {/* Brand logo (mobile only) */}
-                  <div className="lg:hidden flex justify-center mb-5">
-                    <div className="relative p-3 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md">
-                      {(() => {
-                        const raw = (homepageSettings as any)?.brand_logo_url as string | undefined;
-                        const accent = (homepageSettings as any)?.brand_logo_glow_color as string | undefined;
-                        if (!raw) return <div className="h-12 w-12 flex items-center justify-center text-cyan-400"><Shield className="w-7 h-7" /></div>;
-                        let u = String(raw).trim();
-                        if (u.startsWith('//')) u = 'https:' + u;
-                        const src = u.includes('?') ? `${u}&v=${Date.now()}` : `${u}?v=${Date.now()}`;
-                        return <BrandLogo3D src={src} size={52} glowStrength={1.5} glowColor={accent} />;
-                      })()}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[9px] font-bold tracking-[0.4em] text-cyan-400/50 uppercase mb-1">
-                        {requiresTOTP ? 'Two-Factor Verification' : 'Access Portal'}
-                      </p>
-                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tighter text-white uppercase">
-                        {requiresTOTP ? '2FA Required' : isFormOpen ? 'Admin Login' : 'Select Role'}
-                      </h1>
-                    </div>
-
-                    {/* Master node badge */}
-                    {isMasterActive && (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 animate-pulse">
-                        <Shield className="w-3 h-3 text-cyan-400" />
-                        <span className="text-[9px] text-cyan-400 font-bold uppercase tracking-widest">Master</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Divider */}
-                  <div className="mt-4 h-px bg-gradient-to-r from-white/10 via-cyan-400/20 to-transparent" />
-                </div>
-
-                {/* ── Content Area ── */}
-                <div className="relative">
-
-                  {/* ── Identity Quick Select (INSTANT ACCESS) ── */}
-                  {!isFormOpen && !requiresTOTP && adminUsers.length > 0 && (
-                    <div className="mb-8 stagger-item">
-                      <p className="text-[9px] font-bold tracking-[0.3em] text-cyan-400/60 uppercase mb-4">
-                        Quick Identity Select
-                      </p>
-                      <div className="flex flex-wrap gap-3">
-                        {adminUsers.filter(u => u.email).slice(0, 4).map((a) => {
-                          const isOwner = isMasterOwner(a.email);
-                          return (
-                            <button
-                              key={a.email}
-                              onClick={() => {
-                                setEmail(a.email);
-                                setIsFormOpen(true);
-                                // Focus password field after animation
-                                setTimeout(() => {
-                                  const pwdInput = document.querySelector('input[type="password"]') as HTMLInputElement;
-                                  if (pwdInput) pwdInput.focus();
-                                }, 600);
-                              }}
-                              className={`flex-1 min-w-[120px] p-3 rounded-2xl border transition-all duration-300 group/id relative overflow-hidden ${
-                                isOwner 
-                                  ? 'bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50' 
-                                  : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
-                              }`}
-                            >
-                              {/* Background glow */}
-                              <div className={`absolute inset-0 opacity-0 group-hover/id:opacity-20 transition-opacity duration-500 ${isOwner ? 'bg-cyan-400' : 'bg-white'}`} style={{ filter: 'blur(20px)' }} />
-                              
-                              <div className="relative z-10 flex flex-col items-center gap-2">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-transform duration-500 group-hover/id:scale-110 ${
-                                  isOwner ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400' : 'bg-white/10 border-white/20 text-white/70'
-                                }`}>
-                                  {isOwner ? <Shield size={18} /> : <Users size={18} />}
-                                </div>
-                                <div className="text-center">
-                                  <p className="text-[10px] font-black text-white truncate w-full max-w-[100px] uppercase tracking-tighter">
-                                    {isOwner ? 'Raaj (Owner)' : a.email.split('@')[0]}
-                                  </p>
-                                  <p className={`text-[8px] font-bold uppercase tracking-widest ${isOwner ? 'text-cyan-500/70' : 'text-gray-500'}`}>
-                                    {a.role || 'Admin'}
-                                  </p>
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── Role Selection Buttons ── */}
-                  <div ref={buttonsRef} className="flex flex-col gap-2.5 stagger-item">
-                    <p className="text-[9px] font-bold tracking-[0.3em] text-gray-600 uppercase mb-1.5">
-                      Standard Access Roles
-                    </p>
-
-                    {roles.map(({ label, sub, icon: Icon, color, action }) => {
-                      const c = colorMap[color];
-                      return (
-                        <button
-                          key={label}
-                          onClick={action}
-                          className={`role-btn group relative overflow-hidden border ${c.border} ${c.ring}`}
-                        >
-                          {/* Left color bar */}
-                          <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${c.bg} opacity-0 group-hover:opacity-100 transition-all duration-300`}
-                            style={{ background: `var(--${color}-bar)` }}
-                          />
-                          <div className={`absolute left-0 top-0 bottom-0 w-[3px] role-bar-${color}`} />
-
-                          <div className="flex items-center gap-3.5">
-                            <div className={`p-2.5 rounded-xl ${c.bg} ${c.text} group-hover:scale-110 transition-transform duration-200`}>
-                              <Icon size={18} />
-                            </div>
-                            <div className="text-left">
-                              <p className={`font-bold text-sm text-white group-hover:${c.text} transition-colors duration-200`}>{label}</p>
-                              <p className="text-[10px] text-gray-600 mt-0.5">{sub}</p>
-                            </div>
-                          </div>
-
-                          <ChevronRight size={16} className={`text-gray-700 group-hover:${c.text} group-hover:translate-x-1 transition-all duration-200`} />
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* ── Login Form ── */}
-                  <div ref={formRef} style={{ display: 'none' }}>
-                    <div className="space-y-5">
-
-                      {/* Back button */}
-                      <button
-                        type="button"
-                        onClick={handleBackToPassword}
-                        className="inline-flex items-center gap-1.5 text-[10px] text-gray-500 hover:text-cyan-400 uppercase tracking-widest font-bold transition-colors mb-1"
-                      >
-                        <ArrowLeft size={12} />
-                        Back to roles
-                      </button>
-
-                      {/* Error */}
-                      {error && (
-                        <div className="p-3 rounded-xl bg-red-500/8 border border-red-500/25 flex items-center gap-3 animate-shake">
-                          <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-                          <span className="text-red-400 text-xs font-medium">{error}</span>
-                        </div>
-                      )}
-
-                      {lastAuthError && !error && (
-                        <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/25 flex items-center gap-3 animate-pulse">
-                          <Shield className="w-4 h-4 text-amber-400 shrink-0" />
-                          <span className="text-amber-400 text-xs font-medium">{lastAuthError}</span>
-                        </div>
-                      )}
-
-                      {/* ═══ SECURE ACCESS: Dropdown + Password ═══ */}
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 border border-indigo-500/15 space-y-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Shield className="w-4 h-4 text-cyan-400" />
-                          <span className="text-[10px] font-black text-white uppercase tracking-widest">Secure Access</span>
-                        </div>
-
-                        <form 
-                          onSubmit={async (e) => {
-                            e.preventDefault();
-                            setIsLoading(true);
-                            setError('');
-                            const res = await login(email, password);
-                            if (res.success) {
-                              navigate('/admin');
-                            } else if (res.requiresTOTP) {
-                              setRequiresTOTP(true);
-                              setIsLoading(false);
-                            } else {
-                              setIsLoading(false);
-                              setError(res.error || 'Invalid credentials');
-                            }
-                          }}
-                          className="space-y-3"
-                        >
-
-                        {/* Admin/Owner Dropdown */}
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] uppercase tracking-[0.25em] text-cyan-400/60 font-bold">Select Identity</label>
-                          <div className="relative group">
-                            <select
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              className="input-cyber appearance-none pr-10 cursor-pointer hover:border-cyan-400/40 transition-all font-bold"
-                            >
-                              <option value="" disabled className="bg-[#0a0a15] text-gray-500">Select User</option>
-                              {/* RAAJ/RAJA are pre-filled by fetchAdmins useEffect which includes all fetched admins */}
-                              {adminUsers.filter(u => u.email).map((a: any) => (
-                                <option key={a.email} value={a.email} className="bg-[#0a0a15] text-white">
-                                  {isMasterOwner(a.email) ? 'Raaj — OWNER' : `${a.email.split('@')[0].toUpperCase()} — ${a.role?.toUpperCase() || 'ADMIN'}`}
-                                </option>
-                              ))}
-                            </select>
-                            <input type="hidden" name="username" value={email} autoComplete="username" />
-                            <Users className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-cyan-400 pointer-events-none transition-colors" />
-                          </div>
-                        </div>
-
-                        {/* Password */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between px-1">
-                            <label className="text-[9px] uppercase tracking-[0.25em] text-cyan-400/60 font-bold">Access Key</label>
-                          </div>
-                          <div className="relative group">
-                            <input
-                              type={showPassword ? "text" : "password"}
-                              name="password"
-                              autoComplete="current-password"
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                              placeholder="Access Key"
-                              className="input-cyber pr-12"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-cyan-400 transition-colors"
-                            >
-                              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Login Button */}
-                        <button
-                          type="button"
-                          disabled={isLoading || !email || !password}
-                          onClick={async () => {
-                            setIsLoading(true);
-                            setError('');
-                            const res = await login(email, password);
-                            if (res.success) {
-                              navigate('/admin');
-                            } else if (res.requiresTOTP) {
-                              setRequiresTOTP(true);
-                              setIsLoading(false);
-                            } else {
-                              setIsLoading(false);
-                              setError(res.error || 'Invalid credentials');
-                            }
-                          }}
-                          className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isLoading ? (
-                            <span className="flex items-center justify-center gap-2">
-                              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              Authenticating...
-                            </span>
-                          ) : (
-                            <span className="flex items-center justify-center gap-2">
-                              <Key size={14} />
-                              Secure Login
-                            </span>
-                          )}
-                        </button>
-                        </form>
-                      </div>
-
-                      {/* Global Forgot Password Link */}
-                      <div className="text-center pt-1 pb-2">
-                        <Link 
-                          to="/forgot-password" 
-                          className="text-[10px] uppercase tracking-[0.2em] text-gray-500 hover:text-cyan-400 transition-colors font-black flex items-center justify-center gap-2 group"
-                        >
-                          <Lock size={10} className="text-gray-600 group-hover:text-cyan-400 transition-colors" />
-                          Forgot your password? Reset Identity
-                        </Link>
-                      </div>
-
-                      {/* Divider */}
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-px bg-white/10" />
-                        <span className="text-[9px] font-bold tracking-widest uppercase text-gray-600">Admin Sign-In</span>
-                        <div className="flex-1 h-px bg-white/10" />
-                      </div>
-
-                      {/* ═══ ADMIN LOGIN: Google Sign-In ═══ */}
-                      <button
-                        type="button"
-                        disabled={isLoading}
-                        onClick={async () => {
-                          setIsLoading(true);
-                          setError('');
-                          const res = await loginWithGoogle();
-                          if (res.success) {
-                            navigate('/admin');
-                          } else {
-                            setIsLoading(false);
-                            setError(res.error || 'Google Sign-In failed');
-                          }
-                        }}
-                        className="w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl bg-white hover:bg-gray-100 text-gray-800 font-bold text-sm uppercase tracking-widest transition-all duration-300 shadow-lg shadow-white/10 hover:shadow-white/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isLoading ? (
-                          <>
-                            <span className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                            Authenticating...
-                          </>
-                        ) : (
-                          <>
-                            <svg width="18" height="18" viewBox="0 0 48 48">
-                              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                            </svg>
-                            Sign in with Google
-                          </>
-                        )}
-                      </button>
-                      <p className="text-[9px] text-gray-600 text-center">Only owner-approved Gmail accounts can sign in.</p>
-
-                      {/* Emergency Repair trigger */}
-                      <div className="pt-2 flex justify-center">
-                        <button
-                          type="button"
-                          onClick={() => setShowRepairModal(true)}
-                          className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/5 hover:border-cyan-500/30 bg-white/5 hover:bg-cyan-500/5 transition-all"
-                        >
-                          <Lock size={10} className="text-gray-600 group-hover:text-cyan-400" />
-                          <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 group-hover:text-cyan-400">Locked out? Emergency Repair</span>
-                        </button>
-                      </div>
-
-
-
-
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* ── Footer ── */}
-                <div className="mt-8 pt-4 border-t border-white/5 flex items-center justify-between stagger-item">
-                  <div className="flex items-center gap-2 text-gray-700 text-[9px] uppercase font-bold tracking-widest">
-                    <Shield size={11} className="text-emerald-500/50" />
-                    SSL Active
-                  </div>
-                  <div className="text-gray-700 text-[9px] font-mono">
-                    {SHOW_SUPABASE && supabaseHost ? `NODE: ${supabaseHost.slice(0, 12)}...` : `${BRAND_NAME} · ${BRAND_YEAR}`}
-                  </div>
-                </div>
-              </div>
+          <div className="staff-login-committee">
+            <p>One festival. One connected team.</p>
+            <div className="staff-login-capabilities">
+              <span><Layers size={25} />Event<br />Management</span>
+              <span><Users size={25} />Team &<br />Coordination</span>
+              <span><CalendarCheck size={25} />Registrations<br />& Verification</span>
+              <span><BarChart3 size={25} />Reports<br />& Analytics</span>
             </div>
-
-            {/* Copyright */}
-            <p className="mt-5 text-center text-gray-700 text-[10px] uppercase tracking-[0.4em] font-medium stagger-item">
-              © {BRAND_YEAR} {BRAND_NAME} Fest Committee
-            </p>
           </div>
-        </div>
-      </div>
-
-      {/* Emergency Repair Modal */}
-      {showRepairModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="w-full max-w-sm bg-[#0a0a15] border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-500/20 overflow-hidden">
-            <div className="p-6 border-b border-white/5">
-              <div className="flex items-center gap-2 mb-2">
-                <Shield className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-lg font-extrabold text-white uppercase tracking-tighter">Emergency Auth Repair</h3>
+        </aside>
+        <section className="staff-login-access" aria-labelledby="staff-login-heading">
+          <div className="staff-login-card">
+            <header className="staff-login-header">
+              <p className="staff-login-portal-kicker"><span />{BRAND_NAME} · Management suite</p>
+              <h1 id="staff-login-heading">{requiresTOTP ? 'One last step.' : step === 'portals' ? 'Welcome back.' : step === 'admin-role' ? 'Admin access.' : selectedRole === 'owner' ? 'Super Admin login.' : 'Admin login.'}</h1>
+              <p className="staff-login-heading-intro">{requiresTOTP ? 'Confirm your identity to access your workspace.' : step === 'portals' ? 'Your festival. Your team. Your workspace.' : step === 'admin-role' ? 'Choose the type of admin account you use.' : 'Enter your email and password to continue.'}</p>
+              {isMasterActive && <span className="staff-login-master"><Shield size={13} /> Master access</span>}
+            </header>
+            {step === 'portals' && <>
+              <div className="staff-login-role-heading"><h2><Users size={17} />Choose your access</h2><span><Shield size={12} />Role-based access</span></div>
+              <div className="staff-login-role-list is-expanded staff-login-entry-options" aria-label="Staff portals">
+                <button type="button" className="staff-login-role staff-login-admin-entry" onClick={() => {setError('');setStep('admin-role');}}><Zap size={26} strokeWidth={1.4}/><strong>Admin</strong><span>Super Admin & team accounts</span><ArrowUpRight size={18}/></button>
+                {roles.map(({label,description,icon:Icon,to})=><Link className="staff-login-role" to={to} key={to}><Icon size={26} strokeWidth={1.4}/><strong>{label}</strong><span>{description}</span></Link>)}
               </div>
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">Rebuild identity from Master Node</p>
-            </div>
-            
-            <form onSubmit={handleRepairAuth} className="p-6 space-y-4">
-              {repairMessage && (
-                <div className={`p-3 rounded-xl border text-xs font-medium ${
-                  repairMessage.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-green-500/10 border-green-500/20 text-green-400'
-                }`}>
-                  {repairMessage.text}
+              <p className="staff-login-step-help">Select a portal to continue to sign in.</p>
+            </>}
+            {step === 'admin-role' && <>
+              <button type="button" className="staff-login-step-back" onClick={() => {resetIdentity();setStep('portals');}}><ArrowLeft size={15}/>All access options</button>
+              <div className="staff-login-role-list is-expanded staff-login-admin-types" aria-label="Admin account types">
+                <button type="button" className="staff-login-role" onClick={() => openForm(owner.email)}><Crown size={26} strokeWidth={1.4}/><strong>Super Admin</strong><span>Owner access</span></button>
+                <button type="button" className="staff-login-role" onClick={() => openForm()}><Zap size={26} strokeWidth={1.4}/><strong>Admin</strong><span>Assigned management pages</span></button>
+              </div>
+              <p className="staff-login-step-help">Your account permissions are verified when you sign in.</p>
+            </>}
+            {step === 'credentials' && <>
+            <button type="button" className="staff-login-step-back" disabled={isLoading} onClick={() => {resetIdentity();setStep('admin-role');}}><ArrowLeft size={15}/>Change account type</button>
+            <div className="staff-login-form-content">
+              {(error || lastAuthError) && <div className="staff-login-message" role="alert"><AlertCircle size={17} /><span>{error || lastAuthError}</span></div>}
+              <form onSubmit={event => { event.preventDefault(); void authenticate(email, password, totpCode); }} className="staff-login-form">
+                <p className="staff-login-form-intro">{requiresTOTP ? 'Enter the 6-digit code from your authenticator app.' : `Continue as ${selectedRole === 'owner' ? 'Super Admin' : 'Admin'}`}</p>
+                <div className="staff-login-field">
+                  <label htmlFor="staff-email">Email address</label>
+                  <input id="staff-email" ref={emailRef} type="email" name="username" autoComplete="username" list="staff-identities" value={email} onChange={event => { setEmail(event.target.value); setSelectedRole(isMasterOwner(event.target.value) ? 'owner' : 'admin'); }} required disabled={isLoading || requiresTOTP} />
+                  <datalist id="staff-identities">{adminUsers.map(admin => <option value={admin.email} key={admin.email} />)}</datalist>
                 </div>
-              )}
-
-              <div className="space-y-1.5">
-                <label className="text-[9px] uppercase tracking-widest text-cyan-400/60 font-black">Target Email</label>
-                <input
-                  type="email"
-                  required
-                  value={repairEmail}
-                  onChange={(e) => setRepairEmail(e.target.value)}
-                  placeholder="e.g. email@gmail.com"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-cyan-400/40 outline-none transition-all"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[9px] uppercase tracking-widest text-cyan-400/60 font-black">Master Bypass Key</label>
-                <input
-                  type="password"
-                  required
-                  value={repairMasterKey}
-                  onChange={(e) => setRepairMasterKey(e.target.value)}
-                  placeholder="Paste Master Key here"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-cyan-400/40 outline-none transition-all"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRepairModal(false);
-                    setRepairMessage(null);
-                  }}
-                  className="flex-1 px-4 py-2.5 border border-white/10 rounded-xl text-gray-500 text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all"
-                >
-                  Cancel
+                <div className="staff-login-field">
+                  <label htmlFor="staff-password">Access key</label>
+                  <div className="staff-login-password">
+                    <input id="staff-password" ref={passwordRef} type={showPassword ? 'text' : 'password'} name="password" autoComplete="current-password" placeholder="Enter your password" value={password} onChange={event => setPassword(event.target.value)} required disabled={isLoading || requiresTOTP} />
+                    <button type="button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                  </div>
+                </div>
+                {requiresTOTP && <div className="staff-login-field">
+                  <label htmlFor="staff-code">Authentication code</label>
+                  <input id="staff-code" ref={totpRef} name="totp" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={totpCode} onChange={event => setTotpCode(event.target.value.replace(/\D/g, ''))} required placeholder="000000" />
+                </div>}
+                <button className="staff-login-primary" type="submit" disabled={isLoading || !email || !password || (requiresTOTP && totpCode.length !== 6)}><LogIn size={18} />{isLoading ? 'Authenticating…' : requiresTOTP ? 'Verify & continue' : 'Access portal'}{!isLoading && <ArrowUpRight size={17} />}</button>
+                <span className="staff-login-sr-only" role="status">{isLoading ? 'Authentication in progress' : ''}</span>
+              </form>
+              {!requiresTOTP && <>
+                <div className="staff-login-or"><span />Or<span /></div>
+                <button className="staff-login-google" type="button" onClick={handleGoogle} disabled={isLoading}>
+                  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                  Continue with Google
                 </button>
-                <button
-                  type="submit"
-                  disabled={repairLoading || !repairEmail || !repairMasterKey}
-                  className="flex-1 px-4 py-2.5 bg-cyan-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-600/20 disabled:opacity-50"
-                >
-                  {repairLoading ? 'Repairing...' : 'Run Repair'}
-                </button>
+                <p className="staff-login-helper">Only owner-approved accounts can sign in.</p>
+              </>}
+              <div className="staff-login-help-links">
+                <Link to="/forgot-password"><Lock size={15} />Forgot access key?</Link>
+                <button type="button" onClick={resetIdentity} disabled={isLoading}><RotateCcw size={15} />Reset identity</button>
+                <button type="button" onClick={() => { setRepairMessage(null); setShowRepairModal(true); }}><Shield size={15} />Account recovery</button>
               </div>
-            </form>
+            </div>
+            </>}
           </div>
-        </div>
-      )}
-
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
-
-        .font-rajdhani { font-family: 'Rajdhani', sans-serif; }
-
-        /* ── Left panel grid ── */
-        .left-panel-grid {
-          background-image:
-            linear-gradient(rgba(34,211,238,0.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(34,211,238,0.06) 1px, transparent 1px);
-          background-size: 48px 48px;
-          background-position: center center;
-        }
-
-        /* ── Login Card ── */
-        .login-card {
-          background: rgba(10, 10, 18, 0.85);
-          backdrop-filter: blur(30px) saturate(180%);
-          border: 1px solid rgba(34, 211, 238, 0.12);
-          border-radius: 1.5rem;
-          box-shadow:
-            0 32px 64px -12px rgba(0,0,0,0.7),
-            0 0 0 1px rgba(255,255,255,0.04),
-            0 0 60px rgba(34,211,238,0.04),
-            inset 0 0 1px rgba(255,255,255,0.08);
-          position: relative;
-        }
-
-        /* Corner brackets on card */
-        .login-card::before,
-        .login-card::after {
-          content: '';
-          position: absolute;
-          width: 14px;
-          height: 14px;
-          border-color: rgba(34,211,238,0.35);
-          border-style: solid;
-        }
-        .login-card::before {
-          top: 12px; left: 12px;
-          border-width: 1.5px 0 0 1.5px;
-          border-radius: 2px 0 0 0;
-        }
-        .login-card::after {
-          bottom: 12px; right: 12px;
-          border-width: 0 1.5px 1.5px 0;
-          border-radius: 0 0 2px 0;
-        }
-
-        /* ── Role buttons ── */
-        .role-btn {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0.75rem 1rem;
-          border-radius: 1rem;
-          background: rgba(255,255,255,0.025);
-          transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
-          cursor: pointer;
-          position: relative;
-          overflow: hidden;
-        }
-        .role-btn:hover {
-          background: rgba(255,255,255,0.05);
-          transform: translateX(3px);
-        }
-
-        /* Color bars for each role */
-        .role-bar-cyan    { background: linear-gradient(to bottom, #22d3ee, #0891b2); width: 3px; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px 0 0 4px; opacity: 0; transition: opacity 0.25s; }
-        .role-bar-purple  { background: linear-gradient(to bottom, #a78bfa, #7c3aed); width: 3px; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px 0 0 4px; opacity: 0; transition: opacity 0.25s; }
-        .role-bar-blue    { background: linear-gradient(to bottom, #60a5fa, #2563eb); width: 3px; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px 0 0 4px; opacity: 0; transition: opacity 0.25s; }
-        .role-bar-emerald { background: linear-gradient(to bottom, #34d399, #059669); width: 3px; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px 0 0 4px; opacity: 0; transition: opacity 0.25s; }
-        .role-bar-rose    { background: linear-gradient(to bottom, #fb7185, #e11d48); width: 3px; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px 0 0 4px; opacity: 0; transition: opacity 0.25s; }
-        .role-btn:hover .role-bar-cyan,
-        .role-btn:hover .role-bar-purple,
-        .role-btn:hover .role-bar-blue,
-        .role-btn:hover .role-bar-emerald,
-        .role-btn:hover .role-bar-rose { opacity: 1; }
-
-        /* ── Inputs ── */
-        .input-cyber {
-          width: 100%;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 0.875rem;
-          padding: 0.7rem 2.5rem 0.7rem 1rem;
-          color: white;
-          font-weight: 500;
-          font-size: 0.9rem;
-          transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
-        }
-        .input-cyber:focus {
-          outline: none;
-          background: rgba(34,211,238,0.03);
-          border-color: rgba(34,211,238,0.4);
-          box-shadow: 0 0 0 3px rgba(34,211,238,0.06);
-        }
-        .input-cyber::placeholder { color: rgba(255,255,255,0.2); }
-
-        /* ── Primary button ── */
-        .btn-primary-cyber {
-          background: linear-gradient(135deg, #22d3ee, #0891b2);
-          color: #000;
-          padding: 0.75rem;
-          border-radius: 0.875rem;
-          font-weight: 700;
-          transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
-          box-shadow: 0 4px 20px rgba(34,211,238,0.25), 0 0 0 1px rgba(34,211,238,0.2);
-        }
-        .btn-primary-cyber:hover:not(:disabled) {
-          background: linear-gradient(135deg, #67e8f9, #22d3ee);
-          box-shadow: 0 8px 30px rgba(34,211,238,0.4), 0 0 0 1px rgba(34,211,238,0.3);
-          transform: translateY(-1px);
-        }
-        .btn-primary-cyber:active:not(:disabled) { transform: scale(0.98); }
-        .btn-primary-cyber:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        /* ── Biometric button ── */
-        .biometric-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.625rem;
-          padding: 0.7rem;
-          border-radius: 0.875rem;
-          border: 1px solid rgba(34,211,238,0.2);
-          background: rgba(34,211,238,0.04);
-          transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
-          cursor: pointer;
-        }
-        .biometric-btn:hover {
-          background: rgba(34,211,238,0.08);
-          border-color: rgba(34,211,238,0.35);
-          box-shadow: 0 0 20px rgba(34,211,238,0.1);
-        }
-
-        /* ── Animations ── */
-        @keyframes scan {
-          0% { transform: translateY(-100vh); }
-          100% { transform: translateY(100vh); }
-        }
-        .animate-scan { animation: scan 10s linear infinite; }
-
-        @keyframes shake {
-          0%,100% { transform: translateX(0); }
-          25% { transform: translateX(-4px); }
-          75% { transform: translateX(4px); }
-        }
-        .animate-shake { animation: shake 0.3s ease-in-out; }
-
-        /* ── Mobile ── */
-        @media (max-width: 640px) {
-          .role-btn { min-height: 52px; }
-          .btn-primary-cyber { min-height: 48px; }
-          input, select, textarea { font-size: 16px !important; }
-        }
-      `}</style>
+          <p className="staff-login-copyright">© {BRAND_YEAR} {BRAND_NAME} Fest Committee</p>
+        </section>
+      </div>
+      <dialog ref={dialogRef} className="staff-login-dialog" onCancel={() => setShowRepairModal(false)} onClose={() => setShowRepairModal(false)} aria-labelledby="staff-recovery-heading">
+        <div className="staff-login-dialog-heading"><Shield size={20} /><h2 id="staff-recovery-heading">Account recovery</h2><button type="button" aria-label="Close account recovery" onClick={() => setShowRepairModal(false)}><X size={20} /></button></div>
+        <p>We’ll send a 6-digit verification code to your email.</p>
+        <form onSubmit={handleRecovery} className="staff-login-form">
+          {repairMessage && <div className={`staff-login-message${repairMessage.type === 'success' ? ' is-success' : ''}`} role="status">{repairMessage.text}</div>}
+          {repairMessage?.type === 'success' && <Link className="staff-login-primary" to="/forgot-password" state={{ email: repairEmail.trim().toLowerCase(), codeSent: true }}>Enter verification code<ArrowUpRight size={17} /></Link>}
+          <div className="staff-login-field"><label htmlFor="staff-recovery-email">Email address</label><input id="staff-recovery-email" type="email" autoComplete="email" value={repairEmail} onChange={event => setRepairEmail(event.target.value)} required placeholder="you@example.com" /></div>
+          <button type="submit" className="staff-login-primary" disabled={repairLoading || !repairEmail}>{repairLoading ? 'Sending…' : 'Send verification code'}<ArrowUpRight size={17} /></button>
+        </form>
+      </dialog>
     </div>
   );
 };

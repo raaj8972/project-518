@@ -1,4 +1,5 @@
 import React from 'react';
+import '../../styles/FestivalSections.css';
 import { Clock, MapPin, Users, Ticket, ExternalLink } from 'lucide-react';
 import { getTimerStatus, formatTimeRange } from '../../utils/timeUtils';
 import { useNavigate } from 'react-router-dom';
@@ -38,18 +39,19 @@ const EventCard: React.FC<EventCardProps> = ({ event, currentTime }) => {
   };
 
   return (
-    <div className={`group relative transition-all duration-500 ${event.isFeatured ? 'col-span-1 md:col-span-2' : ''}`}>
+    <div data-spider-web className={`festival-schedule-event group relative transition-all duration-500 ${event.isFeatured ? 'col-span-1 md:col-span-2' : ''}`}>
       <div className={`absolute -inset-0.5 bg-gradient-to-r ${
         status === 'live' ? 'from-[#ff3333] to-[#ff6666]' :
         status === 'upcoming' ? 'from-white/20 to-white/5' :
         'from-white/5 to-transparent'
       } rounded-3xl opacity-0 group-hover:opacity-100 blur transition duration-500`}></div>
       
-      <div className="relative h-full bg-[#111111] border border-white/10 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row gap-8 overflow-hidden">
+      <div className="festival-schedule-frame relative h-full bg-[#111111] border border-white/10 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row gap-8 overflow-hidden">
         {/* Time Badge - Left Section */}
         <div className="md:w-48 shrink-0 flex flex-col justify-between">
           <div>
-            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-4 ${
+            <div data-status={status}
+            className={`festival-schedule-status inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-4 ${
               status === 'live' ? 'bg-[#ff3333] text-white animate-pulse' :
               status === 'upcoming' ? 'bg-white/10 text-white' :
               'bg-white/5 text-gray-500'

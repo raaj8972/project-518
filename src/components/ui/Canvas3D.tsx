@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, Float } from '@react-three/drei';
+import { Float } from '@react-three/drei';
 import * as THREE from 'three';
 
 // An abstract rotating wireframe shape
@@ -43,12 +43,6 @@ const AbstractShape = () => {
 };
 
 // Local Error Boundary to prevent Environment map fetch failures from crashing the app
-class SceneErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
-  static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(error: Error) { console.warn("3D Environment Map failed to load:", error.message); }
-  render() { return this.state.hasError ? null : this.props.children; }
-}
 
 export const Canvas3D: React.FC = () => {
   return (

@@ -13,7 +13,7 @@ export const passService = {
   async generatePassForUser(userId: string, profile: any, onProgress?: (pct: number, msg: string) => void) {
     // 1. Fetch pass configuration from security_settings
     const { data: settings } = await supabase
-      .from('security_settings')
+      .from('security_settings_public')
       .select('event_dates, venue')
       .single();
 

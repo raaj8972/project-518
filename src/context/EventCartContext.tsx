@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-interface CartEvent {
+export interface CartEvent {
+  payment_enabled?: boolean;
+  payment_amount?: number;
+  coordinator_upi_id?: string;
+  coordinator_upi_name?: string;
   id: string;
   title: string;
   category?: string;

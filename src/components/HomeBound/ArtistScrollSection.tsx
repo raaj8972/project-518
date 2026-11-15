@@ -23,6 +23,7 @@ interface BandMemberProps {
 }
 
 export const ArtistCard: React.FC<BandMemberProps> = ({ member }) => {
+  const musicUrl = member.social_links?.youtube || member.social_links?.spotify;
   return (
     <div className="group relative flex flex-col bg-[#181818] hover:bg-[#282828] transition-all duration-300 rounded-xl p-4 sm:p-5 cursor-pointer shadow-lg overflow-hidden border border-white/5 h-full">
       {/* Image Container with 1:1 Aspect Ratio */}
@@ -35,7 +36,7 @@ export const ArtistCard: React.FC<BandMemberProps> = ({ member }) => {
         />
         {/* Play Button Overlay (Spotify Style) */}
         <div className="absolute right-3 bottom-3 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 z-20">
-          <button className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-black shadow-xl hover:bg-green-400 hover:scale-105 transition-all">
+          <button aria-label={`Listen to ${member.name}`} disabled={!musicUrl} title={musicUrl ? "Open artist music" : "No music linked"} onClick={() => { if (musicUrl) window.open(musicUrl, "_blank", "noopener,noreferrer"); }} className="disabled:hidden w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-black shadow-xl hover:bg-green-400 hover:scale-105 transition-all">
             <Play fill="black" size={24} className="ml-1" />
           </button>
         </div>

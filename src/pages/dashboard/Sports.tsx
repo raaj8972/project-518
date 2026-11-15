@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { Trophy, ChevronRight, Users, ArrowRight, Shield } from 'lucide-react';
+import { Trophy, Users, ArrowRight, Shield } from 'lucide-react';
 import { BRAND_NAME } from '../../constants/brand';
 
 interface DashboardContextType {
@@ -108,7 +108,7 @@ const Sports: React.FC = () => {
           </p>
           <button 
             onClick={() => navigate('/sports')}
-            className="px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest text-white flex items-center gap-2"
+            className="student-festival-primary px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest text-white flex items-center gap-2"
             style={{ background: 'linear-gradient(135deg, #22d3ee, #0891b2)', boxShadow: '0 8px 24px rgba(34,211,238,0.3)' }}
           >
             Enter Sports Arena <ArrowRight className="w-4 h-4" />

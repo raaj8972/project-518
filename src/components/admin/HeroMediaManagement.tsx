@@ -1,51 +1,92 @@
-import React, { useState, useEffect } from 'react';
+import '../../styles/HomepageStudio.css';
+import { HomepageMediaEditor } from './homepage/HomepageMediaEditor';
+import React, { useState, useEffect, useRef } from 'react';
 import { Image as ImageIcon, Save, Monitor, Smartphone, Video, RefreshCw, Layers, AlertCircle } from 'lucide-react';
 import { ImageUpload } from '../ImageUpload';
-import { heroMediaService, HeroMediaV2 } from '../../services/heroMediaService';
+import { heroMediaService, normalizeHeroMedia, HeroMediaV2 } from '../../services/heroMediaService';
 
-type PageKey = 'home' | 'homebound';
+type PageKey = 'home' | 'homebound' | 'events';
 
 const PAGE_LABELS: Record<PageKey, string> = {
   home: 'Home Page',
   homebound: 'Home Bound Page',
+  events: 'Events Page',
 };
 
-export const HeroMediaManagement: React.FC = () => {
-  const [selectedPage, setSelectedPage] = useState<PageKey>('home');
+export const HeroMediaManagement: React.FC<{pageKey?:PageKey}> = ({pageKey}) => {
+  const [standalonePage, setSelectedPage] = useState<PageKey>('home');
+  const selectedPage = pageKey || standalonePage;
   const [form, setForm] = useState<HeroMediaV2 | null>(null);
   const [baselineForm, setBaselineForm] = useState<HeroMediaV2 | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadBusy,setUploadBusy]=useState(false);
   const [activeTab, setActiveTab] = useState<'desktop' | 'mobile'>('desktop');
   const [previewVideoError, setPreviewVideoError] = useState(false);
 
+  const [loadError, setLoadError] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const [retry, setRetry] = useState(0);
+  const [loadedPage, setLoadedPage] = useState<PageKey | null>(null);
+  const drafts = useRef<Partial<Record<PageKey, { form: HeroMediaV2; baseline: HeroMediaV2 }>>>({});
+  const draftKey = (page: PageKey) => `owner_hero_draft_${page}`;
+
   useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setLoadError('');
+    setFeedback('');
+    setPreviewVideoError(false);
+    setLoadedPage(null);
     const fetchData = async () => {
-      setIsLoading(true);
       try {
-        const data = await heroMediaService.getHeroMedia(selectedPage);
-        setForm(data);
-        setBaselineForm(data);
-      } catch (e) {
-        console.error('Error fetching hero media:', e);
+        const cached = drafts.current[selectedPage];
+        const baseline = cached?.baseline ?? await heroMediaService.getHeroMedia(selectedPage, { strict: true });
+        let nextForm = cached?.form ?? baseline;
+        if (!cached) {
+          try {
+            const stored = sessionStorage.getItem(draftKey(selectedPage));
+            if (stored) {
+              const draft = JSON.parse(stored);
+              if (draft && typeof draft === 'object' && !Array.isArray(draft)) {
+                nextForm = normalizeHeroMedia(draft, baseline);
+              }
+            }
+          } catch { /* Storage is optional; the in-memory draft still works. */ }
+        }
+        if (cancelled) return;
+        setForm(nextForm);
+        setBaselineForm(baseline);
+        setLoadedPage(selectedPage);
+      } catch {
+        if (!cancelled) setLoadError('Hero media could not load. Your saved settings have not been replaced.');
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
-    fetchData();
-    setPreviewVideoError(false);
-  }, [selectedPage, activeTab]);
+    void fetchData();
+    return () => { cancelled = true; };
+  }, [selectedPage, retry]);
+
+  useEffect(() => {
+    if (!form || !baselineForm || loadedPage !== selectedPage) return;
+    drafts.current[selectedPage] = { form, baseline: baselineForm };
+    try {
+      if (JSON.stringify(form) === JSON.stringify(baselineForm)) sessionStorage.removeItem(draftKey(selectedPage));
+      else sessionStorage.setItem(draftKey(selectedPage), JSON.stringify(form));
+    } catch { /* Storage may be disabled. */ }
+  }, [form, baselineForm, selectedPage, loadedPage]);
 
   const handleSave = async () => {
-    if (!form) return;
+    if (!form || isSaving || uploadBusy || loadedPage !== selectedPage) return;
     setIsSaving(true);
+    setFeedback('');
     try {
       await heroMediaService.saveHeroMedia(selectedPage, form);
       setBaselineForm({ ...form });
-      alert('Hero Media saved successfully.');
-    } catch (e) {
-      console.error(e);
-      alert('Failed to save Hero Media.');
+      setFeedback('Hero media saved.');
+    } catch {
+      setFeedback('Save failed. Your draft is kept here; please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -53,28 +94,32 @@ export const HeroMediaManagement: React.FC = () => {
 
   const hasUnsavedChanges = JSON.stringify(form) !== JSON.stringify(baselineForm);
 
-  if (isLoading || !form) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
-      </div>
-    );
-  }
+  if (isLoading) return <div className="owner-loading" role="status"><RefreshCw className="animate-spin" />Loading hero media…</div>;
+  if (loadError || !form) return <div className="owner-notice" role="alert"><p>{loadError || 'Hero media is unavailable.'}</p><button className="owner-button" onClick={() => setRetry(value => value + 1)}>Try again</button></div>;
+
+  if (pageKey) return <section className="homepage-studio owner-page-background">
+    <div className="owner-panel" style={{padding:24}}><h2>{PAGE_LABELS[pageKey]} background</h2><p className="studio-empty-note">Edit the background for this page. Laptop and mobile assets stay separate.</p>
+      <fieldset disabled={isSaving} style={{border:0,padding:0,margin:0}}><HomepageMediaEditor pageKey={pageKey} media={form} setMedia={action=>setForm(previous=>previous ? typeof action === 'function' ? action(previous) : action : previous)} onProcessingChange={setUploadBusy}/></fieldset>
+      {feedback&&<p role="status">{feedback}</p>}
+      <div className="studio-profile-actions"><button type="button" className="studio-button studio-button-secondary" disabled={isSaving||uploadBusy||!hasUnsavedChanges} onClick={()=>{setForm(baselineForm);setFeedback('Draft discarded. Saved media restored.');}}>Discard changes</button><button type="button" className="studio-button studio-button-primary" disabled={isSaving||uploadBusy||!hasUnsavedChanges} onClick={()=>void handleSave()}>{isSaving?'Saving…':uploadBusy?'Uploading…':'Save changes'}</button></div>
+    </div>
+  </section>;
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
-            Hero Media Studio V2
+            {pageKey ? `${PAGE_LABELS[pageKey]} background` : 'Hero media'}
           </h2>
-          <p className="text-gray-400 mt-2 font-medium">Design majestic landing experiences for your users.</p>
+          <p className="text-gray-400 mt-2 font-medium">Set the background for desktop and mobile. Drafts are kept when you switch views.</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex p-1 bg-black/40 rounded-2xl border border-white/5 shadow-inner">
+          {!pageKey && <div className="flex p-1 bg-black/40 rounded-2xl border border-white/5 shadow-inner">
             {(Object.keys(PAGE_LABELS) as PageKey[]).map((key) => (
               <button
                 key={key}
+                disabled={isSaving}
                 onClick={() => setSelectedPage(key)}
                 className={`px-6 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 ${
                   selectedPage === key 
@@ -85,7 +130,7 @@ export const HeroMediaManagement: React.FC = () => {
                 {PAGE_LABELS[key]}
               </button>
             ))}
-          </div>
+          </div>}
           
           <button
             onClick={handleSave}
@@ -97,11 +142,12 @@ export const HeroMediaManagement: React.FC = () => {
             }`}
           >
             {isSaving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-            {isSaving ? 'Saving...' : 'Deploy'}
+            {isSaving ? 'Saving…' : 'Save changes'}
           </button>
         </div>
       </div>
 
+      <div className="owner-editor-status"><span role="status">{feedback || (hasUnsavedChanges ? 'Unsaved draft · kept in this browser tab' : 'All changes saved')}</span>{hasUnsavedChanges && <button className="owner-button" disabled={isSaving} onClick={() => { setForm(baselineForm); setFeedback('Draft discarded.'); }}>Discard changes</button>}</div>
       <div className="grid lg:grid-cols-12 gap-8">
         {/* Left Column - Configuration */}
         <div className="lg:col-span-5 space-y-8">
@@ -160,11 +206,13 @@ export const HeroMediaManagement: React.FC = () => {
                {/* Device Toggle */}
                <div className="flex bg-black/50 p-1 rounded-xl">
                  <button 
+                  aria-label="Desktop media" aria-pressed={activeTab === 'desktop'}
                   onClick={() => setActiveTab('desktop')}
                   className={`p-2 rounded-lg transition-colors ${activeTab === 'desktop' ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-500 hover:text-white'}`}>
                    <Monitor size={18} />
                  </button>
                  <button 
+                  aria-label="Mobile media" aria-pressed={activeTab === 'mobile'}
                   onClick={() => setActiveTab('mobile')}
                   className={`p-2 rounded-lg transition-colors ${activeTab === 'mobile' ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-500 hover:text-white'}`}>
                    <Smartphone size={18} />

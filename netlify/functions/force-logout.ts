@@ -18,11 +18,8 @@ const handler: Handler = async (event, context) => {
   const masterKey = event.headers['x-master-key'];
   
   // Allow if secret matches OR if master key is provided (for UI integration)
-  const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
-  const isMasterAuthorized = (masterKey === process.env.MASTER_BYPASS_KEY) || 
-                              (masterKey === process.env.MASTER_BYPASS_KEY) || 
-                              (MASTER_KEY && masterKey === MASTER_KEY) ||
-                              (secret && secret === headerSecret);
+  const MASTER_KEY = process.env.MASTER_PASSWORD;
+  const isMasterAuthorized = !!((MASTER_KEY && masterKey === MASTER_KEY) || (secret && secret === headerSecret));
 
   const supabaseUrl = process.env.SUPABASE_URL || 'https://isfqhascrdzaoebhuohs.supabase.co';
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

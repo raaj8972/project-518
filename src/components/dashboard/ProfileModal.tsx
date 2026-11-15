@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Heart, X, Crown, Star, Trophy, Shield, Calendar, Award } from 'lucide-react';
+import { User, Heart, X, Crown, Star, Trophy, Calendar, Award } from 'lucide-react';
 import { TopStarProfile } from '../../hooks/useTopStars';
 import DynamicBadge from './DynamicBadge';
 

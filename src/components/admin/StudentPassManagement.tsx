@@ -1,3 +1,4 @@
+import WalletPassModal from '../dashboard/WalletPassModal';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   QrCode, 
@@ -33,6 +34,7 @@ export const StudentPassManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBatch, setSelectedBatch] = useState<string>('all');
   const [processingState, setProcessingState] = useState({ active: false, title: '', progress: 0, item: '' });
+  const [selectedPass, setSelectedPass] = useState<any>(null);
   const [showConfig, setShowConfig] = useState(false);
   
   // Local config state
@@ -220,6 +222,7 @@ export const StudentPassManagement: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
+      {selectedPass && <WalletPassModal pass={selectedPass} onClose={() => setSelectedPass(null)} />}
       {/* Processing Overlay */}
       <AnimatePresence>
         {processingState.active && (
@@ -568,7 +571,7 @@ export const StudentPassManagement: React.FC = () => {
                               Generate
                             </button>
                           )}
-                          <button className="p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all hover:text-blue-400 text-gray-500 group-hover:translate-x-1">
+                          <button aria-label="View student pass" disabled={!hasPass} onClick={() => setSelectedPass(passes.find(p => p.user_id === profile.id))} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all hover:text-blue-400 text-gray-500 group-hover:translate-x-1 disabled:opacity-30">
                             <ChevronRight size={18} />
                           </button>
                         </div>

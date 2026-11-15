@@ -1,3 +1,5 @@
+import { resolveHomepageMedia } from '../../utils/homepageMedia';
+import { heroMediaService, type HeroMediaV2 } from '../../services/heroMediaService';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Sparkles } from 'lucide-react';
@@ -8,18 +10,14 @@ import lottie from 'lottie-web';
 // Loop phases: walk+textIn → hold → fadeOut → restart
 type LoopPhase = 'enter' | 'hold' | 'exit';
 
-export const CyberpunkHeroContent: React.FC<{ pageKey?: string }> = ({ pageKey = 'home' }) => {
-  const { homepageSettings, heroMedia, fetchHeroMedia } = useData();
-  
-  useEffect(() => {
-    if (typeof fetchHeroMedia === 'function') {
-      fetchHeroMedia(pageKey as any);
-    }
-  }, [fetchHeroMedia, pageKey]);
-
-  const siteHeroMedia = heroMedia?.[pageKey as keyof typeof heroMedia];
-  const videoUrl = siteHeroMedia?.video_url || "/login_page_video.mp4";
-
+export const CyberpunkHeroContent: React.FC<{ pageKey?: string; showBackground?: boolean }> = ({ pageKey = 'home', showBackground = true }) => {
+  const { homepageSettings } = useData();
+  const [media,setMedia]=useState<HeroMediaV2|null>(null);
+  const [mobile,setMobile]=useState(false);
+  useEffect(()=>{if(!showBackground)return;return heroMediaService.subscribeHeroMedia(pageKey,setMedia);},[pageKey,showBackground]);
+  useEffect(()=>{const resize=()=>setMobile(window.innerWidth<768);resize();window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize);},[]);
+  const background=resolveHomepageMedia(media,mobile);
+  const crop={transform:`translate3d(${Number(media?.[mobile?'mobile_offset_x':'desktop_offset_x']||0)*100}%, ${Number(media?.[mobile?'mobile_offset_y':'desktop_offset_y']||0)*100}%, 0) scale(${Number(media?.[mobile?'mobile_zoom':'desktop_zoom'])||1})`};
 
   const [phase, setPhase] = useState<LoopPhase>('enter');
   const [loopKey, setLoopKey] = useState(0); // forces re-mount for each loop
@@ -113,12 +111,13 @@ export const CyberpunkHeroContent: React.FC<{ pageKey?: string }> = ({ pageKey =
     if (phase !== 'enter') return;
 
     startTimeRef.current = null;
+    let lastPaint = 0;
 
     const animate = (timestamp: number) => {
       if (!startTimeRef.current) startTimeRef.current = timestamp;
       const elapsed = timestamp - startTimeRef.current;
       const progress = Math.min(elapsed / WALK_DURATION, 1);
-      setWalkProgress(progress);
+      if (timestamp - lastPaint >= 33 || progress === 1) { setWalkProgress(progress); lastPaint = timestamp; }
 
       if (progress < 1) {
         animFrameRef.current = requestAnimationFrame(animate);
@@ -178,16 +177,19 @@ export const CyberpunkHeroContent: React.FC<{ pageKey?: string }> = ({ pageKey =
       style={{ height: 'calc(100vh - 80px)', minHeight: '600px' }}
     >
       {/* Background Video */}
-      <video
-        key={videoUrl}
+      {showBackground && media?.enabled !== false && (background.kind === 'image' ? <img src={background.src} alt="" style={crop} className="absolute inset-0 z-0 w-full h-full object-cover" /> : <video
+        key={background.src}
         autoPlay
+        poster={background.poster}
+        style={crop}
+        preload="metadata"
         loop
         muted
         playsInline
         className="absolute inset-0 z-0 w-full h-full object-cover"
       >
-        <source src={videoUrl} type="video/mp4" />
-      </video>
+        <source src={background.src} type="video/mp4" />
+      </video>)}
 
       {/* Dark cinematic overlay for readability */}
       <div

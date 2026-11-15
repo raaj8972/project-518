@@ -1,3 +1,4 @@
+import '../styles/StudentFestival.css';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, CheckCircle2, ShieldCheck, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
@@ -57,7 +58,7 @@ export const StudentResetPassword = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6 relative overflow-hidden font-inter">
+      <div className="student-festival-auth student-auth-page min-h-[100dvh] flex items-center justify-center bg-[#050505] p-6 relative overflow-hidden font-inter">
         <div className="absolute inset-0 bg-cyan-500/5 pointer-events-none" />
         <div className="max-w-md w-full relative z-10 text-center">
           <motion.div
@@ -87,7 +88,7 @@ export const StudentResetPassword = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6 relative overflow-hidden font-inter">
+    <div className="student-festival-auth student-auth-page min-h-[100dvh] flex items-center justify-center bg-[#050505] p-6 relative overflow-hidden font-inter">
       {/* Background Decor */}
       <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-600/10 blur-[150px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-20%] w-[50%] h-[50%] bg-violet-600/10 blur-[150px] rounded-full pointer-events-none" />
