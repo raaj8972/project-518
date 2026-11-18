@@ -77,6 +77,8 @@ it('loads the scene after its clean plate, maps the real logo and reacts to poin
   await act(async () => { pointer(host.querySelector('section')!, 'pointermove', 100); pointer(host.querySelector('section')!, 'pointerdown', 100); });
   expect(mocks.world.react).toHaveBeenCalledWith(expect.any(Number), expect.any(Number), false);
   expect(mocks.world.react).toHaveBeenCalledWith(expect.any(Number), expect.any(Number), true);
+  await act(async () => { pointer(host.querySelector('section')!, 'pointerup', 100); });
+  expect(mocks.world.release).toHaveBeenCalledOnce();
   visibility?.([{ isIntersecting: false }]); expect(mocks.world.setVisible).toHaveBeenLastCalledWith(false);
   visibility?.([{ isIntersecting: true, intersectionRatio: .01 }]); expect(mocks.world.setVisible).toHaveBeenLastCalledWith(false);
   visibility?.([{ isIntersecting: true, intersectionRatio: .5 }]); expect(mocks.world.setVisible).toHaveBeenLastCalledWith(true);

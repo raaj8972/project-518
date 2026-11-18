@@ -11,6 +11,7 @@
 .festival-island-control { position: absolute; z-index: 3; left: 50%; top: 70%; width: 28%; height: 18%; transform: translateX(-50%); cursor: grab; touch-action: pan-y; border-radius: 50%; outline-offset: 8px; visibility: hidden; -webkit-tap-highlight-color: transparent; }
 .spider-hero:has(.festival-environment[data-state="ready"]) .festival-island-control { visibility: visible; }
 .festival-island-control[data-dragging="true"] { cursor: grabbing; }
+.festival-island-control:focus:not(:focus-visible) { outline: none; }
 .festival-island-control[aria-disabled="true"] { cursor: default; }
 @media (max-width: 767px) {
   .festival-environment-plate { object-position: center 64%; }

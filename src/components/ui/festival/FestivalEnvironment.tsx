@@ -90,7 +90,8 @@ export const FestivalEnvironment = memo(function FestivalEnvironment({ logoUrl, 
       };
       section.addEventListener('pointermove', react, { passive: true }); section.addEventListener('pointerdown', react, { passive: true });
       const release = () => world.release(); section.addEventListener('pointerleave', release, { passive: true });
-      cleanup = () => { resizeObserver?.disconnect(); intersection?.disconnect(); window.removeEventListener('resize', resize); section.removeEventListener('pointermove', react); section.removeEventListener('pointerdown', react); section.removeEventListener('pointerleave', release); world.dispose(); controller.current = null; };
+      section.addEventListener('pointerup', release, { passive: true }); section.addEventListener('pointercancel', release, { passive: true });
+      cleanup = () => { resizeObserver?.disconnect(); intersection?.disconnect(); window.removeEventListener('resize', resize); section.removeEventListener('pointermove', react); section.removeEventListener('pointerdown', react); section.removeEventListener('pointerleave', release); section.removeEventListener('pointerup', release); section.removeEventListener('pointercancel', release); world.dispose(); controller.current = null; };
     }).catch(() => { if (!disposed) setState('fallback'); }); }, 120);
     return () => { disposed = true; clearTimeout(start); cleanup(); };
   }, [plateLoaded, logoUrl, unavailable, canPrepare, preparing]);

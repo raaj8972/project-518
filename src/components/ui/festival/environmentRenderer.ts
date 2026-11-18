@@ -9,6 +9,7 @@ import { createBattleFlag, createFloatingIsland, createGlowTexture } from './env
 import { burstParticles, createParticleField, seededRandom, stepParticles, type WorldPointer } from './environmentMotion';
 import { getMobileFestivalLayout } from './environmentLayout';
 import { getIslandViewLayout } from './islandView';
+import { createFlagInteraction } from './flagMotion';
 
 const vertexShader = 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
 const riverVertexShader = 'varying vec2 vUv; void main(){vUv=vec2(uv.x,uv.y*.24);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
@@ -118,13 +119,16 @@ export function createFestivalEnvironment(host: HTMLDivElement, onUnavailable: (
   const island = createFloatingIsland(); const islandAnchor = new Group(); islandAnchor.add(island.root); scene.add(islandAnchor);
   // Reserve the actual model's full rotation envelope below the action buttons.
   const islandBounds = new Box3();
+  const islandSweep: Box3[] = [];
   for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
     island.update(0, 0, angle); island.root.position.y = 0; island.root.updateMatrixWorld(true);
-    islandBounds.union(new Box3().setFromObject(island.root, true));
+    const bounds = new Box3().setFromObject(island.root, true);
+    islandSweep.push(bounds); islandBounds.union(bounds);
   }
   islandBounds.expandByScalar(.08);
   island.update(0);
   const flags = Array.from({ length: 4 }, (_, i) => createBattleFlag(options.logoUrl, i === 2)); flags.forEach(flag => scene.add(flag.root));
+  const flagInteractions = flags.map(() => createFlagInteraction());
   flags[2].root.name = 'foreground-battle-flag';
   const groundMaterial = new ShaderMaterial({ vertexShader: riverVertexShader, fragmentShader: groundFragment, uniforms: {
     uMap: { value: null }, uCover: { value: new Vector4(1, 1, 0, 0) }, uTime: { value: 0 }, uAspect: { value: 1.7 },
@@ -202,13 +206,35 @@ export function createFestivalEnvironment(host: HTMLDivElement, onUnavailable: (
   let seconds = 0; let lastTime = 0; let lastPaint = 0; let frame = 0; let frameInterval = 1000 / 25;
   let rotationOffset = 0;
   let reservedSpace = 0, baseHeight = 1;
-  let paused = true; let visible = true; let disposed = false; let contextLost = false; let pointerUntil = 0;
+  let paused = true; let visible = true; let disposed = false; let contextLost = false; let pointerUntil = 0; let pointerHeld = false;
   const update = (delta: number) => {
     const t = seconds;
-    if (pointer.active && performance.now() > pointerUntil) pointer.active = false;
+    if (pointer.active && !pointerHeld && performance.now() > pointerUntil) pointer.active = false;
     skyMaterial.uniforms.uTime.value = t;
     const gust = pointer.active ? .8 : .2 + Math.sin(t * .18) * .15;
-    island.update(t, gust, rotationOffset); flags.forEach((flag, i) => { if (flag.root.visible) flag.update(t, gust, i * 1.7); });
+    island.update(t, gust, rotationOffset);
+    // Reuse the startup rotation samples: no geometry traversal, raycasting or
+    // DOM measurement is needed to follow the island's outline each frame.
+    const turn = ((island.getRotation() % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * islandSweep.length;
+    const a = islandSweep[Math.floor(turn)], b = islandSweep[(Math.floor(turn) + 1) % islandSweep.length], blend = turn % 1;
+    const minX = (a.min.x + (b.min.x - a.min.x) * blend) * islandScale;
+    const maxX = (a.max.x + (b.max.x - a.max.x) * blend) * islandScale;
+    const minY = islandAnchor.position.y + (a.min.y + (b.min.y - a.min.y) * blend) * islandScale;
+    const maxY = islandAnchor.position.y + (a.max.y + (b.max.y - a.max.y) * blend) * islandScale;
+    flags.forEach((flag, i) => {
+      if (!flag.root.visible) return;
+      const interaction = flagInteractions[i], sx = Math.max(.001, flag.root.scale.x), sy = Math.max(.001, flag.root.scale.y);
+      interaction.island.x = ((minX + maxX) / 2 - flag.root.position.x) / sx;
+      interaction.island.y = ((minY + maxY) / 2 - flag.root.position.y) / sy;
+      interaction.island.radiusX = (maxX - minX) * .5 / sx;
+      interaction.island.radiusY = (maxY - minY) * .5 / sy;
+      interaction.island.side = flag.root.position.x < (minX + maxX) / 2 ? -1 : 1;
+      interaction.pointer.x = ((pointer.x - .5) * halfWidth * 2 - flag.root.position.x) / sx;
+      interaction.pointer.y = ((.5 - pointer.y) * 10 - flag.root.position.y) / sy;
+      interaction.pointer.active = pointer.active;
+      interaction.pointer.strength = pointer.strength;
+      flag.update(t, gust, i * 1.7, delta, interaction);
+    });
     groundMaterial.uniforms.uTime.value = t;
     const waterPointer = groundMaterial.uniforms.uPointer.value as Vector4;
     waterPointer.set(pointer.x, 1 - pointer.y, waterPointer.z + ((pointer.active ? 1 : 0) - waterPointer.z) * (1 - Math.exp(-delta * 10)), pointer.strength);
@@ -312,6 +338,7 @@ export function createFestivalEnvironment(host: HTMLDivElement, onUnavailable: (
   };
   const wake = () => {
     if (frame) cancelAnimationFrame(frame); frame = 0;
+    if (document.hidden) { pointerHeld = false; pointer.active = false; }
     if (!shouldAnimate()) return;
     lastTime = performance.now(); lastPaint = 0; frame = requestAnimationFrame(tick);
   };
@@ -382,15 +409,16 @@ export function createFestivalEnvironment(host: HTMLDivElement, onUnavailable: (
     // Paint the fully textured frame even when the saved preference pauses animation.
     ready: Promise.all([island.ready, groundReady, ...flags.map(flag => flag.ready)]).then(() => { if (!disposed && !contextLost) update(0); }),
     resize: resizeScene,
-    setPaused(value) { paused = value; renderer.domElement.dataset.paused = String(value); if (value) update(0); wake(); },
+    setPaused(value) { paused = value; renderer.domElement.dataset.paused = String(value); if (value) { pointerHeld = false; pointer.active = false; update(0); } wake(); },
     setVisible(value) { visible = value; wake(); },
     react(x, y, burst = false) {
       if (paused || !visible || disposed || contextLost) return;
       pointer.x = Math.max(0, Math.min(1, x)); pointer.y = Math.max(0, Math.min(1, y)); pointer.active = true; pointer.strength = burst ? 2 : 1;
+      if (burst) pointerHeld = true;
       pointerUntil = performance.now() + (burst ? 1300 : 650);
       if (burst) { groundMaterial.uniforms.uTouch.value.set(pointer.x, 1 - pointer.y, seconds, 1.25); burstParticles(field, pointer.x, pointer.y, 38); renderer.domElement.dataset.reactions = String(Number(renderer.domElement.dataset.reactions || 0) + 1); }
     },
-    release() { pointerUntil = performance.now() + 250; },
+    release() { pointerHeld = false; pointerUntil = performance.now() + 120; },
     rotateBy(radians) {
       if (!disposed && !paused && Number.isFinite(radians)) { rotationOffset += radians; update(0); }
       return (island.getRotation() * 180 / Math.PI % 360 + 360) % 360;

@@ -36,3 +36,11 @@ Final verification: **158 tests across 19 files**, application TypeScript check 
 The homepage island, flags and textures prepare behind the intro, with their animation loop suspended while covered. Loading the wallpaper no longer counts as scene readiness. The intro keeps its full cloud cover until the first complete homepage frame is painted, then reveals that scene directly; no temporary wallpaper or image-to-3D crossfade appears. The same renderer instance survives handoff. Static artwork is reserved for an actual unsupported/failed renderer. Visible-time loading deadlines prevent a stuck intro, and both the video-only default and retained portal version are covered.
 
 Validation: 84 targeted tests across eight files, TypeScript and production build passed. Chrome preview showed the film, opaque cloud hold and completed island/flag scene, without the temporary wallpaper stage.
+
+## Island scale and flag contact
+
+The island stays at the requested 150% size without zoom controls. Extra space below the copy keeps the enlarged rotating campus clear of the actions. The smaller foreground banner sits along the left tower, behind the campus.
+
+Flag cloth now uses bounded, damped springs for local finger/mouse contact and the nearby island outline. The pole and suspension row remain fixed; release preserves momentum before the fabric settles back into the wind. The existing scene clock, mobile DPR/FPS limits, visibility pause and reduced-motion behavior remain. Contact uses the startup rotation bounds and reusable buffers, without per-frame geometry traversal or DOM measurements.
+
+Validation: 97 tests across nine files, application TypeScript check and production build passed. Chrome preview checked local cloth contact and the fixed-size island with no zoom controls.

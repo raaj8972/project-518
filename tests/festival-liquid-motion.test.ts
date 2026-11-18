@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LineSegments, Mesh, Scene, ShaderMaterial } from 'three';
+import { Vector3, type LineSegments, type Mesh, type Scene, type ShaderMaterial } from 'three';
 import { createLiquidDrops, stepLiquidDrops, type LiquidBounds, type LiquidDrop } from '../src/components/ui/festival/liquidMotion';
 import { createFestivalEnvironment, type EnvironmentController } from '../src/components/ui/festival/environmentRenderer';
 
@@ -134,5 +134,22 @@ describe('hero river and falling water reactions', () => {
     expect(Math.hypot(displaced.getX(dropIndex) - regular.getX(dropIndex), displaced.getY(dropIndex) - regular.getY(dropIndex))).toBeGreaterThan(.05);
     expect(Array.from(displaced.array).every(Number.isFinite)).toBe(true);
     expect(Array.from(regular.array).every(Number.isFinite)).toBe(true);
+  });
+
+  it('maps a finger onto the flag fabric and lets it recover after release', () => {
+    const idle = makeWorld(), touched = makeWorld();
+    const banner = touched.scene.getObjectByName('foreground-battle-flag')!;
+    const cloth = (banner.getObjectByName('wind-deformed-cloth') as Mesh).geometry.attributes.position;
+    const regular = (idle.scene.getObjectByName('foreground-battle-flag')!.getObjectByName('wind-deformed-cloth') as Mesh).geometry.attributes.position;
+    touched.scene.updateMatrixWorld(true);
+    const finger = banner.localToWorld(new Vector3(.15, -1.6, 0));
+    idle.world.setPaused(false); touched.world.setPaused(false);
+    touched.world.react(.5 + finger.x / (1280 / 900 * 10), .5 - finger.y / 10, true);
+    // A stationary press remains in contact beyond the old 1.3s burst timeout.
+    advance(40);
+    const difference = () => Math.max(...Array.from({ length: cloth.count }, (_, i) => Math.abs(cloth.getX(i) - regular.getX(i))));
+    expect(difference()).toBeGreaterThan(.18);
+    touched.world.release(); advance(90);
+    expect(difference()).toBeLessThan(.005);
   });
 });

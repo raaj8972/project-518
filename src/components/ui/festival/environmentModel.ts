@@ -3,6 +3,7 @@ import {
   PlaneGeometry, SRGBColorSpace, TorusGeometry, CylinderGeometry,
 } from 'three';
 import { seededRandom } from './environmentMotion';
+import { createFlagClothMotion, type FlagInteraction } from './flagMotion';
 
 export function createGlowTexture(smoke = false) {
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 128;
@@ -88,6 +89,7 @@ export function createBattleFlag(logoUrl?: string, wallMounted = false) {
   const banner = typeof document !== 'undefined' ? createFlagTexture(logoUrl) : null;
   const geometry = new PlaneGeometry(1, 2.2, 12, 24); geometry.translate(0, -1.1, 0);
   const original = Float32Array.from(geometry.attributes.position.array);
+  const motion = createFlagClothMotion(original);
   const material = new MeshStandardMaterial({ color: '#ffffff', map: banner?.texture || null, emissive: '#ffffff', emissiveMap: banner?.logoTexture || null, emissiveIntensity: .45, roughness: .98, metalness: 0, side: DoubleSide, transparent: true, alphaTest: .12 });
   const cloth = new Mesh(geometry, material); cloth.name = 'wind-deformed-cloth'; root.add(cloth);
   const poleMaterial = new MeshStandardMaterial({ color: '#9e8458', metalness: .7, roughness: .6 });
@@ -125,12 +127,16 @@ export function createBattleFlag(logoUrl?: string, wallMounted = false) {
       brace.position.set((wallX + .43) / 2, .16, .025);
       brace.scale.set(Math.hypot(dx, dy), .024, .03); brace.rotation.z = Math.atan2(dy, dx);
     },
-    update(time: number, gust = 0, phase = 0) {
+    update(time: number, gust = 0, phase = 0, delta = 0, interaction?: FlagInteraction) {
+      motion.step(delta, interaction);
       const positions = geometry.attributes.position;
       for (let i = 0; i < positions.count; i++) {
         const x = original[i * 3]; const y = original[i * 3 + 1]; const free = -y / 2.2;
+        if (Math.abs(y) < .000001) { positions.setXYZ(i, x, y, original[i * 3 + 2]); continue; }
         const wind = Math.sin(time * 1.10 + y * 2.4 + phase);
-        positions.setXYZ(i, x + wind * .075 * free * (1 + gust * .3), y + Math.sin(time * 1.3 + x * 5 + phase) * .018 * free, Math.sin(x * 5 + y * 2.4 - time * 1.3 + phase) * .09 * free);
+        const bendX = motion.offset[i * 2], bendZ = motion.offset[i * 2 + 1];
+        const lift = Math.min(.18, (Math.abs(bendX) + Math.abs(bendZ)) * .16) * free;
+        positions.setXYZ(i, x + wind * .075 * free * (1 + gust * .3) + bendX, y + Math.sin(time * 1.3 + x * 5 + phase) * .018 * free + lift, Math.sin(x * 5 + y * 2.4 - time * 1.3 + phase) * .09 * free + bendZ);
       }
       // The pole and its wall bracket stay fixed; wind deforms only the cloth.
       positions.needsUpdate = true; geometry.computeVertexNormals();
