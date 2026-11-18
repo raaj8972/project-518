@@ -74,3 +74,7 @@ supabase/.temp/
 !scripts/generate-cinematic-character.mjs
 !scripts/generate-cinematic-textures.mjs
 !scripts/seed-family-lighting-demo.mjs
+
+!scripts/check-rico-family-database.mjs
+
+!scripts/audit-rico-family.mjs

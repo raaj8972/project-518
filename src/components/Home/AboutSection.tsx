@@ -1,11 +1,15 @@
-import React from 'react';
+import { useId } from 'react';
 import DOMPurify from 'dompurify';
+import { ArrowTopRightIcon } from '@radix-ui/react-icons';
+import { Link } from 'react-router-dom';
 import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
+import { FestivalCrown, FestivalLaurel } from './FestivalSectionHeading';
+import '../../styles/FestivalAbout.css';
 
 interface AboutSettings {
   enabled: boolean;
-  hero_title?: string;
-  hero_heading?: string;
+  hero_title?: string | null;
+  hero_heading?: string | null;
   hero_paragraphs?: string[];
   tracks?: string[];
   zones?: string[];
@@ -14,118 +18,61 @@ interface AboutSettings {
   zonesLabel?: string | null;
 }
 
-interface AboutSectionProps {
-  aboutSettings: AboutSettings;
-}
+const DEFAULT_PARAGRAPHS = [
+  `${BRAND_NAME} brings the campus of IQ City Medical College together through music, art, culture and competition.`,
+  'From the first performance to the final encore, it is a celebration of the people, ideas and friendships that make our college our own.',
+];
 
-const AboutSection: React.FC<AboutSectionProps> = ({ aboutSettings }) => {
+export default function AboutSection({ aboutSettings }: { aboutSettings: AboutSettings | null }) {
+  const id = useId();
   if (aboutSettings?.enabled !== true) return null;
+  const paragraphs = aboutSettings.hero_paragraphs?.filter(paragraph => paragraph.trim()) || [];
+  const stats = aboutSettings.stats?.filter(stat => stat.value.trim() && stat.label.trim()) || [];
+  const features = [
+    { title: aboutSettings.tracksLabel || 'Festival tracks', items: aboutSettings.tracks?.length ? aboutSettings.tracks : ['Music & live performances', 'Art & creative expression', 'Culture & competition', 'Campus experiences'] },
+    { title: aboutSettings.zonesLabel || 'Experience zones', items: aboutSettings.zones?.length ? aboutSettings.zones : ['The main stage', 'Creative showcases', 'Campus celebrations', 'Community & connection'] },
+  ];
 
-  return (
-    <section className="py-24 relative overflow-hidden gsap-fade-up">
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="scroll-animate-3d">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-6xl font-black mb-6 stranger-title-glow uppercase">
-              {aboutSettings?.hero_title ? aboutSettings.hero_title : 'ABOUT RICORRENZA'}
-            </h2>
-            <div className="w-24 h-1 bg-indigo-500/40 mx-auto mb-8 rounded-full"></div>
+  return <section id="about" className="festival-about" aria-labelledby={`${id}-title`}>
+    <div className="festival-about__atmosphere" aria-hidden="true" />
+    <div className="festival-about__content">
+      <div className="festival-about__chapter" aria-hidden="true"><span>The heart of the festival</span><i /><span>Est. 2015</span></div>
+      <div className="festival-about__introduction">
+        <div className="festival-about__story">
+          <p className="festival-about__eyebrow"><FestivalCrown /> Our story. Our people. Our celebration.</p>
+          <h2 id={`${id}-title`}>{aboutSettings.hero_title || 'About Ricorrenza'}</h2>
+          <div className="festival-about__rule" aria-hidden="true"><span /><i /><span /></div>
+          <h3>{aboutSettings.hero_heading || 'A campus. A culture. A thousand memories.'}</h3>
+          <div className="festival-about__prose">
+            {(paragraphs.length ? paragraphs : DEFAULT_PARAGRAPHS).map((paragraph, index) => <p key={index} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(paragraph, { USE_PROFILES: { html: true } }) }} />)}
           </div>
+          <Link className="festival-about__story-link" to="/rico-family">Meet the people behind it <ArrowTopRightIcon aria-hidden="true" /></Link>
         </div>
-
-        <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* About Content */}
-            <div className="scroll-animate-3d" style={{ animationDelay: '0.2s' }}>
-              <div className="stranger-card p-6 sm:p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem]">
-                <h3 className="text-2xl md:text-4xl font-black mb-8 text-white uppercase tracking-tight">
-                  {aboutSettings?.hero_heading || 'THE FUTURE IS NOW'}
-                </h3>
-                <div className="space-y-6 text-white/60 leading-relaxed font-light text-lg">
-                  {(aboutSettings?.hero_paragraphs && aboutSettings.hero_paragraphs.length > 0
-                    ? aboutSettings.hero_paragraphs
-                    : [
-                        `${BRAND_NAME} ${BRAND_YEAR} brings our campus together through culture, creativity and competition.`,
-                        'Born from the vision of creating a platform where digital dreams meet reality, RICORRENZA has evolved into the most anticipated festival experience, attracting visionaries, innovators, and creators from across the digital landscape.',
-                        'Our festival celebrates the convergence of disciplines—where medical students become tech innovators, where artists code their creativity, and where the future of human potential is explored through immersive experiences.'
-                      ]).map((para, i) => {
-                    const html = DOMPurify.sanitize(para, { USE_PROFILES: { html: true } });
-                    return (<p key={i} dangerouslySetInnerHTML={{ __html: html }} />);
-                  })}
-                </div>
-                
-                {/* Key Features */}
-                <div className="mt-8 grid md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <h4 className="text-lg font-bold text-indigo-400 mb-3">{aboutSettings?.tracksLabel || 'FESTIVAL TRACKS'}</h4>
-                    <div className="space-y-2">
-                      {(aboutSettings?.tracks?.length ? aboutSettings.tracks : [
-                        'Healthcare Technology','Digital Arts & Media','Music','Interactive Experiences'
-                      ]).map((track, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center space-x-2 achievement-item"
-                          style={{ animationDelay: `${index * 0.1}s` }}
-                        >
-                          <div className="w-2 h-2 bg-indigo-500 rounded-full pulse-ring flex-shrink-0"></div>
-                          <span className="text-gray-300 text-sm">{track}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <h4 className="text-lg font-bold text-violet-400 mb-3">{aboutSettings?.zonesLabel || 'EXPERIENCE ZONES'}</h4>
-                    <div className="space-y-2">
-                      {(aboutSettings?.zones?.length ? aboutSettings.zones : [
-                        'Virtual Reality Labs','AI Demonstration Pods','Art Galleries','Future Tech Showcases'
-                      ]).map((zone, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center space-x-2 achievement-item"
-                          style={{ animationDelay: `${index * 0.1 + 0.4}s` }}
-                        >
-                          <div className="w-2 h-2 bg-violet-500 rounded-full pulse-ring flex-shrink-0"></div>
-                          <span className="text-gray-300 text-sm">{zone}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Visual Element */}
-            <div className="scroll-animate-3d" style={{ animationDelay: '0.4s' }}>
-              <div className="stranger-card p-6 sm:p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] text-center">
-                <div className="relative">
-                  {/* Animated Stats */}
-                  <div className="grid grid-cols-2 gap-8 mb-12">
-                    {(aboutSettings?.stats?.length ? aboutSettings.stats : [
-                      { value: BRAND_YEAR, label: 'FESTIVAL YEAR' }
-                    ]).map((s, i) => (
-                      <div key={i} className="text-center group">
-                        <div className={`text-4xl md:text-5xl font-black mb-3 transition-transform duration-500 group-hover:scale-110 stranger-title-glow`}>{s.value}</div>
-                        <div className="text-white/30 text-[9px] font-black tracking-widest uppercase">{s.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Mission Statement */}
-                  <div className="border-t border-white/5 pt-8">
-                    <h4 className="text-lg font-black mb-6 text-white uppercase tracking-widest">OUR MISSION</h4>
-                    <p className="text-white/50 text-base leading-relaxed font-light italic">
-                      "{aboutSettings?.hero_heading || 'Merging medicine, tech & culture to inspire, innovate and shape the future of healthcare'}"
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <div className="festival-about__emblem" aria-label={`Ricorrenza ${BRAND_YEAR}, IQ City Medical College, Durgapur`}>
+          <div className="festival-about__seal">
+            <svg className="festival-about__seal-rings" viewBox="0 0 400 400" fill="none" aria-hidden="true">
+              <circle cx="200" cy="200" r="186" stroke="currentColor" strokeWidth=".8" />
+              <circle cx="200" cy="200" r="177" stroke="currentColor" strokeWidth=".5" strokeDasharray="1 7" />
+              <circle cx="200" cy="200" r="157" stroke="currentColor" strokeWidth=".7" />
+              <path d="M200 2v27M200 371v27M2 200h27M371 200h27" stroke="currentColor" />
+              {[45,135,225,315].map(angle => <path key={angle} d="m200 8 4 9-4 9-4-9Z" fill="currentColor" transform={`rotate(${angle} 200 200)`} />)}
+            </svg>
+            <p className="festival-about__seal-caption">Medicine at heart · Culture in motion</p>
+            <div className="festival-about__crest"><FestivalLaurel /><img src="/images/ricorrenza-medical-mark.svg" alt="" width="90" height="110" loading="lazy" /><FestivalLaurel /></div>
+            <p className="festival-about__seal-name">{BRAND_NAME}</p>
+            <span className="festival-about__seal-year">{BRAND_YEAR}</span>
+            <p className="festival-about__seal-place">IQ City Medical College<span>Durgapur</span></p>
           </div>
+          <p className="festival-about__emblem-caption"><span /> Many talents. One Ricorrenza. <span /></p>
         </div>
       </div>
-    </section>
-  );
-};
-
-export default AboutSection;
+      <div className="festival-about__experiences">
+        {features.map((feature, index) => <div className="festival-about__experience" key={index}>
+          <span className="festival-about__index" aria-hidden="true">0{index + 1}</span>
+          <div><h3>{feature.title}</h3><ul>{feature.items.filter(item => item.trim()).map((item, itemIndex) => <li key={itemIndex}><span aria-hidden="true">◇</span>{item}</li>)}</ul></div>
+        </div>)}
+      </div>
+      {stats.length > 0 && <dl className="festival-about__stats" aria-label="Festival at a glance">{stats.map((stat, index) => <div key={index}><dt>{stat.label}</dt><dd>{stat.value}</dd></div>)}</dl>}
+    </div>
+  </section>;
+}

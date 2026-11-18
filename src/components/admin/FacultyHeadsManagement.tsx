@@ -1,570 +1,72 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Users, Crown, Eye, EyeOff } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { PlusIcon, Pencil1Icon, TrashIcon, EyeOpenIcon, EyeClosedIcon } from '@radix-ui/react-icons';
 import { AdminModal } from './layout/AdminModal';
+import { PeopleProfileForm } from './PeopleProfileForm';
 import { useData } from '../../context/DataContext';
-import { ImageUpload } from '../ImageUpload';
 import type { FacultyHead } from '../../types/data';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
+import { instagramProfile, facebookProfile, personBatch, phoneProfile } from '../../utils/familyPeople';
 
-export const FacultyHeadsManagement: React.FC = () => {
-  const savingProgress = useSavingProgress();
+const EMPTY = { name: '', title: '', image: '', phone: '', instagram: '', facebook: '', batch: '', order_position: 1, enabled: true };
+export function FacultyHeadsManagement() {
+  const { facultyHeads, addFacultyHead, updateFacultyHead, deleteFacultyHead, toggleFacultyHeadEnabled, sanitizeUrl } = useData();
   const { submitForApproval, checkRequiresApproval } = useApprovals();
-  const [requiresApproval, setRequiresApproval] = useState(false);
-
-  useEffect(() => {
-    checkRequiresApproval().then(setRequiresApproval);
-  }, []);
-
-  const { 
-    facultyHeads, 
-    addFacultyHead, 
-    updateFacultyHead, 
-    deleteFacultyHead,
-    toggleFacultyHeadEnabled,
-    sanitizeUrl
-  } = useData() as any;
-
-  const [isAdding, setIsAdding] = useState(false);
-  const [editing, setEditing] = useState<number | null>(null);
-
-  const [form, setForm] = useLocalStorage('admin_faculty_head_form_draft', {
-    name: '',
-    title: '',
-    image: '',
-    email: '',
-    phone: '',
-    instagram: '',
-    youtube: '',
-    facebook: '',
-    linkedin: '',
-    spotify: '',
-    order_position: 1,
-    enabled: true
-  });
-
-  const resetForm = () => {
-    setForm({
-      name: '',
-      title: '',
-      image: '',
-      email: '',
-      phone: '',
-      instagram: '',
-      youtube: '',
-      facebook: '',
-      linkedin: '',
-      spotify: '',
-      order_position: facultyHeads.length + 1,
-      enabled: true
-    });
-  };
-
-  const handleAdd = async () => {
-    if (!form.name.trim()) {
-      alert('Name is required');
-      return;
-    }
+  const progress = useSavingProgress();
+  const [requiresApproval, setRequiresApproval] = useState<boolean | null>(null);
+  const [adding, setAdding] = useState(false), [editing, setEditing] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false), [photoBusy, setPhotoBusy] = useState(false), [error, setError] = useState('');
+  const [form, setForm] = useLocalStorage('admin_faculty_head_form_draft', EMPTY);
+  useEffect(() => { checkRequiresApproval().then(setRequiresApproval).catch(() => setError('Could not check permissions. Please reload.')); }, []);
+  const reset = () => { setError(''); setForm({ ...EMPTY, order_position: Math.max(0, ...facultyHeads.map(person => person.order_position)) + 1 }); };
+  const close = () => { if (busy || photoBusy) return; setAdding(false); setEditing(null); reset(); };
+  const edit = (person: FacultyHead) => { setError(''); setEditing(person.id); setForm({ name: person.name, title: person.title || '', image: person.image || '', phone: person.phone || '', batch: personBatch(person), instagram: person.social_links?.instagram || '', facebook: person.social_links?.facebook || '', order_position: person.order_position, enabled: person.enabled }); };
+  async function save() {
+    if (busy || photoBusy || requiresApproval === null) return;
+    if (!form.name.trim() || !form.image) { setError('Name and profile photo are required.'); return; }
+    if (form.phone?.trim() && !phoneProfile(form.phone)) { setError('Enter a valid phone number with country code.'); return; }
+    if (form.instagram?.trim() && !instagramProfile(form.instagram)) { setError('Enter a valid Instagram handle or profile URL.'); return; }
+    if (form.facebook?.trim() && !facebookProfile(form.facebook)) { setError('Enter a valid Facebook username or profile URL.'); return; }
+    setBusy(true); setError('');
     try {
-      const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      // Build optional social_links only when present
-      const social_links: Record<string, string> = {};
-      if (form.instagram?.trim()) social_links.instagram = form.instagram.trim();
-      if (form.youtube?.trim()) social_links.youtube = form.youtube.trim();
-      if (form.facebook?.trim()) social_links.facebook = form.facebook.trim();
-      if (form.linkedin?.trim()) social_links.linkedin = form.linkedin.trim();
-      if (form.spotify?.trim()) social_links.spotify = form.spotify.trim();
-      
-      const payload: any = { ...form };
-      delete payload.instagram;
-      delete payload.youtube;
-      delete payload.facebook;
-      delete payload.linkedin;
-      delete payload.spotify;
-      if (Object.keys(social_links).length > 0) payload.social_links = social_links;
+      progress.withSteps(1, 'Saving faculty profile…');
+      const existing = facultyHeads.find(person => person.id === editing);
+      const payload = { name: form.name.trim(), title: form.title?.trim() || '', image: form.image, phone: form.phone?.trim() || null, order_position: form.order_position, enabled: form.enabled,
+        social_links: { ...existing?.social_links, instagram: instagramProfile(form.instagram)?.url || '', facebook: facebookProfile(form.facebook) || '', batch: form.batch?.trim() || '' } };
       if (requiresApproval) {
-        await submitForApproval(
-          'faculty_head',
-          'create',
-          {
-            name: form.name,
-            title: form.title,
-            image: form.image,
-            email: form.email,
-            phone: form.phone,
-            order_position: form.order_position,
-            enabled: form.enabled,
-            social_links: Object.keys(social_links).length > 0 ? social_links : undefined
-          }
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-        setIsAdding(false);
-        resetForm();
-        try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
-      } else {
-        steps.next('Saving to database');
-        await addFacultyHead(payload);
-        setIsAdding(false);
-        resetForm();
-        try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
-      }
-    } catch (error) {
-      console.error('Error adding faculty head:', error);
-      const msg = (error as any)?.message || String(error);
-      alert(`Failed to add faculty head. ${msg}`);
-    } finally {
-      savingProgress.done();
-    }
-  };
-
-  const handleUpdate = async (id: number) => {
-    if (!form.name.trim()) {
-      alert('Name is required');
-      return;
-    }
+        const result = await submitForApproval('faculty_head', editing === null ? 'create' : 'update', payload, editing ?? undefined);
+        if (!result.success) throw new Error(result.error || 'Could not submit for approval.');
+      } else if (editing === null) await addFacultyHead({ ...payload, description: '', achievements: [] });
+      else await updateFacultyHead(editing, payload);
+      setAdding(false); setEditing(null); reset(); localStorage.removeItem('admin_faculty_head_form_draft');
+    } catch { setError('Could not save the profile. Your changes are still here; please try again.'); }
+    finally { setBusy(false); progress.done(); }
+  }
+  async function action(person: FacultyHead, remove = false) {
+    if (busy || requiresApproval === null || (remove && !confirm(`Delete ${person.name}?`))) return;
+    setBusy(true); setError('');
     try {
-      const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      const payload: any = { ...form };
-      delete payload.instagram;
-      delete payload.youtube;
-      delete payload.facebook;
-      // Merge with existing social_links, but allow clearing by empty field
-      const existing = facultyHeads.find((f: any) => f.id === id) as any;
-      const merged: Record<string, string> = { ...(existing?.social_links || {}) };
-      if (form.instagram !== undefined) {
-        if (form.instagram.trim()) merged.instagram = form.instagram.trim();
-        else delete merged.instagram;
-      }
-      if (form.youtube !== undefined) {
-        if (form.youtube.trim()) merged.youtube = form.youtube.trim();
-        else delete merged.youtube;
-      }
-      if (form.facebook !== undefined) {
-        if (form.facebook.trim()) merged.facebook = form.facebook.trim();
-        else delete merged.facebook;
-      }
-      if (form.linkedin !== undefined) {
-        if (form.linkedin.trim()) merged.linkedin = form.linkedin.trim();
-        else delete merged.linkedin;
-      }
-      if (form.spotify !== undefined) {
-        if (form.spotify.trim()) merged.spotify = form.spotify.trim();
-        else delete merged.spotify;
-      }
-      if (Object.keys(merged).length > 0) {
-        payload.social_links = merged;
-      } else {
-        // Omit the property entirely to avoid unknown-column updates when DB lacks social_links
-        delete payload.social_links;
-      }
       if (requiresApproval) {
-        await submitForApproval(
-          'faculty_head',
-          'update',
-          {
-            name: form.name,
-            title: form.title,
-            image: form.image,
-            email: form.email,
-            phone: form.phone,
-            order_position: form.order_position,
-            enabled: form.enabled,
-            social_links: Object.keys(merged).length > 0 ? merged : undefined
-          },
-          id
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-        setEditing(null);
-        resetForm();
-        try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
-      } else {
-        steps.next('Saving to database');
-        await updateFacultyHead(id, payload);
-        setEditing(null);
-        resetForm();
-        try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
-      }
-    } catch (error) {
-      console.error('Error updating faculty head:', error);
-      const msg = (error as any)?.message || String(error);
-      alert(`Failed to update faculty head. ${msg}`);
-    } finally {
-      savingProgress.done();
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this faculty head? This action cannot be undone.')) {
-      try {
-        const steps = savingProgress.withSteps(2, 'Preparing…');
-        steps.next('Deleting');
-        if (requiresApproval) {
-          await submitForApproval(
-            'faculty_head',
-            'delete',
-            {},
-            id
-          );
-          alert('Request submitted for approval. An owner will review your changes.');
-        } else {
-          await deleteFacultyHead(id);
-        }
-      } catch (error) {
-        console.error('Error deleting faculty head:', error);
-        alert('Failed to delete faculty head. Please try again.');
-      } finally {
-        savingProgress.done();
-      }
-    }
-  };
-
-  const handleToggleEnabled = async (id: number) => {
-    try {
-      const steps = savingProgress.withSteps(2, 'Preparing…');
-      steps.next('Updating');
-      if (requiresApproval) {
-        const head = facultyHeads.find((h: any) => h.id === id);
-        await submitForApproval(
-          'faculty_head',
-          'update',
-          { enabled: !head?.enabled },
-          id
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-      } else {
-        await toggleFacultyHeadEnabled(id);
-      }
-    } catch (error) {
-      console.error('Error toggling faculty head status:', error);
-      alert('Failed to update faculty head status. Please try again.');
-    } finally {
-      savingProgress.done();
-    }
-  };
-
-  const startEditing = (facultyHead: FacultyHead) => {
-    setForm({
-      name: facultyHead.name,
-      title: facultyHead.title,
-      image: facultyHead.image,
-      email: (facultyHead as any).email || '',
-      phone: (facultyHead as any).phone || '',
-      instagram: ((facultyHead as any).social_links?.instagram) || '',
-      youtube: ((facultyHead as any).social_links?.youtube) || '',
-      facebook: ((facultyHead as any).social_links?.facebook) || '',
-      linkedin: ((facultyHead as any).social_links?.linkedin) || '',
-      spotify: ((facultyHead as any).social_links?.spotify) || '',
-      order_position: facultyHead.order_position,
-      enabled: facultyHead.enabled
-    });
-    setEditing(facultyHead.id);
-  };
-
-
-  // Sort faculty heads by order position
-  const sortedFacultyHeads = [...facultyHeads].sort((a: any, b: any) => a.order_position - b.order_position);
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-            <div className="w-1.5 h-8 bg-gradient-to-b from-amber-400 to-yellow-600 rounded-full" />
-            Faculty Heads Management
-          </h2>
-          <p className="text-gray-400 mt-1">Manage faculty leadership profiles and information</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setIsAdding(true);
-            resetForm();
-          }}
-          className="bg-gradient-to-r from-amber-500 to-yellow-500 text-black px-5 py-2.5 rounded-xl hover:from-amber-400 hover:to-yellow-400 transition-all shadow-lg shadow-yellow-500/20 flex items-center font-bold hover:-translate-y-0.5"
-        >
-          <Plus size={16} className="mr-2" />
-          Add Faculty Head
-        </button>
-      </div>
-
-      {/* Add/Edit Faculty Head Modal */}
-      <AdminModal
-        isOpen={isAdding || editing !== null}
-        onClose={() => {
-          setIsAdding(false);
-          setEditing(null);
-          resetForm();
-        }}
-        title={editing ? 'Edit Faculty Head' : 'Add New Faculty Head'}
-        maxWidth="max-w-5xl"
-        footer={
-          <div className="flex flex-col sm:flex-row justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setIsAdding(false);
-                setEditing(null);
-                resetForm();
-              }}
-              className="w-full sm:w-auto px-6 py-2 text-gray-400 hover:text-white flex items-center justify-center gap-2 font-medium"
-            >
-              <X size={16} />
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={editing ? () => handleUpdate(editing) : handleAdd}
-              className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-black rounded-xl hover:from-amber-400 hover:to-yellow-400 flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/20 font-bold hover:-translate-y-0.5 transition-all"
-            >
-              <Save size={16} />
-              {editing ? 'Update Faculty Head' : 'Add Faculty Head'}
-            </button>
-          </div>
-        }
-      >
-        <div className="grid lg:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Full Name *</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Dr. John Smith"
-                className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Title/Position</label>
-              <input
-                type="text"
-                value={form.title}
-                onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Festival Director & Department Head"
-                className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Email (optional)</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="name@example.com"
-                  className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Phone (optional)</label>
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="+91 98765 43210"
-                  className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
-                />
-              </div>
-            </div>
-            {/* Social Links */}
-            <div>
-              <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Social Links (optional)</label>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <input
-                  type="url"
-                  value={form.instagram}
-                  onChange={(e) => setForm(prev => ({ ...prev, instagram: e.target.value }))}
-                  placeholder="Insta"
-                  className="w-full p-2.5 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 text-white text-xs placeholder-gray-600"
-                />
-                <input
-                  type="url"
-                  value={form.facebook}
-                  onChange={(e) => setForm(prev => ({ ...prev, facebook: e.target.value }))}
-                  placeholder="FB"
-                  className="w-full p-2.5 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-xs placeholder-gray-600"
-                />
-                <input
-                  type="url"
-                  value={form.linkedin}
-                  onChange={(e) => setForm(prev => ({ ...prev, linkedin: e.target.value }))}
-                  placeholder="In"
-                  className="w-full p-2.5 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white text-xs placeholder-gray-600"
-                />
-                <input
-                  type="url"
-                  value={form.youtube}
-                  onChange={(e) => setForm(prev => ({ ...prev, youtube: e.target.value }))}
-                  placeholder="YT"
-                  className="w-full p-2.5 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-white text-xs placeholder-gray-600"
-                />
-                <input
-                  type="url"
-                  value={form.spotify}
-                  onChange={(e) => setForm(prev => ({ ...prev, spotify: e.target.value }))}
-                  placeholder="Sp"
-                  className="w-full p-2.5 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-white text-xs placeholder-gray-600"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Display Order</label>
-                <input
-                  type="number"
-                  value={form.order_position}
-                  onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                  min="1"
-                  className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white"
-                />
-              </div>
-              <div className="flex items-end">
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={form.enabled}
-                    onChange={(e) => setForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                    className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
-                  />
-                  <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Visible on website</span>
-                </label>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Profile Photo</label>
-              <ImageUpload
-                onImageSelect={(url) => setForm(prev => ({ ...prev, image: url }))}
-                currentImage={form.image}
-                bucket="faculty-images"
-                folder="faculty"
-                cropAspect={1}
-              />
-            </div>
-          </div>
-        </div>
-      </AdminModal>
-
-      {/* Faculty Heads List */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sortedFacultyHeads.map((facultyHead) => (
-          <div key={facultyHead.id} className="group relative bg-[#181824]/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all duration-300 hover:-translate-y-1 shadow-xl">
-            <>
-              <div className="relative h-64 overflow-hidden group-hover:scale-105 transition-transform duration-700">
-                <img
-                  src={(() => {
-                    const sanitized = sanitizeUrl?.(facultyHead.image) || facultyHead.image;
-                    return sanitized;
-                  })()}
-                  alt={facultyHead.name}
-                  className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0f] via-transparent to-transparent opacity-60" />
-                
-                <div className="absolute top-4 left-4 flex gap-2">
-                  <div className="p-1.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-lg shadow-xl">
-                    <Crown className="w-4 h-4 text-amber-400" />
-                  </div>
-                  {!facultyHead.enabled && (
-                    <span className="bg-red-500/80 backdrop-blur-md text-white px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-red-500/20">
-                      Hidden
-                    </span>
-                  )}
-                </div>
-                <div className="absolute top-4 right-4">
-                  <span className="bg-amber-500/90 backdrop-blur-md text-black px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                    Rank #{facultyHead.order_position}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="p-6 relative">
-                <div className="mb-4">
-                  <h3 className="font-black text-xl text-white group-hover:text-amber-400 transition-colors tracking-tight leading-tight mb-1">{facultyHead.name}</h3>
-                  <div className="text-amber-500/80 font-bold text-[10px] uppercase tracking-[0.2em]">{facultyHead.title}</div>
-                </div>
-                
-                
-                
-                <div className="flex justify-between items-center pt-4 border-t border-white/5">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleEnabled(facultyHead.id)}
-                      className={`p-2 rounded-xl transition-all border ${
-                        facultyHead.enabled 
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20' 
-                          : 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20'
-                      }`}
-                      title={facultyHead.enabled ? 'Hide from public' : 'Show to public'}
-                    >
-                      {facultyHead.enabled ? <Eye size={16} /> : <EyeOff size={16} />}
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => startEditing(facultyHead)}
-                      className="p-2 bg-white/5 border border-white/5 text-gray-400 hover:text-white hover:border-white/20 rounded-xl transition-all"
-                      title="Edit faculty head"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(facultyHead.id)}
-                      className="p-2 bg-white/5 border border-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 rounded-xl transition-all"
-                      title="Delete faculty head"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </>
-          </div>
-        ))}
-      </div>
-
-      {/* No Faculty Heads Message */}
-      {facultyHeads.length === 0 && (
-        <div className="text-center py-12 bg-[#181824]/40 backdrop-blur-md rounded-2xl border border-white/5 border-dashed">
-          <Users size={64} className="mx-auto mb-4 text-gray-500" />
-          <h3 className="text-xl font-bold text-white mb-2">No Faculty Heads Yet</h3>
-          <p className="text-gray-400 mb-4">Start by adding your first faculty head</p>
-          <button
-            type="button"
-            onClick={() => {
-              setIsAdding(true);
-              resetForm();
-            }}
-            className="bg-gradient-to-r from-amber-500 to-yellow-500 text-black px-6 py-2.5 rounded-xl font-bold shadow-lg hover:shadow-yellow-500/20 transition-all hover:-translate-y-0.5"
-          >
-            Add First Faculty Head
-          </button>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 sm:p-8 mt-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center divide-white/5 md:divide-x">
-          <div className="p-2">
-            <div className="text-3xl font-black text-amber-500 mb-1">{facultyHeads.length}</div>
-            <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">Total Faculty Heads</div>
-          </div>
-          <div className="p-2">
-            <div className="text-3xl font-black text-emerald-500 mb-1">
-              {facultyHeads.filter((f: any) => f.enabled).length}
-            </div>
-            <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">Visible on Website</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+        const result = await submitForApproval('faculty_head', remove ? 'delete' : 'update', remove ? {} : { enabled: !person.enabled }, person.id);
+        if (!result.success) throw new Error(result.error);
+      } else if (remove) await deleteFacultyHead(person.id);
+      else await toggleFacultyHeadEnabled(person.id);
+    } catch { setError('Could not update the profile. Please try again.'); }
+    finally { setBusy(false); }
+  }
+  return <div className="people-management">
+    <header className="people-management-heading"><div><h2>Faculty</h2><p>Photos, positions and contact links for faculty leadership.</p></div><button type="button" className="people-button people-button-primary" onClick={() => { reset(); setAdding(true); }}><PlusIcon />Add Faculty Head</button></header>
+    {requiresApproval && <p className="people-notice">Changes will be submitted for owner approval.</p>}
+    {error && !adding && editing === null && <p role="alert" className="people-error">{error}</p>}
+    <div className="people-roster">{[...facultyHeads].sort((a,b) => a.order_position - b.order_position).map(person => <article className={`people-roster-card ${person.enabled ? '' : 'is-hidden'}`} key={person.id}>
+      <img src={sanitizeUrl?.(person.image) || person.image} alt={person.name} /><div className="people-roster-details"><span className="people-section-label">{person.enabled ? 'Visible' : 'Hidden'}</span><h3>{person.name}</h3><p>{person.title || 'Faculty'}</p>{personBatch(person) && <small>Batch {personBatch(person)}</small>}</div>
+      <div className="people-roster-actions"><button type="button" disabled={busy} aria-label={person.enabled ? 'Hide from public' : 'Show to public'} onClick={() => action(person)}>{person.enabled ? <EyeOpenIcon /> : <EyeClosedIcon />}</button><button type="button" disabled={busy} aria-label="Edit faculty head" onClick={() => edit(person)}><Pencil1Icon /></button><button type="button" disabled={busy} aria-label="Delete faculty head" onClick={() => action(person,true)}><TrashIcon /></button></div>
+    </article>)}</div>
+    {!facultyHeads.length && <div className="people-empty"><h3>No faculty profiles yet</h3><p>Add a photo, name and position to get started.</p></div>}
+    <AdminModal appearance="people" isOpen={adding || editing !== null} onClose={close} title={editing !== null ? 'Edit faculty profile' : 'Add faculty profile'} subtitle="Keep the details clear and the photo in focus."
+      footer={<><button type="button" className="people-button people-button-secondary" disabled={busy || photoBusy} onClick={close}>Cancel</button><button type="button" className="people-button people-button-primary" disabled={busy || photoBusy || requiresApproval === null} onClick={save}>{busy ? 'Saving…' : 'Save Changes'}</button></>}>
+      <fieldset disabled={busy} className="people-form-fieldset">{error && <p role="alert" className="people-error">{error}</p>}<PeopleProfileForm kind="faculty" form={form} onChange={patch => setForm({ ...form, ...patch })} onProcessingChange={setPhotoBusy} /></fieldset>
+    </AdminModal>
+  </div>;
+}

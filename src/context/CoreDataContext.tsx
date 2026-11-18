@@ -3,6 +3,8 @@ import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import { dualRead, dualUpsert, dualInsert, dualUpdate, dualDelete, invalidateTableCache } from '../lib/dualDb';
 import { useAuth } from './AuthContext';
 import { getPublicSecuritySettings } from '../services/publicSecuritySettings';
+import { persistRoadmap } from '../utils/persistRoadmap';
+import { preloadBrandAssets } from '../utils/preloadBrand';
 import { 
   SiteSettings, HeroMedia, AboutSettings, HomeboundSettings, 
   HomepageSettings, FormSettings, SocialMediaSettings, SecuritySettings, PageKey, RoadmapMilestone,
@@ -96,6 +98,10 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   const [socialMediaSettings, setSocialMediaSettings] = useState<SocialMediaSettings | null>(null);
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings | null>(null);
 
+  useEffect(() => {
+    if (isLoaded && homepageSettings) preloadBrandAssets(homepageSettings);
+  }, [homepageSettings, isLoaded]);
+
   const pingNow = useCallback(async () => {
     const start = Date.now();
     try {
@@ -177,12 +183,12 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   };
 
   const addRoadmapMilestone = async (m: Partial<RoadmapMilestone>) => {
-    await dualInsert('roadmap_milestones', m);
+    await persistRoadmap(payload=>dualInsert('roadmap_milestones',payload),m);
     setRefreshTrigger(p => p + 1);
   };
 
   const updateRoadmapMilestone = async (id: number, patch: Partial<RoadmapMilestone>) => {
-    await dualUpdate('roadmap_milestones', id, patch);
+    await persistRoadmap(payload=>dualUpdate('roadmap_milestones',id,payload),patch);
     setRefreshTrigger(p => p + 1);
   };
 

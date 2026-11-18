@@ -2,9 +2,10 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { ProfileContactLinks } from '../src/components/RicoFamily/ProfileContactLinks';
 import { FamilyTeams } from '../src/components/RicoFamily/FamilyTeams';
 import { FamilyMembersCarousel } from '../src/components/RicoFamily/FamilyMembersCarousel';
-import { instagramProfile } from '../src/utils/familyPeople';
+import { instagramProfile, facebookProfile, phoneProfile } from '../src/utils/familyPeople';
 
 let root: Root, container: HTMLDivElement;
 let reduced = false;
@@ -73,4 +74,22 @@ it('keeps council visible without fabricated profiles, and respects department o
   expect(container.querySelectorAll('.family-council-roster .family-person')).toHaveLength(0);
   expect([...container.querySelectorAll('.family-committee-title > span')].map(node => node.textContent)).toEqual(['Cultural Team','Tech Team']);
   expect(container.querySelector('.family-committee-toggle')?.getAttribute('aria-expanded')).toBe('true');
+});
+
+it('always shows an Instagram affordance and links only configured valid profiles',async()=>{
+ await act(async()=>root.render(<FamilyTeams committees={committees} members={[person(1,{is_head:true,social_links:{}}),person(2,{social_links:{instagram:'@member.two'}})]}/>));
+ expect(container.querySelector('[aria-label="Person 1: Instagram not added"]')).not.toBeNull();
+ expect(container.querySelector('[aria-label="Person 2 on Instagram"]')?.getAttribute('href')).toBe('https://www.instagram.com/member.two/');
+ expect(facebookProfile('facebook.com/faculty.vision')).toBe('https://facebook.com/faculty.vision');expect(facebookProfile('javascript:alert(1)')).toBeNull();
+});
+
+it('shows callable numbers for heads and council, batch for profiles and only Instagram for team members',async()=>{
+ const phone='+91 (98300) 00011';
+ await act(async()=>root.render(<FamilyTeams committees={committees} members={[person(1,{is_head:true,phone,social_links:{batch:'2023–2028',instagram:'@head.one'}}),person(2,{is_council:true,phone}),person(3,{phone})]}/>));
+ const calls=[...container.querySelectorAll<HTMLAnchorElement>('a[href^="tel:"]')];expect(calls).toHaveLength(2);expect(calls.every(link=>link.getAttribute('href')==='tel:+919830000011')).toBe(true);expect(container.textContent).toContain('Batch 2023–2028');expect(container.querySelector('[aria-label="Call Person 3"]')).toBeNull();
+});
+it('keeps unsafe telephone strings inactive and gives faculty branded contact links',async()=>{
+ for(const value of ['javascript:alert(1)','123','+91;ext=123','https://example.com','+91#12345678']) expect(phoneProfile(value)).toBeNull();
+ await act(async()=>root.render(<ProfileContactLinks name="Dr. Sen" instagram="@faculty.sen" facebook="faculty.sen" phone="+91 98300 00011" showFacebook showPhone compact/>));
+ expect(container.querySelector('[aria-label="Call Dr. Sen"]')?.getAttribute('href')).toBe('tel:+919830000011');expect(container.querySelector('[aria-label="Dr. Sen on Facebook"]')?.getAttribute('href')).toBe('https://www.facebook.com/faculty.sen/');expect(container.querySelectorAll('.is-unavailable')).toHaveLength(0);
 });

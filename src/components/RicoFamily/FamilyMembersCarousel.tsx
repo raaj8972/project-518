@@ -32,38 +32,34 @@ export function FamilyMembersCarousel({ members, label }: { members: FamilyPerso
     return () => query.removeEventListener('change', update);
   }, []);
 
-  // Track scroll position → move spotlight over the centered slide
+  // Keep a compact beam aimed at the nearest fully visible portrait.
   useEffect(() => {
-    const el = track.current;
-    const lamp = lightRef.current;
-    if (!el || !lamp) return;
-
+    const element = track.current, lamp = lightRef.current;
+    if (!element || !lamp) return;
+    let frame = 0;
     const updateLight = () => {
-      const slides = el.querySelectorAll<HTMLElement>('.family-carousel-slide');
-      if (!slides.length) return;
-      const slideW = slides[0].offsetWidth + 20; // width + gap
-      const cols = Math.max(1, Math.min(5, Math.floor((el.clientWidth + 20) / 124)));
-      // Which slide group is closest to center?
-      const centerScroll = el.scrollLeft + el.clientWidth / 2;
-      const activeIdx = Math.round((centerScroll - el.clientWidth / 2) / (slideW * cols));
-      const clampedIdx = Math.max(0, Math.min(members.length - 1, activeIdx * cols + Math.floor(cols / 2)));
-      const slide = slides[clampedIdx] ?? slides[0];
-      // Position lamp centered over that slide, relative to .family-carousel
-      const carousel = el.parentElement!;
-      const carouselRect = carousel.getBoundingClientRect();
-      const slideRect = slide.getBoundingClientRect();
-      const targetLeft = slideRect.left + slideRect.width / 2 - carouselRect.left;
-      lamp.style.left = `${targetLeft}px`;
+      frame = 0;
+      const viewport = element.getBoundingClientRect();
+      const carousel = element.parentElement!.getBoundingClientRect();
+      const portraits = [...element.querySelectorAll<HTMLElement>('.family-person-portrait')].map(portrait => portrait.getBoundingClientRect());
+      const readable = portraits.filter(rect => rect.width > 0 && Math.min(rect.right, viewport.right) - Math.max(rect.left, viewport.left) >= rect.width * .65);
+      const center = viewport.left + viewport.width / 2;
+      const target = readable.reduce<DOMRect | null>((best, rect) => !best || Math.abs(rect.left + rect.width / 2 - center) < Math.abs(best.left + best.width / 2 - center) ? rect : best, null);
+      if (!target) { lamp.style.visibility = 'hidden'; return; }
+      lamp.style.visibility = 'visible';
+      lamp.style.left = `${target.left + target.width / 2 - carousel.left}px`;
+      const emitterTop = carousel.top + 46;
+      lamp.style.setProperty('--member-beam-width', `${target.width * 1.3}px`);
+      lamp.style.setProperty('--member-beam-length', `${Math.max(80, target.top - emitterTop + target.height * .85)}px`);
     };
-
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(updateLight); };
     updateLight();
-    el.addEventListener('scroll', updateLight, { passive: true });
-    window.addEventListener('resize', updateLight);
-    return () => {
-      el.removeEventListener('scroll', updateLight);
-      window.removeEventListener('resize', updateLight);
-    };
-  }, [members.length]);
+    element.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    observer?.observe(element);
+    return () => { if (frame) cancelAnimationFrame(frame); observer?.disconnect(); element.removeEventListener('scroll', schedule); window.removeEventListener('resize', schedule); };
+  }, [members.length, columns]);
 
   const advance = useCallback((direction: number, automatic = false) => {
     const element = track.current;

@@ -130,7 +130,11 @@ export function createFestivalEnvironment(host: HTMLDivElement, onUnavailable: (
     uPointer: { value: new Vector4(.5, .5, 0, 1) }, uTouch: { value: new Vector4(.5, .1, -20, 0) },
   }, transparent: true, depthTest: false, depthWrite: false });
   const ground = new Mesh(new PlaneGeometry(1, 1), groundMaterial); ground.name = 'emerald-flowing-river'; ground.position.z = 2; ground.renderOrder = 2; scene.add(ground);
-  const groundTexture = new TextureLoader().load('/images/ricorrenza-emerald-environment.webp', texture => { texture.colorSpace = SRGBColorSpace; groundMaterial.uniforms.uMap.value = texture; });
+  let groundLoaded!: () => void;
+  const groundReady = new Promise<void>(resolve => { groundLoaded = resolve; });
+  const groundTexture = new TextureLoader().load('/images/ricorrenza-emerald-environment.webp', texture => {
+    texture.colorSpace = SRGBColorSpace; groundMaterial.uniforms.uMap.value = texture; groundLoaded();
+  }, undefined, () => { onUnavailable(); groundLoaded(); });
   const beamMaterial = new ShaderMaterial({ vertexShader, fragmentShader: beamFragment, uniforms: { uTime: { value: 0 }, uPower: { value: .62 } }, transparent: true, blending: AdditiveBlending, depthTest: true, depthWrite: false });
   const beam = new Mesh(new PlaneGeometry(1, 1), beamMaterial); beam.renderOrder = 1;
   beam.name = 'island-centre-green-light'; scene.add(beam);
@@ -314,7 +318,7 @@ export function createFestivalEnvironment(host: HTMLDivElement, onUnavailable: (
   document.addEventListener('visibilitychange', wake);
   const controller: EnvironmentController = {
     // Paint the fully textured frame even when the saved preference pauses animation.
-    ready: Promise.all([island.ready, ...flags.map(flag => flag.ready)]).then(() => { if (!disposed && !contextLost) update(0); }),
+    ready: Promise.all([island.ready, groundReady, ...flags.map(flag => flag.ready)]).then(() => { if (!disposed && !contextLost) update(0); }),
     resize(nextWidth, nextHeight) {
       width = Math.max(1, nextWidth); height = Math.max(1, nextHeight); aspect = width / height; halfWidth = aspect * 5;
       camera.left = -halfWidth; camera.right = halfWidth; camera.updateProjectionMatrix();

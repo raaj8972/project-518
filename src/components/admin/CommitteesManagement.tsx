@@ -78,14 +78,14 @@ export const CommitteesManagement: React.FC = () => {
   const edit = (department: CoreCommittee) => { setError(''); setEditing(department.id); setForm({ name: department.name, description: department.description || '', order_position: department.order_position, enabled: department.enabled }); };
   const disabled = busy || requiresApproval === null;
 
-  return <div className="space-y-5">
+  return <div className="people-management space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-4">
       <p className="text-sm text-gray-400 max-w-xl">Departments appear in this order on Rico Family. Move Tech to the top to show it first. Hidden departments and their people stay off the public page.</p>
-      <button disabled={disabled} type="button" onClick={() => { resetForm(); setIsAdding(true); }} className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm text-white disabled:opacity-50"><Plus size={16} />Create Department</button>
+      <button disabled={disabled} type="button" onClick={() => { resetForm(); setIsAdding(true); }} className="people-button people-button-primary"><Plus size={16} />Create Department</button>
     </div>
     {error && !isAdding && editing === null && <p role="alert" className="text-red-300 text-sm">{error}</p>}
     {requiresApproval && <p role="status" className="text-sm text-amber-200">Your department changes will be submitted for owner approval.</p>}
-    <ol className="space-y-3" aria-label="Department display order">
+    <ol className="people-departments space-y-3" aria-label="Department display order">
       {departments.map((department, index) => {
         const people = coreTeamMembers.filter(person => person.committee_id === department.id && !isCouncilPerson(person));
         return <li key={department.id} className={`flex flex-wrap items-center gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4 ${department.enabled ? '' : 'opacity-60'}`}>
@@ -103,11 +103,11 @@ export const CommitteesManagement: React.FC = () => {
       })}
     </ol>
     {!departments.length && <p className="text-sm text-gray-400 py-8 text-center">Create your first department, then add its heads and team members.</p>}
-    <AdminModal isOpen={isAdding || editing !== null} onClose={() => { if (!busy) { setIsAdding(false); setEditing(null); resetForm(); } }} title={editing === null ? 'Create Department' : 'Edit Department'} footer={<button disabled={disabled} type="button" onClick={save} className="px-5 py-2 rounded-lg bg-emerald-700 text-white disabled:opacity-50">{busy ? 'Saving…' : 'Save Department'}</button>}>
-      <fieldset disabled={busy} className="space-y-4">
+    <AdminModal appearance="people" subtitle="Name the department and choose whether it appears on the website." isOpen={isAdding || editing !== null} onClose={() => { if (!busy) { setIsAdding(false); setEditing(null); resetForm(); } }} title={editing === null ? 'Create Department' : 'Edit Department'} footer={<button disabled={disabled} type="button" onClick={save} className="people-button people-button-primary">{busy ? 'Saving…' : 'Save Department'}</button>}>
+      <fieldset disabled={busy} className="people-form-fieldset people-form-section">
         {error && <p role="alert" className="text-red-300 text-sm">{error}</p>}
-        <div><label htmlFor="family-department-name" className="block text-sm text-gray-300 mb-2">Department name *</label><input id="family-department-name" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} placeholder="Tech Team" className="w-full rounded-lg border border-white/10 bg-white/5 p-3 text-white" /></div>
-        <div><label htmlFor="family-department-subtitle" className="block text-sm text-gray-300 mb-2">Department subtitle (optional)</label><input id="family-department-subtitle" value={form.description || ''} onChange={event => setForm({ ...form, description: event.target.value })} placeholder="Website · App · Systems" className="w-full rounded-lg border border-white/10 bg-white/5 p-3 text-white" /></div>
+        <div className="people-field"><label htmlFor="family-department-name" className="block text-sm text-gray-300 mb-2">Department name *</label><input id="family-department-name" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} placeholder="Tech Team"  /></div>
+        <div className="people-field"><label htmlFor="family-department-subtitle" className="block text-sm text-gray-300 mb-2">Department subtitle (optional)</label><input id="family-department-subtitle" value={form.description || ''} onChange={event => setForm({ ...form, description: event.target.value })} placeholder="Website · App · Systems"  /></div>
         <label className="flex items-center gap-3 text-sm text-gray-300"><input type="checkbox" checked={form.enabled} onChange={event => setForm({ ...form, enabled: event.target.checked })} />Show department on Rico Family</label>
       </fieldset>
     </AdminModal>

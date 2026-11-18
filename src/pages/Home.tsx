@@ -7,7 +7,8 @@ import { useLocation } from 'react-router-dom';
 
 
 import { useData } from '../context/DataContext';
-import { MembershipModal } from '../components/MembershipModal';
+import DeferredSection from '../components/DeferredSection';
+const MembershipModal = React.lazy(() => import('../components/MembershipModal').then(module => ({ default: module.MembershipModal })));
 import HomeHero from '../components/HomeHero';
 import { SEO } from '../components/SEO';
 import ChunkErrorBoundary from '../components/ChunkErrorBoundary.tsx';
@@ -21,7 +22,6 @@ const FeaturedEventsSection = React.lazy(() => import('../components/Home/Featur
 const FeaturedSponsors = React.lazy(() => import('../components/Home/FeaturedSponsors'));
 const LeadershipSection = React.lazy(() => import('../components/Home/LeadershipSection'));
 const AboutSection = React.lazy(() => import('../components/Home/AboutSection'));
-const CTASection = React.lazy(() => import('../components/Home/CTASection'));
 const ChiefGuestModal = React.lazy(() => import('../components/Home/ChiefGuestModal'));
 const TopLegendsSection = React.lazy(() => import('../components/Home/TopLegendsSection'));
 
@@ -40,7 +40,6 @@ export const Home: React.FC = () => {
   const location = useLocation();
   const { 
     events, 
-    galleryImages, 
     sponsors,
   guestArtists, 
   chiefGuests,
@@ -214,10 +213,10 @@ export const Home: React.FC = () => {
 
   // Heads data and memoized sorted lists (must be before any early return)
   // All data comes from the database — managed via Admin → Core Team Management
-  const enabledFacultyHeads = facultyHeads.filter(head => head.enabled && head.image && head.image.trim() !== '');
-  const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head && !m.is_council && m.image && m.image.trim() !== '');
+  const enabledFacultyHeads = React.useMemo(() => facultyHeads.filter(head => head.enabled && head.image && head.image.trim() !== ''), [facultyHeads]);
+  const committeeHeads = React.useMemo(() => coreTeamMembers.filter(m => m.enabled && m.is_head && !m.is_council && m.image && m.image.trim() !== ''), [coreTeamMembers]);
   // Council members (non-head) are also part of leadership carousel
-  const councilMembers = coreTeamMembers.filter(m => m.enabled && m.is_council && !m.is_head && m.image && m.image.trim() !== '');
+  const councilMembers = React.useMemo(() => coreTeamMembers.filter(m => m.enabled && m.is_council && !m.is_head && m.image && m.image.trim() !== ''), [coreTeamMembers]);
   
   const sortedFacultyHeads = React.useMemo(() => enabledFacultyHeads.slice().sort((a, b) => a.order_position - b.order_position), [enabledFacultyHeads]);
   
@@ -255,69 +254,39 @@ export const Home: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [facultyModalOpen, selectedType, selectedIndex, sortedFacultyHeads, sortedCommitteeHeads]);
 
-  // Reveal-on-scroll observer (robust to lazy-loaded content)
+  // Observe only this page, including sections whose chunks arrive later.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
+    const page = homeRef.current;
+    if (!page) return;
+    const selector = '.scroll-animate, .scroll-animate-3d';
+    const seen = new WeakSet<Element>();
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const observer = typeof IntersectionObserver === 'undefined' || reduced ? null : new IntersectionObserver(entries => {
+      entries.forEach(entry => {
         if (entry.isIntersecting) {
-          (entry.target as HTMLElement).classList.add('animate-in');
-          try { observer.unobserve(entry.target); } catch {}
+          entry.target.classList.add('animate-in');
+          observer?.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.12 });
-
-    const attach = () => {
-      const nodes = document.querySelectorAll('.scroll-animate, .scroll-animate-3d');
-      nodes.forEach((el) => {
-        const node = el as HTMLElement & { __observed?: boolean };
-        if (!node.__observed) {
-          observer.observe(node);
-          node.__observed = true;
-        }
-      });
+    }, { threshold: .12 });
+    const register = (node: Element) => {
+      const observe = (element: Element) => {
+        if (seen.has(element)) return;
+        seen.add(element);
+        if (observer) observer.observe(element);
+        else element.classList.add('animate-in');
+      };
+      if (node.matches(selector)) observe(node);
+      node.querySelectorAll(selector).forEach(observe);
     };
-
-    attach();
-    const t1 = setTimeout(attach, 100);
-    const t2 = setTimeout(attach, 300);
-
-    try {
-      const nodesNow = Array.from(document.querySelectorAll('.scroll-animate, .scroll-animate-3d')) as HTMLElement[];
-      const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
-      nodesNow.forEach((n) => {
-        const r = n.getBoundingClientRect();
-        if (r.top < viewportH * 0.9) {
-          n.classList.add('animate-in');
-          try { (n as any).__observed = true; } catch {}
-        }
-      });
-    } catch (e) { /* ignore */ }
-
-    const safetyTimer = setTimeout(() => {
-      document.querySelectorAll('.scroll-animate, .scroll-animate-3d').forEach((el) => (el as HTMLElement).classList.add('animate-in'));
-    }, 1500);
-
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safetyTimer); observer.disconnect(); };
-  // Re-run when loading flips or data collections change size (new DOM nodes likely)
-  }, [loading, events.length, galleryImages.length, sponsors.length, guestArtists.length]);
-
-  // Parallax effect
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrolled = window.pageYOffset;
-      const parallaxElements = document.querySelectorAll('.parallax');
-      
-      parallaxElements.forEach((element) => {
-        const speed = parseFloat(element.getAttribute('data-speed') || '0.5');
-        const yPos = -(scrolled * speed);
-        (element as HTMLElement).style.transform = `translateY(${yPos}px)`;
-      });
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    register(page);
+    const mutations = new MutationObserver(records => {
+      records.forEach(record => record.addedNodes.forEach(node => {
+        if (node instanceof Element) register(node);
+      }));
+    });
+    mutations.observe(page, { childList: true, subtree: true });
+    return () => { observer?.disconnect(); mutations.disconnect(); };
   }, []);
 
   // If navigated with #artist-<id>, try to find and scroll to the artist card and open the detail modal
@@ -478,6 +447,7 @@ export const Home: React.FC = () => {
 
 
       {/* Featured Partners */}
+      <DeferredSection minHeight={300} eager={!!location.hash}>
       <React.Suspense fallback={<div className="h-48 bg-black/20 animate-pulse" />}>
         <FeaturedSponsors
           featuredSponsors={featuredSponsors}
@@ -488,7 +458,10 @@ export const Home: React.FC = () => {
       </React.Suspense>
 
 
+      </DeferredSection>
+
       {/* Leadership Section */}
+      <DeferredSection minHeight={850} eager={!!location.hash}>
       <React.Suspense fallback={<div className="h-screen bg-black/20 animate-pulse" />}>
         <LeadershipSection
           homepageSettings={homepageSettings}
@@ -508,42 +481,39 @@ export const Home: React.FC = () => {
       </React.Suspense>
 
 
+      </DeferredSection>
+
       {/* Roadmap Section */}
       {isHomepageRoadmapVisible(homepageSettings?.roadmap_enabled) && (
-        <React.Suspense fallback={<div className="h-96 flex items-center justify-center text-gray-400">Loading roadmap...</div>}>
+        <DeferredSection minHeight="clamp(1500px, 150vw, 2200px)" eager={!!location.hash}><React.Suspense fallback={<div className="h-96 flex items-center justify-center text-gray-400">Loading roadmap...</div>}>
           <Roadmap />
-        </React.Suspense>
+        </React.Suspense></DeferredSection>
       )}
 
       {/* About Section */}
+      <DeferredSection minHeight={aboutSettings?.enabled ? 900 : 0} eager={!!location.hash}>
       <React.Suspense fallback={<div className="h-96 bg-black/20 animate-pulse" />}>
         <AboutSection aboutSettings={aboutSettings as any} />
       </React.Suspense>
+      </DeferredSection>
 
 
-      {/* CTA Section */}
-      <React.Suspense fallback={<div className="h-64 bg-black/20 animate-pulse" />}>
-        <CTASection
-          formSettings={formSettings}
-          setMembershipModal={setMembershipModal}
-        />
-      </React.Suspense>
 
 
       {/* Membership Modal */}
-      {formSettings?.membership_form_enabled && (
-        <MembershipModal
+      {formSettings?.membership_form_enabled && membershipModal && (
+        <React.Suspense fallback={null}><MembershipModal
           isOpen={membershipModal}
           onClose={() => startTransition(() => setMembershipModal(false))}
-        />
+        /></React.Suspense>
       )}
 
       {/* Faculty Profile Modal */}
-      <FacultyProfileModal
+      {facultyModalOpen && <React.Suspense fallback={null}><FacultyProfileModal
         open={facultyModalOpen}
         onClose={() => { setFacultyModalOpen(false); setFacultyPaused(false); setCommitteePaused(false); setSelectedPerson(null); setSelectedType(null); setSelectedIndex(null); }}
         person={selectedPerson}
-      />
+      /></React.Suspense>}
 
       <style>{`
           line-height: 1.1;
@@ -730,11 +700,11 @@ export const Home: React.FC = () => {
         }
       `}</style>
       {/* Chief Guest Modal */}
-      <ChiefGuestModal
+      {chiefGuestModalOpen && <React.Suspense fallback={null}><ChiefGuestModal
         isOpen={chiefGuestModalOpen}
         selectedChiefGuest={selectedChiefGuest}
         onClose={() => { startTransition(() => { setChiefGuestModalOpen(false); setSelectedChiefGuest(null); }); }}
-      />
+      /></React.Suspense>}
     </div>
   );
 };

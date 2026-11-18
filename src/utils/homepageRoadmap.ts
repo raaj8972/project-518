@@ -10,15 +10,30 @@ export const DEFAULT_ROADMAP = [
   { year:2022,title:'',points:['Develop branding & marketing campaigns','1000+ Footfall','DJ Night','Guest Artists'],side:'left' as const },
   { year:2023,title:'',points:['Bollywood Artist Amit Mishra','Ehsaas India Band','DJ Nights','College Band Homeground'],side:'right' as const },
   { year:Number(BRAND_YEAR),title:'',points:['Commencement of Ricorrenza'],side:'left' as const },
-];
+].map(item => ({...item,images:[] as string[]}));
 export const isHomepageRoadmapVisible = (setting: unknown) => setting !== false;
-export interface RoadmapItemDraft { key:string; id?:number; year:number; title:string; points:string[]; side:'auto'|'left'|'right'; enabled:boolean; order_position:number; }
+export interface RoadmapItemDraft { key:string; id?:number; year:number; title:string; points:string[]; images:string[]; side:'auto'|'left'|'right'; enabled:boolean; order_position:number; }
 export type RoadmapEdits = Record<string,RoadmapItemDraft>;
+/** Suggest a new edition without changing existing years or inventing public milestones. */
+export function nextRoadmapYear(records:ReadonlyArray<{year:number}>,currentYear=new Date().getFullYear()):number|null {
+  const used=new Set(records.map(record=>record.year).filter(year=>Number.isInteger(year)&&year>=1900&&year<=3000));
+  const next=Math.max(currentYear,...[...used].map(year=>year+1));
+  if(next<=3000)return next;
+  for(let year=currentYear;year<=3000;year++)if(!used.has(year))return year;
+  for(let year=1900;year<currentYear;year++)if(!used.has(year))return year;
+  return null;
+}
+export function normalizeRoadmapImages(value:unknown):string[] {
+  return [...new Set(textList(value).map(url=>url.trim()).filter(url=>{
+    if(!/^https?:\/\//i.test(url)&&!/^\/(?!\/)/.test(url))return false;
+    try{return ['http:','https:'].includes(new URL(url,'https://ricorrenza.local').protocol);}catch{return false;}
+  }))];
+}
 export function normalizeRoadmapEdits(value: unknown): RoadmapEdits {
   return Object.fromEntries(Object.entries(recordValue(value)).flatMap(([key,candidate]) => {
     if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return [];
     const row = recordValue(candidate);
-    const item: RoadmapItemDraft = {key,year:finiteValue(row.year,0),title:textValue(row.title),points:textList(row.points),side:row.side === 'left' || row.side === 'right' ? row.side : 'auto',enabled:row.enabled !== false,order_position:finiteValue(row.order_position,0),...(typeof row.id === 'number' && Number.isFinite(row.id) ? {id:row.id} : {})};
+    const item: RoadmapItemDraft = {key,year:finiteValue(row.year,0),title:textValue(row.title),points:textList(row.points),images:normalizeRoadmapImages(row.images),side:row.side === 'left' || row.side === 'right' ? row.side : 'auto',enabled:row.enabled !== false,order_position:finiteValue(row.order_position,0),...(typeof row.id === 'number' && Number.isFinite(row.id) ? {id:row.id} : {})};
     return [[key,item]];
   }));
 }
@@ -32,7 +47,7 @@ export function mergeRoadmapDrafts(records:RoadmapMilestone[],edits:RoadmapEdits
 export function publicRoadmapMilestones(records:RoadmapMilestone[]) {
   const normalized = roadmapRecords(records);
   const source = normalized.length ? normalized.filter(record => record.enabled !== false).sort((a,b)=>a.order_position-b.order_position) : DEFAULT_ROADMAP;
-  return source.map(record => ({year:String(record.year),lines:[...(record.title ? [record.title] : []),...(record.points || [])],side:record.side || 'auto'}));
+  return source.map(record => ({key:'key' in record ? record.key : `year-${record.year}`,year:String(record.year),title:record.title,points:record.points,images:record.images,lines:[...(record.title ? [record.title] : []),...(record.points || [])],side:record.side || 'auto'}));
 }
 /** SVG-geometry fallback for browsers that cannot measure a path yet. */
 export function roadGeometry(width:number,height:number,segments:number,pad:number) {

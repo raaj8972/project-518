@@ -7,17 +7,12 @@ import {
   Trash2, 
   UploadCloud, 
   X, 
-  Check, 
-  ZoomIn,
-  ZoomOut,
   RotateCcw,
-  RotateCw,
-  RefreshCw,
   Maximize,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import Cropper from 'react-easy-crop';
-import { useBodyScrollLock } from '../hooks/useBodyScrollLock'; // Added from instruction
+import { ImageCropDialog } from './ImageCropDialog';
+import { drawImageCrop, PROFILE_CROP_ASPECTS, type ProfileCropKind, type PixelCrop } from '../utils/imageCrop';
 import { useData } from '../context/DataContext';
 import { optimizeImage, OptimizationOptions } from '../utils/imageOptimizer';
 import { optimizeVideo, VideoOptimizationOptions } from '../utils/videoOptimizer';
@@ -25,30 +20,19 @@ import { useMediaUpload } from '../hooks/useMediaUpload';
 import { humanSize, getFileName } from '../utils/uploadUtils';
 import { deleteStorageFileByPublicUrl } from '../utils/storageUtils';
 
-const getRadianAngle = (degreeValue: number) => {
-  return (degreeValue * Math.PI) / 180;
-};
-
-const rotateSize = (width: number, height: number, rotation: number) => {
-  const rotRad = getRadianAngle(rotation);
-  return {
-    width: Math.abs(Math.cos(rotRad) * width) + Math.abs(Math.sin(rotRad) * height),
-    height: Math.abs(Math.sin(rotRad) * width) + Math.abs(Math.cos(rotRad) * height),
-  };
-};
-
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
   currentImage?: string;
   /** Display the active site fallback without treating it as an uploaded draft asset. */
   previewFallback?: string;
   className?: string;
-  bucket: 'event-images' | 'gallery-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'guest-artist-audio' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos' | 'sports-images' | 'hero_v2' | 'team-branding';
+  bucket: 'event-images' | 'gallery-images' | 'roadmap-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'guest-artist-audio' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos' | 'sports-images' | 'hero_v2' | 'team-branding';
   folder?: string;
   acceptedTypes?: string;
   fileTypeLabel?: string;
   enableCropper?: boolean;
   cropAspect?: number;
+  profileCrop?: ProfileCropKind;
   autoSave?: boolean;
   hideControls?: boolean;
   maxImageBytes?: number;
@@ -72,6 +56,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   fileTypeLabel,
   enableCropper = true,
   cropAspect,
+  profileCrop,
   autoSave = false,
   hideControls = false,
   maxImageBytes,
@@ -97,6 +82,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   
   // Cropper state
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropApplying, setCropApplying] = useState(false);
   const [originalImageMime, setOriginalImageMime] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -107,7 +93,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const { adminUsers, sanitizeUrl, isAdmin } = (useData?.() || {}) as any;
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const isAdminUser = typeof isAdmin === 'function' ? isAdmin() : false;
-  const [cropAspectLocal, setCropAspectLocal] = useState<number>(typeof cropAspect === 'number' ? cropAspect : 16/9);
+  const [cropAspectLocal, setCropAspectLocal] = useState<number>(profileCrop ? PROFILE_CROP_ASPECTS[profileCrop] : typeof cropAspect === 'number' ? cropAspect : 16/9);
 
   // Hook integration
   const {
@@ -137,9 +123,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   // Relay processing state to parent
   useEffect(() => {
-    onProcessingChange?.(isProcessing || uploading || !!cropSrc);
+    onProcessingChange?.(isProcessing || uploading || cropApplying || !!cropSrc);
     return () => onProcessingChange?.(false);
-  }, [isProcessing, uploading, cropSrc, onProcessingChange]);
+  }, [isProcessing, uploading, cropApplying, cropSrc, onProcessingChange]);
 
   // Check owner status
   useEffect(() => {
@@ -341,6 +327,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const openCropper = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
+      if (profileCrop) setCropAspectLocal(PROFILE_CROP_ASPECTS[profileCrop]);
+      setCroppedAreaPixels(null);
       setCropSrc(reader.result as string);
       setLocalPreview(reader.result as string);
       setZoom(1);
@@ -353,10 +341,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     setOriginalImageMime(file.type || null);
   };
 
-  const handleRotate90 = (direction: 'cw' | 'ccw') => {
-    setRotation((prev) => prev + (direction === 'cw' ? 90 : -90));
-  };
-
   const handleReset = () => {
     setZoom(1);
     setRotation(0);
@@ -365,62 +349,34 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   // --- Crop Actions ---
   
-  const getCroppedImgBlob = async (pixelCrop: any): Promise<Blob> => {
-    if (!cropSrc) throw new Error('No crop source');
-    const imageElement = await new Promise<HTMLImageElement>((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous'; 
-      img.src = cropSrc;
-      img.onload = () => resolve(img);
+  const getCroppedImgBlob = async (pixelCrop: PixelCrop | null): Promise<Blob> => {
+    if (!cropSrc || !pixelCrop) throw new Error('Select an image crop first.');
+    const imageElement = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image(); image.crossOrigin = 'anonymous';
+      image.onload = () => resolve(image); image.onerror = () => reject(new Error('Could not load the image.'));
+      image.src = cropSrc;
     });
+    const canvas = drawImageCrop(imageElement, pixelCrop, rotation);
+    return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Could not create the cropped image.')), originalImageMime === 'image/png' ? 'image/png' : 'image/jpeg', .9));
+  };
 
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('No context');
-
-    const rotRad = getRadianAngle(rotation);
-    const { width: bBoxWidth, height: bBoxHeight } = rotateSize(
-      imageElement.width,
-      imageElement.height,
-      rotation
-    );
-
-    canvas.width = bBoxWidth;
-    canvas.height = bBoxHeight;
-
-    ctx.translate(bBoxWidth / 2, bBoxHeight / 2);
-    ctx.rotate(rotRad);
-    ctx.translate(-imageElement.width / 2, -imageElement.height / 2);
-    ctx.drawImage(imageElement, 0, 0);
-
-    const croppedCanvas = document.createElement('canvas');
-    const croppedCtx = croppedCanvas.getContext('2d');
-    if (!croppedCtx) throw new Error('No context');
-
-    // High quality scale
-    const maxDim = 1200;
-    const scale = Math.min(1, maxDim / Math.max(pixelCrop.width, pixelCrop.height));
-    
-    croppedCanvas.width = pixelCrop.width * scale;
-    croppedCanvas.height = pixelCrop.height * scale;
-    
-    croppedCtx.imageSmoothingEnabled = true;
-    croppedCtx.imageSmoothingQuality = 'high';
-    croppedCtx.drawImage(
-      canvas,
-      pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
-      0, 0, croppedCanvas.width, croppedCanvas.height
-    );
-
-    return new Promise((resolve) => {
-      croppedCanvas.toBlob(blob => resolve(blob!), originalImageMime === 'image/png' ? 'image/png' : 'image/jpeg', 0.9);
-    });
+  const adjustExistingCrop = async () => {
+    if (!currentImage || !isAdminUser) return;
+    setIsProcessing(true); setError('');
+    try {
+      const response = await fetch(currentImage);
+      if (!response.ok) throw new Error('Could not load the saved photo.');
+      const blob = await response.blob();
+      openCropper(new File([blob], 'profile-photo', { type: blob.type || 'image/jpeg' }));
+    } catch (error) { setError(error instanceof Error ? error.message : 'Could not load the saved photo.'); setIsProcessing(false); }
   };
 
   const onConfirmCrop = async () => {
+    if (cropApplying || isProcessing || uploading) return;
+    setCropApplying(true);
     try {
       const blob = await getCroppedImgBlob(croppedAreaPixels);
-      const file = new File([blob], `cropped_${Date.now()}.jpg`, { type: originalImageMime || 'image/jpeg' });
+      const file = new File([blob], `cropped_${Date.now()}.${blob.type === 'image/png' ? 'png' : 'jpg'}`, { type: blob.type || 'image/jpeg' });
       const uploadedUrl = await handleUploadProcess(file, autoSave, hideControls, currentImage);
       
       if (!autoSave && !hideControls) {
@@ -431,8 +387,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     } catch (e: any) {
       console.error(e);
       setError(e.message || 'Cropping failed');
-      alert(`Cropping Error: ${e.message}`);
-    }
+    } finally { setCropApplying(false); }
   };
 
   const onConfirmFull = async () => {
@@ -525,8 +480,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   const ASPECT_RATIOS = getAspectRatiosForBucket();
 
-  // Scroll Lock for Cropper
-  useBodyScrollLock(!!cropSrc); // Changed from showCropper to cropSrc
 
   return (
     <div ref={uploadRootRef} className={`relative ${className}`}>
@@ -606,7 +559,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 <img src={displayImage} alt="Preview" className="w-full h-full object-contain" />
               )}
               
-              {!hideControls && (
+              {!hideControls && !profileCrop && (
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
                   <div className="flex items-center justify-center gap-3 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                      <button type="button" onClick={() => fileInputRef.current?.click()} className="p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white transition-all hover:scale-110 shadow-lg" title="Change">
@@ -620,7 +573,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               )}
             </div>
             
-            {!hideControls && (
+            {!hideControls && !profileCrop && (
                <div className="lg:hidden flex items-center justify-between p-3 bg-black/60 backdrop-blur-md border-t border-white/10">
                   <button onClick={() => fileInputRef.current?.click()} type="button" className="text-xs font-bold text-gray-200 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
                     <RotateCcw size={14} /> Change
@@ -631,7 +584,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                </div>
             )}
             
-            <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5 pointer-events-none">
+            {!profileCrop && <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5 pointer-events-none">
               <div className="px-2.5 py-1.5 rounded-lg bg-black/60 border border-white/10 text-white text-[10px] font-medium backdrop-blur-md shadow-lg">
                 <span className="font-medium truncate max-w-[150px]">{currentImage ? (isVideoUpload ? 'Video URL' : (isAudioUpload ? 'Audio URL' : 'Image URL')) : previewFallback ? 'Current website media' : 'None'}</span>
               </div>
@@ -647,7 +600,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   {humanSize(optimizedPreviewMeta.size)} • {optimizedPreviewMeta.type.split('/')[1]}
                 </div>
               )}
-            </div>
+            </div>}
           </div>
         ) : (
           <div 
@@ -666,6 +619,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           </div>
         )}
       </div>
+
+      {profileCrop && <div className="people-upload-actions">
+        <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isProcessing || uploading}>{currentImage ? 'Change photo' : 'Choose photo'}</button>
+        {currentImage && isAdminUser && <button type="button" onClick={adjustExistingCrop} disabled={isProcessing || uploading}>Adjust photo crop</button>}
+        {currentImage && !hideControls && <button type="button" onClick={() => setShowDeleteConfirm(true)} disabled={isProcessing || uploading}>Remove</button>}
+      </div>}
 
       {showDeleteConfirm && createPortal(
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -688,200 +647,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         uploadRootRef.current?.closest('dialog') || document.body
       )}
 
-      {cropSrc && createPortal(
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[12000] flex items-center justify-center p-0 sm:p-4 lg:p-8 animate-in fade-in duration-300">
-          
-          <div className="bg-zinc-950 lg:bg-black/40 lg:backdrop-blur-2xl lg:border lg:border-white/10 lg:rounded-[2rem] w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] lg:max-w-6xl flex flex-col lg:flex-row overflow-hidden shadow-2xl relative">
-            
-            {/* Mobile Header (Only visible on smallest screens/touch) */}
-            <div className="w-full h-14 bg-black/50 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 lg:hidden sticky top-0 z-20">
-              <h3 className="text-white font-medium">Crop & Adjust Image</h3>
-              <button type="button"
-                onClick={() => setCropSrc(null)}
-                disabled={isProcessing}
-                className="p-2 text-zinc-400 hover:text-white transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            {/* Left/Top Area: Cropper */}
-            <div className="relative flex-1 min-h-[40vh] bg-black">
-              <Cropper
-                image={cropSrc}
-                crop={crop}
-                zoom={zoom}
-                rotation={rotation}
-                aspect={cropAspectLocal}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onRotationChange={setRotation}
-                onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
-                cropShape="rect"
-                showGrid={true}
-              />
-              
-              {/* Desktop Close Button */}
-              <button type="button"
-                onClick={() => setCropSrc(null)}
-                className="hidden lg:flex items-center justify-center absolute top-6 right-6 z-10 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all hover:scale-105 border border-white/10 shadow-lg"
-              >
-                <X size={20} />
-              </button>
-
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 text-zinc-300 text-xs font-medium shadow-lg pointer-events-none hidden lg:block">
-                Drag to pan • Scroll to zoom
-              </div>
-            </div>
-
-            {/* Right/Bottom Area: Controls */}
-            <div className="w-full lg:w-[400px] bg-zinc-900/50 backdrop-blur-xl flex flex-col flex-1 lg:h-auto lg:max-h-full rounded-t-3xl lg:rounded-none border-t lg:border-t-0 lg:border-l border-white/10 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none" />
-              
-              <div className="flex-1 overflow-y-auto px-5 py-6 lg:p-8 space-y-6 lg:gap-8 pb-safe">
-                <div className="hidden lg:block relative z-10">
-                  <h3 className="text-2xl font-bold bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent mb-2">Adjust Image</h3>
-                  <p className="text-sm text-zinc-400">Position, rotate, and crop for your template.</p>
-                </div>
-
-              {/* Templates / Ratio (Accessible to all admins) */}
-              {isAdminUser && (
-                <div className="space-y-4 relative z-10">
-                  <label className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest flex items-center justify-between">
-                    <span>Template Settings</span>
-                    <span className="bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-md text-[10px] normal-case tracking-wide border border-indigo-500/20">
-                      {bucket}
-                    </span>
-                  </label>
-                  <div className="flex flex-col gap-2.5">
-                    {ASPECT_RATIOS.map((ratio) => (
-                      <button type="button"
-                        key={ratio.label}
-                        onClick={() => setCropAspectLocal(ratio.value || 0)} // react-easy-crop takes undefined for free aspect, we'll map below
-                        className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all w-full flex items-center justify-between border ${
-                          (!cropAspectLocal && !ratio.value) || (cropAspectLocal === ratio.value)
-                            ? 'bg-gradient-to-r from-indigo-600/90 to-violet-600/90 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] border-indigo-400/50 scale-[1.02]'
-                            : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10 hover:border-white/20 hover:text-white'
-                        }`}
-                      >
-                        <span>{ratio.label}</span>
-                        {((!cropAspectLocal && !ratio.value) || (cropAspectLocal === ratio.value)) && (
-                          <Check size={16} className="text-white drop-shadow-md" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Zoom */}
-              <div className="space-y-3">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                  Zoom
-                </label>
-                <div className="flex items-center gap-4 bg-black/30 p-3 rounded-xl border border-zinc-800">
-                  <ZoomOut className="text-zinc-500" size={16} />
-                  <input
-                    type="range"
-                    min="1"
-                    max="3"
-                    step="0.05"
-                    value={zoom}
-                    onChange={(e) => setZoom(parseFloat(e.target.value))}
-                    disabled={isProcessing}
-                    className="flex-1 accent-indigo-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <ZoomIn className="text-zinc-500" size={16} />
-                </div>
-              </div>
-
-              {/* Rotation */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                    Rotation
-                  </label>
-                  <span className="text-[11px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
-                    {Math.round(rotation)}°
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-4 bg-black/30 p-3 rounded-xl border border-zinc-800">
-                  <RotateCcw 
-                    className="text-zinc-500 cursor-pointer hover:text-indigo-400 transition-colors" 
-                    size={16} 
-                    onClick={() => handleRotate90('ccw')}
-                  />
-                  <input
-                    type="range"
-                    min="0"
-                    max="360"
-                    step="1"
-                    value={Math.round(rotation)}
-                    onChange={(e) => setRotation(parseFloat(e.target.value))}
-                    disabled={isProcessing}
-                    className="flex-1 accent-indigo-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <RotateCw 
-                    className="text-zinc-500 cursor-pointer hover:text-indigo-400 transition-colors" 
-                    size={16} 
-                    onClick={() => handleRotate90('cw')}
-                  />
-                </div>
-              </div>
-
-              </div>
-
-              {/* Sticky Actions Container */}
-              <div className="sticky bottom-0 left-0 right-0 p-5 lg:p-8 bg-zinc-950/90 backdrop-blur-xl border-t border-white/10 space-y-4 z-20">
-                <div className="flex items-center justify-between text-zinc-500 mb-2">
-                  <button type="button"
-                    onClick={handleReset}
-                    disabled={isProcessing}
-                    className="flex items-center gap-2 text-xs font-medium hover:text-white transition-colors"
-                  >
-                    <RefreshCw size={12} /> Reset
-                  </button>
-                  <button type="button"
-                    onClick={onConfirmFull}
-                    disabled={isProcessing}
-                    className="text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
-                  >
-                    Use Original
-                  </button>
-                </div>
-                <div className="flex gap-3">
-                  <button type="button"
-                    onClick={() => setCropSrc(null)}
-                    disabled={isProcessing}
-                    className="flex-1 py-3.5 border border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl disabled:opacity-50 font-medium transition-all shadow-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button type="button"
-                    onClick={onConfirmCrop}
-                    disabled={isProcessing}
-                    className="flex-[2] py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl hover:from-indigo-500 hover:to-violet-500 shadow-[0_4px_20px_rgba(79,70,229,0.4)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.6)] disabled:opacity-50 font-bold transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
-                  >
-                    {isProcessing ? (
-                      <svg className="animate-spin w-5 h-5 text-white" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                    ) : (
-                      <>
-                        <Check size={18} className="drop-shadow-md" /> Save & Apply
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>,
-        uploadRootRef.current?.closest('dialog') || document.body
-      )}
+      {cropSrc && createPortal(<ImageCropDialog source={cropSrc} kind={profileCrop} aspect={cropAspectLocal} onAspect={setCropAspectLocal} ratios={ASPECT_RATIOS} crop={crop} onCrop={setCrop} zoom={zoom} onZoom={setZoom} rotation={rotation} onRotation={setRotation} selected={croppedAreaPixels} onSelect={setCroppedAreaPixels} busy={isProcessing || uploading || cropApplying} error={error || ''} onClose={() => setCropSrc(null)} onSave={onConfirmCrop} onOriginal={onConfirmFull} onReset={handleReset} />, uploadRootRef.current?.closest('dialog') || document.body)}
     </div>
   );
 };

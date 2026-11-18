@@ -24,6 +24,18 @@
   ],
   "headers": [
     {
+      "source": "/assets/:file.js",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/assets/:file.css",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/assets/:file.woff2",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
       "source": "/media/cinematic/:path*",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800, stale-while-revalidate=86400" }]
     },
@@ -57,11 +69,11 @@
     },
     {
       "path": "/api/heartbeat-schedule",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/broadcast-schedule",
-      "schedule": "*/1 * * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }

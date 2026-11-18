@@ -1,4 +1,4 @@
-import { instagramProfile, personInstagram } from '../../utils/familyPeople';
+import { instagramProfile, personInstagram, facebookProfile, personBatch, phoneProfile } from '../../utils/familyPeople';
 import { HomepageSocialEditor, makeSocialDraft, socialDraftError } from './homepage/HomepageSocialEditor';
 import { HomepageRoadmapEditor } from './homepage/HomepageRoadmapEditor';
 import { mergeRoadmapDrafts, normalizeRoadmapEdits, type RoadmapEdits } from '../../utils/homepageRoadmap';
@@ -77,8 +77,8 @@ export const HomepageManagement = () => {
   const roadmapDraft = useStudioDraft<RoadmapEdits>('homepage_roadmap_resource_draft', EMPTY_ROADMAP_EDITS, normalizeRoadmapEdits);
   const [selectedLead, setSelectedLead] = useState('');
   const leadRecords: LeadDraft[] = Object.values(normalizeLeadEdits(Object.fromEntries([
-    ...facultyHeads.map(lead => ({ key: `faculty-${lead.id}`, id: lead.id, kind: 'faculty' as const, name: lead.name, image: lead.image, role: lead.title, description: lead.description, enabled: lead.enabled, committee_id: null, order_position: lead.order_position })),
-    ...coreTeamMembers.filter(lead => lead.is_head || lead.is_council).map(lead => ({ key: `team-${lead.id}`, id: lead.id, kind: lead.is_council ? 'council' as const : 'head' as const, name: lead.name, image: lead.image, role: lead.role, description: lead.description, instagram: personInstagram(lead)?.handle || '', enabled: lead.enabled, committee_id: lead.committee_id, order_position: lead.order_position })),
+    ...facultyHeads.map(lead => ({ key: `faculty-${lead.id}`, id: lead.id, kind: 'faculty' as const, name: lead.name, image: lead.image, role: lead.title, description: lead.description, instagram: personInstagram(lead)?.handle || '', facebook: lead.social_links?.facebook || '', phone: lead.phone || '', batch: personBatch(lead), enabled: lead.enabled, committee_id: null, order_position: lead.order_position })),
+    ...coreTeamMembers.filter(lead => lead.is_head || lead.is_council).map(lead => ({ key: `team-${lead.id}`, id: lead.id, kind: lead.is_council ? 'council' as const : 'head' as const, name: lead.name, image: lead.image, role: lead.role, description: lead.description, instagram: personInstagram(lead)?.handle || '', phone: lead.phone || '', batch: personBatch(lead), enabled: lead.enabled, committee_id: lead.committee_id, order_position: lead.order_position })),
   ].map(lead => [lead.key,lead]))));
   const savedForm = useMemo(() => makeHomepageDraft(homepageSettings), [homepageSettings]);
   const [draft, setDraft] = useState(() => ({ form: readDraft(savedForm), baseline: savedForm }));
@@ -128,7 +128,9 @@ export const HomepageManagement = () => {
     if (formElement.current && !formElement.current.reportValidity()) return;
     if (mediaDirty && mediaDraft.form?.enabled && mediaDraft.form.background_type !== 'image' && (mediaDraft.form.video_url !== mediaDraft.baseline?.video_url || mediaDraft.form.mobile_video_url !== mediaDraft.baseline?.mobile_video_url) && (!mediaDraft.form.video_url.trim() || !mediaDraft.form.mobile_video_url.trim())) { setMessage({ type: 'error', text: 'Add both the laptop video and the separate mobile video before publishing the background.' }); return; }
     if (leadsDirty && Object.values(leadDraft.form || {}).some(lead => !lead.name.trim() || (lead.enabled && !lead.image.trim()) || (lead.kind === 'head' && !lead.committee_id))) { setMessage({ type: 'error', text: 'Complete each lead’s name and photo, and select a department for committee heads.' }); return; }
-    if (leadsDirty && Object.values(leadDraft.form || {}).some(lead => lead.kind !== 'faculty' && lead.instagram?.trim() && !instagramProfile(lead.instagram))) { setMessage({ type: 'error', text: 'Enter a valid Instagram handle or profile URL.' }); return; }
+    if (leadsDirty && Object.values(leadDraft.form || {}).some(lead => lead.instagram?.trim() && !instagramProfile(lead.instagram))) { setMessage({ type: 'error', text: 'Enter a valid Instagram handle or profile URL.' }); return; }
+    if (leadsDirty && Object.values(leadDraft.form || {}).some(lead => lead.phone?.trim() && !phoneProfile(lead.phone))) { setMessage({type:'error',text:'Enter a valid phone number with country code.'}); return; }
+    if (leadsDirty && Object.values(leadDraft.form || {}).some(lead => lead.kind === 'faculty' && lead.facebook?.trim() && !facebookProfile(lead.facebook))) { setMessage({type:'error',text:'Enter a valid Facebook profile URL or username.'}); return; }
     if (socialDirty && socialDraft.form) { const error = socialDraftError(socialDraft.form); if (error) {setMessage({type:'error',text:error});return;} }
     if (changedKeys.includes('roadmap_enabled') && !canEditRoadmap) {setMessage({type:'error',text:'Roadmap visibility changes require Roadmap page access.'});return;}
     if (roadmapDirty) {const all=mergeRoadmapDrafts(roadmapMilestones,roadmapDraft.form || {});const invalid=Object.values(roadmapDraft.form || {}).some(item=>!Number.isInteger(item.year)||item.year<1900||item.year>3000||(item.enabled&&!item.title.trim()&&!item.points.some(point=>point.trim()))||all.filter(other=>other.year===item.year).length>1);if(invalid){setMessage({type:'error',text:'Each roadmap milestone needs a unique valid year and a title or point when visible.'});return;} }
@@ -142,11 +144,11 @@ export const HomepageManagement = () => {
       if (aboutDirty && aboutDraft.form) { const cleaned = { ...aboutDraft.form, hero_paragraphs: aboutDraft.form.hero_paragraphs.filter(text => text.trim()), tracks: aboutDraft.form.tracks.filter(text => text.trim()), zones: aboutDraft.form.zones.filter(text => text.trim()), stats: aboutDraft.form.stats.filter(stat => stat.value || stat.label) }; await updateAboutSettings(cleaned); aboutDraft.commit(aboutDraft.form); completed.push('About'); }
       if (leadsDirty) for (const [key,lead] of Object.entries(leadDraft.form || {})) {
         const common = { name: lead.name, image: lead.image, description: lead.description, enabled: lead.enabled, order_position: lead.order_position };
-        if (lead.kind === 'faculty') { const patch = { ...common,title:lead.role }; if (lead.id != null) await updateFacultyHead(lead.id,patch); else await addFacultyHead(patch); }
+        if (lead.kind === 'faculty') { const existing = facultyHeads.find(person => person.id === lead.id); const patch = { ...common,title:lead.role,phone:lead.phone?.trim() || null,social_links:{...existing?.social_links,instagram:instagramProfile(lead.instagram)?.url || '',facebook:facebookProfile(lead.facebook) || '',batch:lead.batch?.trim() || ''} }; if (lead.id != null) await updateFacultyHead(lead.id,patch); else await addFacultyHead(patch); }
         else {
           const existing = coreTeamMembers.find(member => member.id === lead.id);
           const links = existing?.social_links && typeof existing.social_links === 'object' && !Array.isArray(existing.social_links) ? existing.social_links : {};
-          const patch = { name: lead.name, image: lead.image, enabled: lead.enabled, order_position: lead.order_position, committee_id: lead.committee_id, is_head: lead.kind === 'head' || Boolean(existing?.is_head), is_council: lead.kind === 'council', social_links: { ...links, instagram: instagramProfile(lead.instagram)?.url || '' } };
+          const patch = { name: lead.name, image: lead.image, enabled: lead.enabled, order_position: lead.order_position, committee_id: lead.committee_id, phone: lead.phone?.trim() || null, is_head: lead.kind === 'head' || Boolean(existing?.is_head), is_council: lead.kind === 'council', social_links: { ...links, instagram: instagramProfile(lead.instagram)?.url || '', batch: lead.batch?.trim() || '' } };
           if (lead.id != null) await updateCoreTeamMember(lead.id, patch);
           else await addCoreTeamMember({ ...patch, role: lead.kind === 'head' ? 'Head' : 'Council', specialty: '', achievements: [] });
         }
@@ -154,7 +156,7 @@ export const HomepageManagement = () => {
       }
       if (leadsDirty) { leadDraft.commit({}); setSelectedLead(''); }
       if (socialDirty && socialDraft.form) {await updateSocialMediaSettings({...socialDraft.form,instagram_url:socialDraft.form.instagram_url.trim()||null,youtube_url:socialDraft.form.youtube_url.trim()||null});socialDraft.commit(socialDraft.form);completed.push('Social links');}
-      if (roadmapDirty) for(const [key,item] of Object.entries(roadmapDraft.form || {})){const patch={year:item.year,title:item.title.trim()||null,points:item.points.map(point=>point.trim()).filter(Boolean),enabled:item.enabled,order_position:item.order_position,side:item.side};if(item.id!=null)await updateRoadmapMilestone(item.id,patch);else await addRoadmapMilestone(patch);roadmapDraft.setForm(previous=>Object.fromEntries(Object.entries(previous).filter(([id])=>id!==key)));completed.push(`Roadmap ${item.year}`);}
+      if (roadmapDirty) for(const [key,item] of Object.entries(roadmapDraft.form || {})){const patch={year:item.year,title:item.title.trim()||null,points:item.points.map(point=>point.trim()).filter(Boolean),images:item.images,enabled:item.enabled,order_position:item.order_position,side:item.side};if(item.id!=null)await updateRoadmapMilestone(item.id,patch);else await addRoadmapMilestone(patch);roadmapDraft.setForm(previous=>Object.fromEntries(Object.entries(previous).filter(([id])=>id!==key)));completed.push(`Roadmap ${item.year}`);}
       if(roadmapDirty)roadmapDraft.commit({});
       setSavedAt(new Date());
       setMessage({ type: 'success', text: 'Your homepage changes are saved.' });
@@ -162,7 +164,7 @@ export const HomepageManagement = () => {
     } catch (error) {
       setMessage({ type: 'error', text: `${completed.length ? `Saved: ${completed.join(', ')}. ` : ''}Could not save all changes. ${error instanceof Error ? error.message : 'Please try again.'} Remaining drafts are kept.` });
     } finally { saving.current = false; setSavingPage(false); savingProgress.done(); }
-  }, [form, baseline, changedKeys, canEditRoadmap, socialDirty, socialDraft, roadmapDirty, roadmapDraft, roadmapMilestones, updateSocialMediaSettings, addRoadmapMilestone, updateRoadmapMilestone, isDirty, pageDirty, mediaBusy, mediaDirty, mediaDraft, aboutDirty, aboutDraft, leadsDirty, leadDraft, savingProgress, updateHomepageSettings, updateAboutSettings, updateFacultyHead, addFacultyHead, updateCoreTeamMember, addCoreTeamMember, coreTeamMembers]);
+  }, [form, baseline, changedKeys, canEditRoadmap, socialDirty, socialDraft, roadmapDirty, roadmapDraft, roadmapMilestones, updateSocialMediaSettings, addRoadmapMilestone, updateRoadmapMilestone, isDirty, pageDirty, mediaBusy, mediaDirty, mediaDraft, aboutDirty, aboutDraft, leadsDirty, leadDraft, savingProgress, updateHomepageSettings, updateAboutSettings, updateFacultyHead, addFacultyHead, updateCoreTeamMember, addCoreTeamMember, coreTeamMembers, facultyHeads]);
   useEffect(() => {
     const saveShortcut = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') { event.preventDefault(); void handleSave(); } };
     window.addEventListener('keydown', saveShortcut);
@@ -183,7 +185,7 @@ export const HomepageManagement = () => {
         <fieldset className="studio-fields" disabled={savingPage}><motion.div key={activeSection} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 220, damping: 25 }}>
           {activeSection === 'media' && (mediaError ? <div className="studio-feedback" role="alert"><p>{mediaError}</p><button type="button" onClick={() => setMediaRetry(value => value + 1)}>Retry background</button></div> : mediaDraft.form ? <HomepageMediaEditor media={mediaDraft.form} setMedia={mediaDraft.setForm} onProcessingChange={setMediaBusy} /> : <div className="studio-field-group" role="status">Loading background settings…</div>)}
           {activeSection === 'social' && socialDraft.form && <HomepageSocialEditor form={socialDraft.form} setForm={socialDraft.setForm} />}
-          {activeSection === 'roadmap' && <HomepageRoadmapEditor records={roadmapMilestones} edits={roadmapDraft.form || {}} setEdits={roadmapDraft.setForm} form={form} setForm={setForm} />}
+          {activeSection === 'roadmap' && <HomepageRoadmapEditor records={roadmapMilestones} edits={roadmapDraft.form || {}} setEdits={roadmapDraft.setForm} form={form} setForm={setForm} onProcessingChange={setMediaBusy} />}
           {activeSection === 'about' && aboutDraft.form && <HomepageAboutEditor form={aboutDraft.form} setForm={aboutDraft.setForm} />}
           {activeSection === 'automatic' && <HomepageAutomation events={featuredEvents} />}
           {activeSection === 'content' && <HeroContentSettings form={form} setForm={setForm} />}

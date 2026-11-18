@@ -2401,6 +2401,7 @@ export type Database = {
           created_at: string
           enabled: boolean
           id: number
+          images: string[]
           order_position: number
           points: string[] | null
           side: string
@@ -2412,6 +2413,7 @@ export type Database = {
           created_at?: string
           enabled?: boolean
           id?: number
+          images?: string[]
           order_position?: number
           points?: string[] | null
           side?: string
@@ -2423,6 +2425,7 @@ export type Database = {
           created_at?: string
           enabled?: boolean
           id?: number
+          images?: string[]
           order_position?: number
           points?: string[] | null
           side?: string

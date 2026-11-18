@@ -236,3 +236,67 @@ body .rico-family-page .family-teams .family-person h5 { margin: 0; color: #f3ef
   .family-council-roster { grid-template-columns: repeat(2, minmax(0, 132px)); }
   .family-council-roster:has(> :only-child) { grid-template-columns: minmax(0, 132px); }
 }
+
+/* Profile rims follow the supplied green/gold frame; light stays outside the photo. */
+.family-person-photo--rim .family-person-portrait { border: 0; border-radius: 0; }
+.family-person--head .family-person-portrait { height: auto; aspect-ratio: 48 / 55; }
+.family-person--council .family-person-portrait { height: auto; aspect-ratio: 5 / 6; }
+.family-portrait-rim { position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - 9px); overflow: visible; pointer-events: none; filter: drop-shadow(0 0 3px var(--council-person-light, #a5e74a)); }
+.family-rim-base { opacity: .95; }
+.family-rim-travel { animation: familyRimTravel 5s linear infinite; filter: drop-shadow(0 0 2px #dfff8c); }
+.family-person-photo--rim .family-person-head-badge { border-color: var(--council-person-light, #b6e568); box-shadow: 0 0 7px color-mix(in srgb, var(--council-person-light, #b7f44c) 35%, transparent), inset 0 1px 3px #cbf78130; }
+@keyframes familyRimTravel { to { stroke-dashoffset: -360; } }
+.profile-crop-preview { padding: 16px; border: 1px solid #a5bd5b44; border-radius: 12px; background: #06120b; color: #e7ecd6; }
+.profile-crop-preview h4 { margin: 0 0 7px; font: 500 14px/1.4 'Poppins', sans-serif; color: #e8e8cc; }
+.profile-crop-preview p { margin: 0 0 12px; font: 400 12px/1.5 'Poppins', sans-serif; color: #bac5a7; }
+.profile-crop-preview .family-teams { padding: 8px; }
+.profile-crop-preview .family-person { margin-inline: auto; }
+.family-person-portrait canvas { display: block; width: 100%; height: 100%; }
+.profile-crop-preview .family-person--council canvas { filter: brightness(.84) contrast(1.04) saturate(.94); }
+@media (prefers-reduced-motion: reduce) { .family-rim-travel { animation: none; } }
+
+.family-person-photo--rim .family-person-portrait > img, .family-person-photo--rim .family-person-portrait > canvas { position: absolute; inset: 0; }
+
+.council-rig-light .family-spotlight--off .family-spotlight-beam { opacity: 0; }
+
+/* Lamps follow visible portraits; hidden profiles leave no fixture behind. */
+.council-light-rig { display: block; }
+.council-rig-light { position: absolute; top: 0; width: 32px; transform: translateX(-50%); }
+.family-beam-volume { animation: familyBeamBreathe 4.8s ease-in-out infinite; }
+.family-beam-stream { animation: familyBeamFlow 3.6s linear infinite; }
+.family-spotlight--off .family-beam-volume, .family-spotlight--off .family-beam-stream { animation: none; }
+.council-rig-light:nth-child(2n) .family-beam-volume { animation-delay: -1.8s; }
+.council-rig-light:nth-child(3n) .family-beam-stream { animation-delay: -1.2s; }
+.family-rim-trail { opacity: .38; filter: blur(2px); animation: familyRimTravel 5s linear infinite; animation-delay: -.3s; }
+.family-members-light { z-index: 0; transition: left .7s cubic-bezier(.2,.7,.3,1); }
+.family-members-light .family-spotlight-head { animation: familyMemberAim 6.5s ease-in-out infinite alternate; }
+.family-group-members::before { animation: familyMemberWash 5s ease-in-out infinite; }
+.family-instagram-unavailable { display: inline-flex; align-items: center; justify-content: center; gap: 5px; margin-top: 4px; color: #859079; font: 400 10px/1.4 'Poppins',sans-serif; }
+.family-instagram-unavailable svg { width: 13px; height: 13px; }
+@keyframes familyBeamFlow { to { stroke-dashoffset: -96; } }
+@keyframes familyBeamBreathe { 0%,100% { opacity: .7; } 50% { opacity: 1; } }
+@keyframes familyMemberAim { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
+@keyframes familyMemberWash { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+@media(prefers-reduced-motion:reduce) {
+ .family-beam-volume,.family-beam-stream,.family-rim-trail,.family-members-light .family-spotlight-head,.family-group-members::before { animation: none; }
+ .family-members-light { transition: none; }
+}
+.faculty-social-unavailable { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid #7b845a55; border-radius: 6px; color: #78846d; }
+
+@container family-panel (max-width:440px) { .family-council-roster { row-gap: 96px; } }
+
+/* A short, narrow light pool ends at the portrait instead of washing the labels. */
+.family-carousel-track { padding-top: 72px; }
+.family-members-light { top: 26px; }
+.family-members-light .family-spotlight-beam { width: var(--member-beam-width, 96px); height: var(--member-beam-length, 115px); opacity: .28; }
+.family-members-light .family-spotlight-head { animation-name: familyMemberAimFocused; }
+.family-members-light .family-beam-stream { stroke-opacity: .12; }
+.family-group-members::before { display: none; }
+@keyframes familyMemberAimFocused { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+.family-person a { color: #e28bbd; }
+.family-person a:hover { color: #f5b4d8; }
+.family-instagram-unavailable { color: #b989a5; }
+.family-instagram-unavailable .family-social-brand-icon { opacity: .8; }
+.family-social-brand-icon { flex-shrink: 0; }
+.faculty-social--instagram { border-color: #d7599e66; background: linear-gradient(135deg,#9b4cce15,#ee527f15); }
+.faculty-social--facebook { border-color: #1877f266; background: #1877f212; }

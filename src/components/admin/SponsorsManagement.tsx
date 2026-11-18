@@ -3,7 +3,7 @@ import { resolveHomepagePartners, readHomepagePartners, sponsorPlacement, setSpo
 import '../../styles/HomepageStudio.css';
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, X, Pencil, Trash2, Sparkles, Medal, Edit, Save, Building, Star, ExternalLink, FileImage, ArrowUp, ArrowDown, Eye, EyeOff, Award, FileText, Link as LinkIcon, Download, Mail } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { SponsorIconCatalog as LucideIcons } from '../../lib/sponsorIconCatalog';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import { InlineDescriptionAI } from './InlineDescriptionAI';

@@ -1,0 +1,94 @@
+.festival-about {
+  --about-gold: #d6b96f;
+  position: relative; isolation: isolate; overflow: hidden; scroll-margin-top: 90px;
+  padding: clamp(64px, 8vw, 118px) 28px 72px; background: #04150e; color: #ede9d9;
+}
+.festival-about__atmosphere { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(#031710 0%, #04150ef0 17%, #04150ebd 52%, #04150ef7 95%), url('/images/ricorrenza-chronicles-atmosphere.webp') center 38% / cover no-repeat; }
+.festival-about__content { max-width: 1180px; margin: 0 auto; }
+.festival-about__chapter { display: flex; align-items: center; gap: 24px; margin-bottom: 62px; color: #b3bca3; font: 400 10px/1.5 'Poppins', system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; }
+.festival-about__chapter i { flex: 1; height: 1px; background: linear-gradient(90deg, #bca15c70, #bca15c1a); }
+.festival-about__chapter > span:last-child { color: var(--about-gold); white-space: nowrap; }
+.festival-about__introduction { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); align-items: center; gap: clamp(40px, 6vw, 90px); }
+.festival-about__story { min-width: 0; }
+.festival-about__eyebrow { display: flex; align-items: center; gap: 12px; color: #bfcbab; font: 400 9px/1.7 'Poppins', system-ui, sans-serif; letter-spacing: .15em; text-transform: uppercase; }
+.festival-about__eyebrow svg { width: 23px; height: 23px; flex-shrink: 0; color: var(--about-gold); }
+body .festival-about h2,
+body.theme-spiderman:not([data-festival-scope='staff']) .festival-about h2 { margin: 20px 0 24px; max-width: 650px; color: #f0d99b; font: italic 600 clamp(43px, 5.6vw, 78px)/1.05 'Playfair Display', Georgia, serif; letter-spacing: -.045em; text-wrap: balance; text-shadow: 0 2px 1px #3b2d15; }
+.festival-about__rule { display: flex; align-items: center; gap: 9px; width: 170px; margin: 0 0 30px; color: var(--about-gold); }
+.festival-about__rule span { height: 1px; background: #c9b06b; width: 35px; }
+.festival-about__rule span:last-child { flex: 1; background: linear-gradient(90deg, #c9b06b, transparent); }
+.festival-about__rule i { width: 5px; height: 5px; transform: rotate(45deg); background: #e8d191; }
+body .festival-about__story h3 { margin: 0 0 19px; color: #f0eddb; font: 500 clamp(19px, 2vw, 25px)/1.4 'Playfair Display', Georgia, serif; letter-spacing: 0; text-wrap: balance; }
+.festival-about__prose { max-width: 590px; color: #bec9b9; font: 400 14px/1.9 'Poppins', system-ui, sans-serif; }
+.festival-about__prose p { margin: 0 0 16px; overflow-wrap: anywhere; }
+.festival-about__prose :is(strong, b) { color: #ece8d3; font-weight: 600; }
+.festival-about__prose a { color: #e1c885; text-decoration: underline; text-underline-offset: 4px; }
+.festival-about__story-link { display: inline-flex; align-items: center; justify-content: space-between; gap: 28px; min-height: 44px; padding: 6px 0; margin-top: 13px; border-bottom: 1px solid #bca45e73; color: #e6d49d; font: 400 12px/1.5 'Poppins', system-ui, sans-serif; text-decoration: none; transition: color .2s, border-color .2s; }
+.festival-about__story-link:hover { color: #d4efc0; border-color: #a4c783; }
+.festival-about__story-link svg { width: 17px; height: 17px; transition: transform .2s; }
+.festival-about__story-link:hover svg { transform: translate(2px, -2px); }
+.festival-about__emblem { position: relative; padding: 25px 0; min-width: 0; }
+.festival-about__emblem::before { content: ''; position: absolute; inset: 2% -7% 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse, #336b3e29, transparent 68%); }
+.festival-about__seal { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; width: min(100%, 400px); aspect-ratio: 1; margin: 0 auto; text-align: center; }
+.festival-about__seal-rings { position: absolute; inset: 0; width: 100%; height: 100%; color: #b9a2649c; pointer-events: none; }
+.festival-about__seal-caption { max-width: 64%; margin: 0 0 14px; color: #b5c6a6; font: 400 8px/1.5 'Poppins', system-ui, sans-serif; letter-spacing: .15em; text-transform: uppercase; }
+.festival-about__crest { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; }
+.festival-about__crest img { width: clamp(46px, 6vw, 72px); height: 84px; object-fit: contain; }
+.festival-about__crest > svg { width: 33px; height: 68px; color: #b9a15e; }
+.festival-about__crest > svg:last-child { transform: scaleX(-1); }
+.festival-about__seal-name { margin: 4px 0 0; color: #e1cd94; font: 400 clamp(13px, 1.5vw, 18px)/1.4 Georgia, serif; letter-spacing: .23em; }
+.festival-about__seal-year { display: block; margin: 1px 0 10px; color: #f3dfaa; font: italic 400 clamp(48px, 5.8vw, 75px)/1 'Playfair Display', Georgia, serif; letter-spacing: -.04em; }
+.festival-about__seal-place { margin: 0; color: #c3c7ac; font: 400 8px/1.65 'Poppins', system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+.festival-about__seal-place span { display: block; color: #b4a674; font-size: 7px; letter-spacing: .3em; }
+.festival-about__emblem-caption { display: flex; justify-content: center; align-items: center; gap: 12px; margin: 22px 0 0; color: #b7c8ab; font: italic 400 13px/1.5 Georgia, serif; }
+.festival-about__emblem-caption > span { width: 28px; height: 1px; background: #a08e5370; }
+.festival-about__experiences { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; border-top: 1px solid #ac985344; margin-top: 58px; padding-top: 34px; }
+.festival-about__experience { display: grid; grid-template-columns: 35px minmax(0, 1fr); gap: 18px; }
+.festival-about__index { padding-top: 3px; color: #9d945e; font: italic 400 24px/1 Georgia, serif; }
+body .festival-about__experience h3 { margin: 0 0 18px; color: #e2d09b; font: 400 12px/1.5 'Poppins', system-ui, sans-serif; letter-spacing: .15em; text-transform: uppercase; }
+.festival-about__experience ul { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 14px 22px; margin: 0; padding: 0; list-style: none; color: #c7d0be; font: 400 12px/1.6 'Poppins', system-ui, sans-serif; }
+.festival-about__experience li { display: flex; align-items: baseline; gap: 9px; overflow-wrap: anywhere; }
+.festival-about__experience li > span { color: #9cc38a; font-size: 11px; }
+.festival-about__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 48px 0 0; border-top: 1px solid #ac985344; border-bottom: 1px solid #ac985344; padding: 26px 0; }
+.festival-about__stats > div { display: flex; flex-direction: column-reverse; align-items: center; gap: 12px; padding: 10px 24px; text-align: center; }
+.festival-about__stats > div + div { border-left: 1px solid #ac985333; }
+.festival-about__stats dt { color: #afbaa6; font: 400 9px/1.6 'Poppins', system-ui, sans-serif; letter-spacing: .18em; text-transform: uppercase; }
+.festival-about__stats dd { margin: 0; color: #f0dda8; font: italic 500 clamp(32px, 4vw, 51px)/1.15 'Playfair Display', Georgia, serif; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.festival-about :is(a, button):focus-visible { outline: 2px solid #e1d19b; outline-offset: 5px; }
+@media (max-width: 900px) {
+  .festival-about__introduction { gap: 30px; }
+  .festival-about__crest img { height: 65px; }
+  .festival-about__seal-caption { font-size: 6px; margin-bottom: 8px; }
+  .festival-about__seal-name { font-size: 12px; }
+  .festival-about__seal-year { font-size: 48px; }
+  .festival-about__seal-place { font-size: 6px; }
+  .festival-about__experiences { gap: 32px; }
+  .festival-about__experience ul { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .festival-about { padding: 54px 22px 48px; }
+  .festival-about__chapter { gap: 13px; margin-bottom: 34px; font-size: 8px; letter-spacing: .13em; }
+  .festival-about__introduction { grid-template-columns: 1fr; gap: 12px; }
+  .festival-about__eyebrow { font-size: 8px; gap: 9px; }
+  .festival-about__eyebrow svg { width: 19px; }
+  body .festival-about h2, body.theme-spiderman:not([data-festival-scope='staff']) .festival-about h2 { font-size: clamp(40px, 11vw, 60px); margin-top: 16px; }
+  .festival-about__prose { font-size: 13px; line-height: 1.85; }
+  .festival-about__emblem { width: min(100%, 340px); margin: 10px auto 0; }
+  .festival-about__crest img { height: 74px; width: 58px; }
+  .festival-about__seal-caption { font-size: 7px; margin-bottom: 11px; }
+  .festival-about__seal-name { font-size: 15px; }
+  .festival-about__seal-year { font-size: 62px; }
+  .festival-about__seal-place { font-size: 7px; }
+  .festival-about__experiences { margin-top: 28px; gap: 25px; padding-top: 26px; }
+  .festival-about__experience { grid-template-columns: 1fr; gap: 10px; }
+  .festival-about__index { font-size: 21px; }
+  body .festival-about__experience h3 { font-size: 10px; letter-spacing: .1em; }
+  .festival-about__experience ul { font-size: 11px; gap: 12px; }
+  .festival-about__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 32px; padding: 8px 0; }
+  .festival-about__stats > div { padding: 20px 12px; gap: 9px; }
+  .festival-about__stats > div:nth-child(odd) { border-left: 0; }
+  .festival-about__stats > div:nth-child(n+3) { border-top: 1px solid #ac985333; }
+  .festival-about__stats dd { font-size: 37px; }
+  .festival-about__stats dt { font-size: 8px; letter-spacing: .1em; }
+}
+@media (prefers-reduced-motion: reduce) { .festival-about *, .festival-about *::before, .festival-about *::after { animation: none !important; transition: none !important; } }

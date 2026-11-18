@@ -33,13 +33,14 @@ it('renders exactly four council lamps, applies saved colors to the correct peop
   for (const [index, color] of ['red', 'blue', 'green', 'yellow'].entries()) expect(container.querySelector(`[data-council-light="${color}"]`)?.getAttribute('data-target-member')).toBe(String(index + 1));
   expect(container.querySelectorAll('.council-stage-person.is-lit')).toHaveLength(4);
 });
-it('turns a light off for hidden or unassigned people while keeping four physical fixtures', async () => {
+it('removes hidden member lamps and keeps the remaining lights in member order', async () => {
   mocks.people[0].enabled = false; mocks.people[1].color = null;
   await act(async () => root.render(<FamilyTeams committees={[]} members={mocks.people} />));
-  expect(container.querySelector('[data-council-light="red"] .family-spotlight--off')).not.toBeNull();
-  expect(container.querySelector('[data-council-light="blue"] .family-spotlight--off')).not.toBeNull();
+  expect(container.querySelector('[data-council-light="red"]')).toBeNull();
+  expect(container.querySelector('[data-light-member="2"] .family-spotlight--off')).not.toBeNull();
   expect(container.querySelector('[data-council-member="1"]')).toBeNull();
-  expect(container.querySelectorAll('.council-rig-light')).toHaveLength(4);
+  expect(container.querySelectorAll('.council-rig-light')).toHaveLength(3);
+  expect([...container.querySelectorAll('.council-rig-light')].map(node=>node.getAttribute('data-target-member'))).toEqual(['2','3','4']);
 });
 it('moves a color assignment and saves only the changed member colors', async () => {
   await act(async () => root.render(<CouncilLightingManagement />)); await choose('red', '2');

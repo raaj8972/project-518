@@ -25,6 +25,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount()); host.remove(); resized = undefined;
   vi.restoreAllMocks(); vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const mount = async () => {
@@ -89,4 +90,43 @@ it('leaves space key activation on a card button to the button', async () => {
   await act(async () => host.querySelector('button')!.dispatchEvent(event));
   expect(event.defaultPrevented).toBe(false);
   expect(host.querySelector('[aria-label="Pause carousel"]')).not.toBeNull();
+});
+
+it('uses cached card positions during scrolling and refreshes them after layout changes', async () => {
+  viewportWidth = 360; contentWidth = 980;
+  await act(async () => root.render(<AutoCarousel paused itemNavigation><div>First</div><div>Second</div><div>Third</div></AutoCarousel>));
+  const readOffset = vi.fn();
+  Array.from(track().children).forEach((child, index) => Object.defineProperty(child, 'offsetLeft', { configurable: true, get: () => { readOffset(); return 20 + index * 320; } }));
+  await act(async () => resized?.());
+  expect(readOffset).toHaveBeenCalled(); readOffset.mockClear();
+  await act(async () => {
+    for (const left of [100, 200, 320]) { track().scrollLeft = left; track().dispatchEvent(new Event('scroll')); }
+  });
+  expect(readOffset).not.toHaveBeenCalled();
+  expect(dots()[1].getAttribute('aria-current')).toBe('true');
+  await act(async () => resized?.());
+  expect(readOffset).toHaveBeenCalled();
+});
+
+it('removes autoplay timers while paused, offscreen or in a hidden tab and resumes when active', async () => {
+  vi.useFakeTimers(); viewportWidth = 300;
+  let hidden = false;
+  vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
+  let intersect: (entries: { isIntersecting: boolean }[]) => void = () => {};
+  vi.stubGlobal('IntersectionObserver', class { constructor(callback: typeof intersect) { intersect = callback; } observe() {} disconnect() {} });
+  const render = (paused = false) => act(async () => root.render(<AutoCarousel paused={paused}><div>First</div><div>Second</div><div>Third</div></AutoCarousel>));
+  await render(); track().scrollTo = scrollTo;
+  expect(vi.getTimerCount()).toBe(1);
+  await act(async () => vi.advanceTimersByTime(4000));
+  expect(scrollTo).toHaveBeenCalledTimes(1);
+  await act(async () => { hidden = true; document.dispatchEvent(new Event('visibilitychange')); });
+  expect(vi.getTimerCount()).toBe(0);
+  await act(async () => { hidden = false; document.dispatchEvent(new Event('visibilitychange')); });
+  expect(vi.getTimerCount()).toBe(1);
+  await act(async () => intersect([{ isIntersecting: false }]));
+  expect(vi.getTimerCount()).toBe(0);
+  await act(async () => intersect([{ isIntersecting: true }]));
+  expect(vi.getTimerCount()).toBe(1);
+  await render(true);
+  expect(vi.getTimerCount()).toBe(0);
 });

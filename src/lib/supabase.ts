@@ -911,6 +911,7 @@ export interface Database {
           achievements: string[]
           email: string | null
           phone: string | null
+          social_links: Record<string, string> | null
           order_position: number
           enabled: boolean
           created_at: string
@@ -925,6 +926,7 @@ export interface Database {
           achievements?: string[]
           email?: string | null
           phone?: string | null
+          social_links?: Record<string, string> | null
           order_position?: number
           enabled?: boolean
           created_at?: string
@@ -939,6 +941,7 @@ export interface Database {
           achievements?: string[]
           email?: string | null
           phone?: string | null
+          social_links?: Record<string, string> | null
           order_position?: number
           enabled?: boolean
           created_at?: string
@@ -1662,6 +1665,7 @@ export interface Database {
           year: number
           title: string | null
           points: string[]
+          images: string[]
           order_position: number
           enabled: boolean
           side: 'auto' | 'left' | 'right'
@@ -1673,6 +1677,7 @@ export interface Database {
           year: number
           title?: string | null
           points?: string[]
+          images?: string[]
           order_position?: number
           enabled?: boolean
           side?: 'auto' | 'left' | 'right'
@@ -1684,6 +1689,7 @@ export interface Database {
           year?: number
           title?: string | null
           points?: string[]
+          images?: string[]
           order_position?: number
           enabled?: boolean
           side?: 'auto' | 'left' | 'right'

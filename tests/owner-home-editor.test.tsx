@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { HomepageManagement } from '../src/components/admin/HomepageManagement';
+import { RoadmapMilestonesAdmin } from '../src/components/admin/RoadmapMilestonesAdmin';
 const mocks = vi.hoisted(() => ({ media:null as any, team:[] as any[], updateSocial: vi.fn(), updateRoadmap: vi.fn(), addRoadmap: vi.fn(), social:{id:1,instagram_enabled:false,instagram_url:'',youtube_enabled:false,youtube_url:'',created_at:'',updated_at:''}, road:[{id:51,year:2023,title:'Previous edition',points:['Festival milestone'],order_position:1,enabled:true,side:'auto',created_at:'',updated_at:''}], update: vi.fn(), saveMedia: vi.fn(), updateAbout: vi.fn(), updateFaculty: vi.fn(), addFaculty: vi.fn(), updateTeam: vi.fn(), addTeam: vi.fn(), owner: true, faculty: [{id:41,name:'Festival Chair',image:'chair.jpg',title:'Chairperson',description:'Faculty lead',enabled:true,order_position:1}], about: {id:1,enabled:true,hero_title:'About',hero_heading:'Festival story',hero_paragraphs:['Original paragraph'],tracks:[],zones:[],stats:[],updated_at:null}, settings: { hero_title: 'Published title', hero_media_url: 'legacy.jpg', sponsor_logos: [{ id: 'existing-logo', name:'Previous partner',logo_url:'previous.png',enabled:true,order:1 }] } }));
 vi.mock('../src/context/DataContext', () => ({ useData: () => ({ homepageSettings: mocks.settings, coreTeamMembers:mocks.team, coreCommittees:[{id:1,name:'Tech Team'}], socialMediaSettings:mocks.social,updateSocialMediaSettings:mocks.updateSocial,roadmapMilestones:mocks.road,addRoadmapMilestone:mocks.addRoadmap,updateRoadmapMilestone:mocks.updateRoadmap, updateHomepageSettings: mocks.update, isOwner: () => mocks.owner, myPermissions:{page_access_configured:true,allowed_pages:['homepage']}, aboutSettings:mocks.about,updateAboutSettings:mocks.updateAbout,facultyHeads:mocks.faculty,updateFacultyHead:mocks.updateFaculty,addFacultyHead:mocks.addFaculty,updateCoreTeamMember:mocks.updateTeam,addCoreTeamMember:mocks.addTeam }) }));
 vi.mock('../src/context/SavingProgressContext', () => ({ useSavingProgress: () => ({ withSteps: () => ({ next() {} }), done() {} }) }));
@@ -124,9 +125,45 @@ it('edits roadmap milestones in the studio without requiring a missing visibilit
   expect(container.querySelector('[data-preview-section="roadmap"]')?.textContent).toContain('A festival milestone updated');
   await click('Save changes'); expect(mocks.updateRoadmap).toHaveBeenCalledWith(51,expect.objectContaining({title:'A festival milestone updated',points:['First detail','Second detail'],enabled:true})); expect(mocks.update).not.toHaveBeenCalled();
 });
+it('keeps failed photo drafts and saves additions, order, replacement and deletion together',async()=>{
+  await mount('/admin/homepage?edit=roadmap');
+  await change('Or add a photo URL','https://photos.example/one.jpg');await click('Add photo');
+  await change('Or add a photo URL','https://photos.example/two.jpg');await click('Add photo');
+  await click('Move photo 2 earlier');
+  expect(container.querySelector<HTMLImageElement>('[data-preview-section="roadmap"] img')?.src).toBe('https://photos.example/two.jpg');
+  mocks.updateRoadmap.mockRejectedValueOnce(new Error('offline'));await click('Save changes');
+  expect(JSON.parse(localStorage.getItem('homepage_roadmap_resource_draft')!)['milestone-51'].images).toEqual(['https://photos.example/two.jpg','https://photos.example/one.jpg']);
+  await click('Replace photo 1');await click('Upload roadmap/2023');await click('Delete photo 2');await click('Save changes');
+  expect(mocks.updateRoadmap).toHaveBeenLastCalledWith(51,expect.objectContaining({images:['https://files.example/new.jpg'],points:['Festival milestone']}));
+  expect(button('Save changes').disabled).toBe(true);
+});
 it('creates a new milestone through the common save bar and retains failed roadmap drafts', async () => {
   await mount('/admin/homepage?edit=roadmap');await click('Add milestone');await change('Milestone title','New edition launched'); mocks.addRoadmap.mockRejectedValueOnce(new Error('offline'));await click('Save changes');
   expect(localStorage.getItem('homepage_roadmap_resource_draft')).not.toBeNull();await click('Save changes');expect(mocks.addRoadmap).toHaveBeenLastCalledWith(expect.objectContaining({title:'New edition launched',enabled:true}));expect(button('Save changes').disabled).toBe(true);
+});
+it('suggests 2027 after 2026 and 2028 after the next draft without replacing existing editions',async()=>{
+ const previous=mocks.road;const date=vi.spyOn(Date.prototype,'getFullYear').mockReturnValue(2026);
+ mocks.road=[{...previous[0],year:2026,order_position:4}];
+ try{
+  await mount('/admin/homepage?edit=roadmap');expect(container.textContent).toContain('Next suggested year: 2027');
+  await click('Add milestone');await change('Milestone title','Edition 2027');expect(container.textContent).toContain('Next suggested year: 2028');
+  await click('Add milestone');await change('Milestone title','Edition 2028');
+  await click('Save changes');
+  expect(mocks.addRoadmap.mock.calls.map(([payload])=>({year:payload.year,order:payload.order_position}))).toEqual([{year:2027,order:5},{year:2028,order:6}]);
+  expect(mocks.updateRoadmap).not.toHaveBeenCalled();
+ }finally{mocks.road=previous;date.mockRestore();}
+});
+it('adds the next year at the latest position from the standalone Roadmap admin too',async()=>{
+ const previous=mocks.road;const date=vi.spyOn(Date.prototype,'getFullYear').mockReturnValue(2026);
+ mocks.road=[{...previous[0],year:2026,order_position:4}];
+ try{
+  await act(async()=>root.render(<RoadmapMilestonesAdmin/>));await click('Use next year: 2027');
+  const title=container.querySelector<HTMLInputElement>('input[placeholder="Optional title…"]')!;
+  await act(async()=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(title,'A new edition');title.dispatchEvent(new Event('input',{bubbles:true}));});
+  await click('Add');
+  expect(mocks.addRoadmap).toHaveBeenCalledWith(expect.objectContaining({year:2027,title:'A new edition',order_position:5,enabled:true}));
+  expect(mocks.updateRoadmap).not.toHaveBeenCalled();
+ }finally{mocks.road=previous;date.mockRestore();}
 });
 it('hides consolidated Social and Roadmap edit tabs from homepage-only admins',async()=>{
  mocks.owner=false;await mount('/admin/homepage?edit=roadmap');expect(button('Roadmap & milestones')).toBeUndefined();expect(button('Social media links')).toBeUndefined();
@@ -203,9 +240,15 @@ it('edits heads and council with Instagram and departments while preserving hidd
   await select('Ishita Sen');
   const labels=[...container.querySelectorAll('.studio-lead-editor label')].map(node=>node.textContent);
   expect(labels).toContain('Instagram');expect(labels).toContain('Department');expect(labels).not.toContain('Role');expect(labels).not.toContain('About this lead');
-  await change('Instagram','@ishita.sen');
+  await change('Instagram','@ishita.sen');await change('Phone','+91 98300 00011');await change('Batch','2023–2028');
   await select('Aditi Das');await change('Lead name','Aditi Roy');await click('Save changes');
   const head=mocks.updateTeam.mock.calls.find(call=>call[0]===51)![1];
-  expect(head.social_links).toEqual({instagram:'https://www.instagram.com/ishita.sen/',facebook:'https://facebook.com/ishita'});expect(head).not.toHaveProperty('description');expect(head).not.toHaveProperty('role');
+  expect(head.social_links).toEqual({instagram:'https://www.instagram.com/ishita.sen/',facebook:'https://facebook.com/ishita',batch:'2023–2028'});expect(head.phone).toBe('+91 98300 00011');expect(head).not.toHaveProperty('description');expect(head).not.toHaveProperty('role');
   expect(mocks.updateTeam).toHaveBeenCalledWith(52,expect.objectContaining({name:'Aditi Roy',committee_id:null,is_council:true}));
+});
+
+it('offers faculty Instagram and Facebook fields and saves normalized profile URLs',async()=>{
+ await mount('/admin/homepage?edit=people');
+ await change('Instagram','@faculty.vision');await change('Facebook','facebook.com/festival.faculty');await click('Save changes');
+ expect(mocks.updateFaculty).toHaveBeenCalledWith(41,expect.objectContaining({social_links:expect.objectContaining({instagram:'https://www.instagram.com/faculty.vision/',facebook:'https://facebook.com/festival.faculty'})}));
 });

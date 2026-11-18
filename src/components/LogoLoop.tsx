@@ -132,6 +132,7 @@ const useImageLoader = (
 const useAnimationLoop = (
   containerRef: React.RefObject<HTMLDivElement | null>,
   trackRef: React.RefObject<HTMLDivElement | null>,
+  mobileFactorRef: React.MutableRefObject<number>,
   targetVelocity: number,
   seqWidth: number,
   isHovered: boolean,
@@ -168,8 +169,7 @@ const useAnimationLoop = (
       lastTimestampRef.current = timestamp;
 
       const isPausing = pauseOnHover && isHovered;
-      const mobileFactor = spotlight && container.clientWidth < 480 ? .9 : 1;
-      const target = isPausing ? 0 : targetVelocity * mobileFactor;
+      const target = isPausing ? 0 : targetVelocity * (spotlight ? mobileFactorRef.current : 1);
 
       // If instant pause requested, snap velocity to target while hovered
       if (isPausing && pauseInstantOnHover) {
@@ -227,7 +227,7 @@ const useAnimationLoop = (
       document.removeEventListener('visibilitychange', syncActivity);
       motionPreference?.removeEventListener('change', syncActivity);
     };
-  }, [containerRef, trackRef, targetVelocity, seqWidth, isHovered, pauseOnHover, pauseInstantOnHover, smoothTauSec, spotlight]);
+  }, [containerRef, trackRef, mobileFactorRef, targetVelocity, seqWidth, isHovered, pauseOnHover, pauseInstantOnHover, smoothTauSec, spotlight]);
 };
 
 export const LogoLoop = React.memo<LogoLoopProps>(
@@ -260,6 +260,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
     const containerRef = useRef<HTMLDivElement>(null);
     const trackRef = useRef<HTMLDivElement>(null);
     const seqRef = useRef<HTMLUListElement>(null);
+    const mobileFactorRef = useRef(1);
 
     const [seqWidth, setSeqWidth] = useState<number>(0);
     const [copyCount, setCopyCount] = useState<number>(ANIMATION_CONFIG.MIN_COPIES);
@@ -274,6 +275,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
 
     const updateDimensions = useCallback(() => {
       const containerWidth = containerRef.current?.clientWidth ?? 0;
+      mobileFactorRef.current = containerWidth < 480 ? .9 : 1;
       const sequenceWidth = seqRef.current?.getBoundingClientRect?.()?.width ?? 0;
 
       if (sequenceWidth > 0) {
@@ -287,7 +289,7 @@ export const LogoLoop = React.memo<LogoLoopProps>(
 
     useImageLoader(seqRef, updateDimensions, [logos, gap, logoHeight]);
 
-    useAnimationLoop(containerRef, trackRef, targetVelocity, seqWidth, isHovered, pauseOnHover, pauseInstantOnHover, smoothTauSec, spotlight);
+    useAnimationLoop(containerRef, trackRef, mobileFactorRef, targetVelocity, seqWidth, isHovered, pauseOnHover, pauseInstantOnHover, smoothTauSec, spotlight);
 
     const cssVariables = useMemo(
       () =>

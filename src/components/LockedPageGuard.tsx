@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useData } from '../context/DataContext';
-import ComingSoon from '../pages/ComingSoon';
+import { FestivalLoadingPreview } from './ui/FestivalLoadingPreview';
 import { useFestivalSceneReadiness } from './ui/festival/FestivalSceneReadiness';
 
 import { AlertTriangle } from 'lucide-react';
+const ComingSoon = React.lazy(() => import('../pages/ComingSoon'));
 
 interface LockedPageGuardProps {
   pageKey: string;
@@ -14,15 +15,18 @@ export const LockedPageGuard: React.FC<LockedPageGuardProps> = ({ pageKey, child
   const { siteSettings, isAdmin } = useData();
   const { setSettled } = useFestivalSceneReadiness();
   const [now, setNow] = useState(Date.now());
-  
-  // Poll current time every second so the guard auto-unlocks when timer expires
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  
   const isExplicitlyLocked = siteSettings?.locked_pages?.[pageKey] === true;
   const timerValue = siteSettings?.locked_pages_until?.[pageKey];
+  const timerDeadline = timerValue ? new Date(timerValue).getTime() : 0;
+  const needsClock = isExplicitlyLocked && Number.isFinite(timerDeadline) && timerDeadline > now;
+  
+  // Only a locked page with a future deadline needs a ticking clock.
+  useEffect(() => {
+    if (!needsClock) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [needsClock]);
+  
   const timerExpired = timerValue ? new Date(timerValue).getTime() <= now : false;
   
   // The page is locked ONLY if:
@@ -37,7 +41,8 @@ export const LockedPageGuard: React.FC<LockedPageGuardProps> = ({ pageKey, child
   if (isLocked && !canBypass) {
     // Render the ComingSoon component acting as a maintenance page
     return (
-      <ComingSoon 
+      <React.Suspense fallback={<FestivalLoadingPreview />}>
+      <ComingSoon
         isMaintenance
         previewSettings={{
           coming_soon_enabled: true,
@@ -47,6 +52,7 @@ export const LockedPageGuard: React.FC<LockedPageGuardProps> = ({ pageKey, child
           coming_soon_ended_text: "System Re-Initialized",
         }} 
       />
+      </React.Suspense>
     );
   }
 

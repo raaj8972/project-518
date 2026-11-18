@@ -8,6 +8,7 @@ import { getPortalLogoUrl } from './portalLogoUrl';
 import { getIntroPolicy, INTRO_LIMITS, publishIntroPhase, rememberIntroFallback, savedIntroFallback, supportsCinematicIntro, visibleTimeout } from './introCapability';
 import { canLookAround, createInlineLook } from './inlineLook';
 import { canPlayDocumentIntro, markDocumentIntroPlayed } from './documentIntro';
+import { INTRO_PORTAL_ENABLED } from './introConfig';
 import './CinematicIntro.css';
 const CinematicScene = lazy(() => import('./CinematicScene'));
 class SceneBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
@@ -20,7 +21,7 @@ class SceneBoundary extends Component<{ children: ReactNode; onFailure: () => vo
 const reducedMotion = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Scroll-scrubbed film; the real homepage remains mounted below the runway. */
-export default function CinematicHome({ children }: { children: ReactNode }) {
+export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_ENABLED }: { children: ReactNode; portalEnabled?: boolean }) {
   const { homepageSettings } = useCoreData();
   const portalLogoUrl = getPortalLogoUrl(homepageSettings);
   const [policy] = useState(() => getIntroPolicy(navigator, window.innerWidth));
@@ -43,6 +44,7 @@ export default function CinematicHome({ children }: { children: ReactNode }) {
   const lookHint = useRef<HTMLDivElement>(null), look = useRef({ yaw: 0 }).current;
   const scrubber = useRef<ReturnType<typeof createScrollVideoController> | null>(null);
   const progress = useRef(0), endpoint = useRef(0), updateVisual = useRef<() => void>(() => {});
+  const mediaProgress = useRef({ current: 0 }).current;
   const cloudLoaded = useRef(false), cloudHeld = useRef(false), cloudTimer = useRef<ReturnType<typeof setTimeout>>();
   const finishTimer = useRef<ReturnType<typeof setTimeout>>(), complete = useRef(false);
   const resetAfterBypass = useRef(false);
@@ -60,14 +62,14 @@ export default function CinematicHome({ children }: { children: ReactNode }) {
     if (!enabled) return;
     let disposed = false;
     const cancelTimeout = visibleTimeout(() => openHome('capability-timeout'), INTRO_LIMITS.probe);
-    void supportsCinematicIntro(mobile).then(supported => {
+    void supportsCinematicIntro(mobile, portalEnabled).then(supported => {
       if (disposed) return;
       cancelTimeout();
       if (!supported) { openHome('unsupported-device'); return; }
       capabilityReady.current = true; setCapable(true); updateVisual.current();
     }).catch(() => { if (!disposed) openHome('capability-failed'); });
     return () => { disposed = true; cancelTimeout(); };
-  }, [enabled, mobile, openHome]);
+  }, [enabled, mobile, portalEnabled, openHome]);
 
   const releaseHome = useCallback(() => {
     complete.current = true;
@@ -82,9 +84,9 @@ export default function CinematicHome({ children }: { children: ReactNode }) {
   const onCloudReady = useCallback(() => { cloudLoaded.current = true; updateVisual.current(); }, []);
   const onCloudFailure = useCallback(() => openHome('cloud-failed'), [openHome]);
   useEffect(() => {
-    if (!enabled || !overlay.current) return;
+    if (!enabled || !portalEnabled || !overlay.current) return;
     return createInlineLook(overlay.current, { progress, look, invalidate: () => sceneInvalidate.current?.() });
-  }, [enabled, look]);
+  }, [enabled, portalEnabled, look]);
   useEffect(() => {
     if (!enabled || !sceneMounted || sceneLoaded) return;
     return visibleTimeout(() => { if (!sceneReady.current) openHome('scene-timeout'); }, INTRO_LIMITS.sceneStart);
@@ -113,13 +115,13 @@ export default function CinematicHome({ children }: { children: ReactNode }) {
     setReady(false);
     const controller = createScrollVideoController(element, { onReady: () => setReady(true), onBuffer: setBuffered, onFailure: () => openHome('video-failed'), cutoff: mobile ? 17.75 : undefined });
     scrubber.current = controller;
-    controller.seek(progress.current);
+    controller.seek(mediaProgress.current);
     element.preload = 'auto'; element.src = assets.video; element.load();
     return () => {
       scrubber.current = null; controller.dispose();
       element.removeAttribute('src'); element.load();
     };
-  }, [enabled, capable, assets.video, mobile, openHome]);
+  }, [enabled, capable, assets.video, mobile, openHome, mediaProgress]);
 
   useEffect(() => {
     if (!enabled || !capable || ready) return;
@@ -144,33 +146,39 @@ export default function CinematicHome({ children }: { children: ReactNode }) {
     const apply = () => {
       if (disposed) return;
       let p = progress.current;
-      if (capabilityReady.current && p >= .36 && !mountedScene && !complete.current) { mountedScene = true; setSceneMounted(true); }
-      setWaitingForTransition(p >= .48 && (!cloudLoaded.current || !sceneReady.current) && !complete.current);
-      const showingClouds = p >= .55;
+      // Without the portal, end at the original cloud transition instead of
+      // leaving the removed chapter's empty scroll distance behind.
+      const timelineEnd = portalEnabled ? 1 : .65;
+      let phase = p * timelineEnd;
+      const sceneAvailable = !portalEnabled || sceneReady.current;
+      if (portalEnabled && capabilityReady.current && phase >= .36 && !mountedScene && !complete.current) { mountedScene = true; setSceneMounted(true); }
+      setWaitingForTransition(phase >= .48 && (!cloudLoaded.current || !sceneAvailable) && !complete.current);
+      const showingClouds = phase >= .55;
       if (!showingClouds) { clearTimeout(cloudTimer.current); cloudTimer.current = undefined; cloudHeld.current = false; }
       else if (cloudLoaded.current && !cloudHeld.current && !cloudTimer.current) {
         cloudTimer.current = setTimeout(() => { cloudTimer.current = undefined; cloudHeld.current = true; apply(); }, CLOUD_HOLD_MS);
       }
-      if (p > .59 && (!sceneReady.current || !cloudHeld.current) && !complete.current) {
+      if (phase > .59 && (!sceneAvailable || !cloudHeld.current) && !complete.current) {
         const start = host.getBoundingClientRect().top + window.scrollY;
-        const checkpoint = start + spacer.offsetHeight * .58;
+        const checkpoint = start + spacer.offsetHeight * (.58 / timelineEnd);
         window.dispatchEvent(new CustomEvent('rico:scroll-to', { detail: { top: checkpoint } }));
         window.scrollTo({ top: checkpoint, behavior: 'instant' as ScrollBehavior });
-        p = .58; progress.current = p;
+        phase = .58; p = phase / timelineEnd; progress.current = p;
       }
-      const flow = introFlow(p);
-      const cloudPose = cloudEntryPose(p);
+      mediaProgress.current = phase;
+      const flow = introFlow(phase);
+      const cloudPose = cloudEntryPose(phase);
       if (video.current) video.current.style.transform = `translate3d(0,${cloudPose.rise}%,0) scale(${cloudPose.scale})`;
-      const looking = canLookAround(p);
+      const looking = portalEnabled && canLookAround(p);
       film.dataset.lookActive = String(looking);
       if (lookHint.current) lookHint.current.hidden = !looking;
       if (hint.current) { hint.current.style.removeProperty('visibility'); hint.current.hidden = looking; }
       sceneProgress.current = flow.scene;
       if (sceneHost.current) sceneHost.current.style.opacity = p >= .55 ? '1' : '0';
-      if (videoHost.current) videoHost.current.style.visibility = flow.videoVisible || !cloudLoaded.current ? 'visible' : 'hidden';
+      if (videoHost.current) videoHost.current.style.visibility = !portalEnabled || flow.videoVisible || !cloudLoaded.current ? 'visible' : 'hidden';
       if (wash.current) wash.current.style.opacity = String(smoothRange(.78, .845, flow.scene) * (1 - smoothRange(.86, .94, flow.scene)) * .88);
       if (!document.hidden && p >= .55 && p < 1) sceneInvalidate.current?.();
-      const handoff = (cloudHeld.current && sceneReady.current) || complete.current ? smoothRange(.94, 1, p) : 0;
+      const handoff = (cloudHeld.current && sceneAvailable) || complete.current ? smoothRange(portalEnabled ? .94 : .59, timelineEnd, phase) : 0;
       const ending = p >= 1 && handoff === 1;
       if (!ending) { clearTimeout(finishTimer.current); finishTimer.current = undefined; complete.current = false; }
       // A large flick can cross the whole runway. Land at the actual hero's top
@@ -196,7 +204,7 @@ export default function CinematicHome({ children }: { children: ReactNode }) {
       if (ending && !complete.current && !finishTimer.current) {
         finishTimer.current = setTimeout(() => { finishTimer.current = undefined; releaseHome(); }, HOME_FADE_MS);
       }
-      scrubber.current?.seek(p);
+      scrubber.current?.seek(phase);
     };
     updateVisual.current = apply;
     const afterIntroScroll = () => {
@@ -225,31 +233,33 @@ export default function CinematicHome({ children }: { children: ReactNode }) {
       page.style.transform = ''; page.style.opacity = ''; page.inert = false; page.removeAttribute('aria-hidden');
       publishIntroPhase();
     };
-  }, [enabled, releaseHome, openHome]);
+  }, [enabled, releaseHome, openHome, portalEnabled, mediaProgress]);
 
   const skip = () => openHome('skipped', false);
-  return <div ref={root} className="cinematic-experience cinematic-video-experience" data-cinematic-experience data-intro-mode={enabled ? 'video-3d' : 'direct'} data-intro-bypass={bypassReason} data-video-device={mobile ? 'mobile' : 'desktop'}>
+  return <div ref={root} className="cinematic-experience cinematic-video-experience" data-cinematic-experience data-intro-mode={enabled ? portalEnabled ? 'video-3d' : 'video' : 'direct'} data-intro-portal={portalEnabled} data-intro-bypass={bypassReason} data-video-device={mobile ? 'mobile' : 'desktop'}>
     {enabled && <>
       <div ref={runway} className="cinematic-runway" aria-hidden="true" />
-      <div ref={overlay} className="cinematic-overlay cinematic-video-overlay" data-cinematic-overlay role="region" tabIndex={0} aria-label="Ricorrenza scroll film introduction. In the 3D hall, drag left or right to look around the character. Scroll vertically to move forward.">
-        <div ref={sceneHost} className="cinematic-scene-stage" data-scene-state={sceneLoaded ? 'ready' : 'loading'} aria-hidden="true">
+      <div ref={overlay} className="cinematic-overlay cinematic-video-overlay" data-cinematic-overlay role="region" tabIndex={0} aria-label={portalEnabled ? 'Ricorrenza scroll film introduction. In the 3D hall, drag left or right to look around the character. Scroll vertically to move forward.' : 'Ricorrenza scroll film introduction. Scroll to enter the festival.'}>
+        {portalEnabled && <div ref={sceneHost} className="cinematic-scene-stage" data-scene-state={sceneLoaded ? 'ready' : 'loading'} aria-hidden="true">
           {sceneMounted && <SceneBoundary onFailure={onSceneFailure}><Suspense fallback={null}><CinematicScene variant="portal" look={look} logoUrl={portalLogoUrl} progress={sceneProgress} quality={quality} onReady={onSceneReady} onFailure={onSceneFailure} registerInvalidate={registerInvalidate} /></Suspense></SceneBoundary>}
-        </div>
+        </div>}
         <div ref={videoHost} className="cinematic-film-stage">
         <div className="cinematic-video-ambience" style={{ backgroundImage: `url(${assets.poster})` }} aria-hidden="true" />
         <video ref={video} className="cinematic-scroll-video" data-scroll-video poster={assets.poster} muted playsInline preload="none" controls={false} disablePictureInPicture disableRemotePlayback aria-hidden="true" />
         </div>
-        <div ref={wash} className="cinematic-portal-wash" aria-hidden="true" />
-        {capable && <VideoCloudTransition video={video} progress={progress} mobile={mobile} onReady={onCloudReady} onFailure={onCloudFailure} registerDraw={registerCloudDraw} />}
+        {portalEnabled && <div ref={wash} className="cinematic-portal-wash" aria-hidden="true" />}
+        {capable && <VideoCloudTransition video={video} progress={mediaProgress} mobile={mobile} onReady={onCloudReady} onFailure={onCloudFailure} registerDraw={registerCloudDraw} />}
         <div className="cinematic-video-shade" aria-hidden="true" />
         <button type="button" onClick={skip} className="cinematic-skip cinematic-video-skip">Skip intro <span aria-hidden="true">↗</span></button>
         {!ready && <div className="cinematic-video-loading" role="status" aria-live="polite"><span className="cinematic-video-spinner" aria-hidden="true" /><span>Preparing the film{buffered > 0 ? ` · ${buffered}%` : '…'}</span></div>}
         {sceneMounted && !sceneLoaded && progress.current >= .55 && <div className="cinematic-video-loading" role="status">Opening the 3D realm…</div>}
         <div ref={hint} className="cinematic-video-scroll"><span aria-hidden="true">↓</span><span>SCROLL TO ENTER<small>Your journey moves with you.</small></span></div>
-        <div ref={lookHint} className="cinematic-video-scroll cinematic-look-hint" hidden><span aria-hidden="true">↔</span><span>DRAG TO LOOK AROUND<small>Scroll to move forward.</small></span></div>
+        {portalEnabled && <div ref={lookHint} className="cinematic-video-scroll cinematic-look-hint" hidden><span aria-hidden="true">↔</span><span>DRAG TO LOOK AROUND<small>Scroll to move forward.</small></span></div>}
         <div className="cinematic-video-meter" aria-hidden="true"><span ref={meter}>0%</span><div><i ref={track} /></div></div>
       </div>
     </>}
+    {!enabled && !['reduced-motion', 'deep-link', 'disabled', 'offline', 'save-data'].includes(bypassReason || '') &&
+      <a className="cinematic-replay" href="/?intro=replay">Replay intro <span aria-hidden="true">↗</span></a>}
     <div ref={home} className="cinematic-real-home" tabIndex={-1} data-cinematic-homepage>{children}</div>
   </div>;
 }

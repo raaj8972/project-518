@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, EyeOff, Users, ScanLine, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, ScanLine, Filter } from 'lucide-react';
 import { AdminModal } from './layout/AdminModal';
 import { useData } from '../../context/DataContext';
-import { ImageUpload } from '../ImageUpload';
+import { PeopleProfileForm } from './PeopleProfileForm';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
 import { AICoreTeamScanner, type ExtractedCoreTeamData } from './AICoreTeamScanner';
-import { instagramProfile, isCouncilPerson, personInstagram } from '../../utils/familyPeople';
+import { instagramProfile, isCouncilPerson, personInstagram, personBatch, phoneProfile } from '../../utils/familyPeople';
 
 interface Props {
   isHeadMode?: boolean;
@@ -37,6 +37,7 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false, isC
   const [editing, setEditing] = useState<number | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [formError, setFormError] = useState('');
   const draftKey = isCouncilMode ? 'admin_council_form_draft' : `admin_${isHeadMode ? 'heads' : 'members'}_form_draft`;
 
@@ -44,7 +45,7 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false, isC
     name: '',
     is_head: isHeadMode,
     image: '',
-    instagram: '',
+    instagram: '', phone: '', batch: '',
     order_position: 1,
     committee_id: null as number | null,
     enabled: true
@@ -56,7 +57,7 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false, isC
       name: '',
       is_head: isHeadMode,
       image: '',
-      instagram: '',
+      instagram: '', phone: '', batch: '',
       order_position: Math.max(0, ...coreTeamMembers.map((member: any) => member.order_position || 0)) + 1,
       committee_id: selectedCommitteeId === 'all' ? null : selectedCommitteeId,
       enabled: true
@@ -73,32 +74,29 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false, isC
     return (coreCommittees || []).find((c: any) => c.id === id)?.name || 'Unknown';
   };
   
-  const getCommitteeColor = (id: number | null) => {
-      if (!id) return 'gray';
-      return (coreCommittees || []).find((c: any) => c.id === id)?.color || 'gray';
-  };
-
   const buildPayload = () => {
     const existing = editing === null ? undefined : coreTeamMembers.find((member: any) => member.id === editing);
     const socialLinks = existing?.social_links && typeof existing.social_links === 'object' && !Array.isArray(existing.social_links) ? existing.social_links : {};
     return {
       name: form.name.trim(),
       image: form.image,
+      phone: form.phone?.trim() || null,
       role: existing?.role || ((form.is_head ?? isHeadMode) ? 'Head' : 'Member'),
       order_position: form.order_position,
       enabled: form.enabled,
       committee_id: form.committee_id || null,
       is_head: Boolean(form.is_head ?? isHeadMode),
       is_council: isCouncilMode,
-      social_links: { ...socialLinks, instagram: instagramProfile(form.instagram)?.url || '' }
+      social_links: { ...socialLinks, instagram: instagramProfile(form.instagram)?.url || '', batch: form.batch?.trim() || '' }
     };
   };
 
   const saveMember = async () => {
-    if (saving) return;
+    if (saving || photoBusy) return;
     if (!form.name.trim() || !form.image) { setFormError('Name and profile image are required.'); return; }
     if (!isCouncilMode && !form.committee_id) { setFormError('Please select a department.'); return; }
     if (form.instagram?.trim() && !instagramProfile(form.instagram)) { setFormError('Enter a valid Instagram handle or profile URL.'); return; }
+    if (form.phone?.trim() && !phoneProfile(form.phone)) { setFormError('Enter a valid phone number with country code.'); return; }
     setFormError('');
     setSaving(true);
     try {
@@ -153,6 +151,7 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false, isC
       name: member.name || '',
       image: member.image || '',
       instagram: member.social_links?.instagram || '',
+      phone: member.phone || '', batch: personBatch(member),
       order_position: member.order_position || 1,
       committee_id: member.committee_id,
       enabled: member.enabled !== false
@@ -221,10 +220,10 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false, isC
   }
 
   return (
-    <div className="space-y-6">
+    <div className="people-management space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <p className="text-gray-400 text-sm">{isCouncilMode ? 'Manage council heads and members.' : isHeadMode ? 'Add 2–3 heads per department. All heads appear together.' : 'Members appear in an automatic image carousel within their department.'} Only the photo, name and Instagram appear on public profiles.</p>
+          <p className="text-gray-400 text-sm">{isCouncilMode ? 'Manage council heads and members.' : isHeadMode ? 'Add 2–3 heads per department. All heads appear together.' : 'Members appear in an automatic image carousel within their department.'} Manage photos, batch and contact links for each profile.</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
@@ -244,7 +243,7 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false, isC
 
           <button
             onClick={() => setShowScanner(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white rounded-lg font-bold shadow-lg transition-all text-sm"
+            className="people-button people-button-secondary"
           >
             <ScanLine size={16} />
             <span className="hidden md:inline">AI Scanner</span>
@@ -252,7 +251,7 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false, isC
 
           <button
             onClick={() => { resetForm(); setIsAdding(true); }}
-            className={`flex items-center gap-2 px-4 py-2 bg-gradient-to-r ${isHeadMode ? 'from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400' : 'from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400'} text-white rounded-lg font-bold shadow-lg transition-all text-sm`}
+            className="people-button people-button-primary"
           >
             <Plus size={16} />
             <span>Add {isCouncilMode ? 'Council Person' : isHeadMode ? 'Head' : 'Member'}</span>
@@ -260,82 +259,24 @@ export const TeamMembersManagement: React.FC<Props> = ({ isHeadMode = false, isC
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredMembers.length > 0 ? filteredMembers.map((member: any) => {
-          const color = getCommitteeColor(member.committee_id);
-          return (
-            <div key={member.id} className={`bg-white/[0.03] rounded-2xl p-4 border transition-all ${!member.enabled ? 'opacity-50 grayscale' : `border-white/5 hover:border-${color}-500/30`} flex flex-col`}>
-              <div className="flex gap-4 mb-4">
-                <img src={member.image || 'https://via.placeholder.com/150'} alt={member.name} className="w-16 h-16 rounded-xl object-cover" />
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-white text-lg truncate">{member.name}</h4>
-                  <p className="text-emerald-400 text-sm font-medium truncate">{member.is_head ? 'Head' : 'Member'}</p>
-                  {personInstagram(member) && <p className="text-gray-400 text-xs truncate">{personInstagram(member)?.handle}</p>}
-                  <div className={`inline-block mt-2 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-${color}-500/15 text-${color}-400 border border-${color}-500/20 truncate max-w-full`}>
-                    {isCouncilMode ? 'Council' : getCommitteeName(member.committee_id)}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-auto pt-4 flex gap-2 border-t border-white/5">
-                <button aria-label={`${member.enabled ? 'Hide' : 'Show'} ${member.name}`} onClick={() => toggleCoreTeamMemberEnabled(member.id)} className={`flex-1 flex justify-center py-2 rounded-lg transition-colors ${member.enabled ? 'bg-white/5 text-gray-400 hover:text-white' : 'bg-red-500/20 text-red-400'}`}>
-                  {member.enabled ? <Eye size={18} /> : <EyeOff size={18} />}
-                </button>
-                <button aria-label={`Edit ${member.name}`} onClick={() => startEditing(member)} className="flex-1 flex justify-center py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors">
-                  <Edit size={18} />
-                </button>
-                <button aria-label={`Delete ${member.name}`} onClick={() => handleDelete(member.id)} className="flex-1 flex justify-center py-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
-          );
-        }) : (
-          <div className="col-span-full py-12 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.02]">
-            <Users size={48} className="mx-auto mb-4 text-gray-600" />
-            <h3 className="text-xl font-bold text-gray-400 mb-2">No {isHeadMode ? 'Heads' : 'Members'} Found</h3>
-            <p className="text-gray-500 text-sm">
-              {selectedCommitteeId === 'all' 
-                ? `Add a ${isHeadMode ? 'Head' : 'Member'} or use the AI Scanner to import them.` 
-                : `No ${isHeadMode ? 'heads' : 'members'} in this department yet.`}
-            </p>
-          </div>
-        )}
+      <div className="people-roster">
+        {filteredMembers.map((member: any) => <article key={member.id} className={`people-roster-card ${member.enabled ? '' : 'is-hidden'}`}>
+          <img src={member.image || ''} alt={member.name} /><div className="people-roster-details"><span className="people-section-label">{isCouncilMode ? 'Council' : getCommitteeName(member.committee_id)}</span><h3>{member.name}</h3><p>{isCouncilMode ? 'Council member' : isHeadMode ? 'Department head' : 'Team member'} · {member.enabled ? 'Visible' : 'Hidden'}</p>{personBatch(member) && <small>Batch {personBatch(member)}</small>}{personInstagram(member) && <p>{personInstagram(member)?.handle}</p>}</div>
+          <div className="people-roster-actions"><button type="button" aria-label={`${member.enabled ? 'Hide' : 'Show'} ${member.name}`} onClick={() => toggleCoreTeamMemberEnabled(member.id)}>{member.enabled ? <Eye size={16} /> : <EyeOff size={16} />}</button><button type="button" aria-label={`Edit ${member.name}`} onClick={() => startEditing(member)}><Edit size={16} /></button><button type="button" aria-label={`Delete ${member.name}`} onClick={() => handleDelete(member.id)}><Trash2 size={16} /></button></div>
+        </article>)}
       </div>
+      {!filteredMembers.length && <div className="people-empty"><h3>No {isCouncilMode ? 'council profiles' : isHeadMode ? 'heads' : 'members'} yet</h3><p>Add a profile{selectedCommitteeId !== 'all' ? ' to this department' : ''} to get started.</p></div>}
 
       <AdminModal
         isOpen={isAdding || editing !== null}
-        onClose={() => { if (!saving) { setIsAdding(false); setEditing(null); resetForm(); } }}
+        appearance="people" subtitle="Photo, details and contact links in one place."
+        onClose={() => { if (!saving && !photoBusy) { setIsAdding(false); setEditing(null); resetForm(); } }}
         title={`${editing !== null ? 'Edit' : 'Add'} ${isCouncilMode ? 'Council Person' : isHeadMode ? 'Head' : 'Member'}`}
-        footer={<><button type="button" disabled={saving} onClick={() => { setIsAdding(false); setEditing(null); resetForm(); }} className="px-4 py-2 text-gray-300">Cancel</button><button type="button" disabled={saving} onClick={saveMember} className="px-6 py-2 bg-emerald-700 text-white rounded-xl disabled:opacity-50">{saving ? 'Saving…' : 'Save Changes'}</button></>}
+        footer={<><button type="button" disabled={saving || photoBusy} onClick={() => { setIsAdding(false); setEditing(null); resetForm(); }} className="people-button people-button-secondary">Cancel</button><button type="button" disabled={saving || photoBusy} onClick={saveMember} className="people-button people-button-primary">{saving ? 'Saving…' : 'Save Changes'}</button></>}
       >
-        <fieldset disabled={saving} className="space-y-4">
+        <fieldset disabled={saving} className="people-form-fieldset">
           {formError && <p role="alert" className="text-red-300 text-sm">{formError}</p>}
-          <div>
-            <label htmlFor="family-person-committee" className="block text-sm font-bold text-gray-300 mb-1">{isCouncilMode ? 'Department (optional)' : 'Department *'}</label>
-            <select id="family-person-committee"
-              value={form.committee_id || ''} 
-              onChange={e => setForm({...form, committee_id: parseInt(e.target.value) || null})} 
-              className="w-full bg-[#1a1b23] border border-white/10 rounded-lg px-4 py-2 text-white"
-            >
-              <option value="">-- Select Department --</option>
-              {(coreCommittees || []).map((c: any) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-           </div>
-          <div>
-            <label htmlFor="family-person-name" className="block text-sm font-bold text-gray-300 mb-1">Name *</label>
-            <input id="family-person-name" type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white" />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-300 mb-1">Profile Image *</label>
-            <ImageUpload currentImage={form.image} onImageSelect={(url) => setForm({...form, image: url})} bucket="team-images" folder="team" />
-          </div>
-          <div>
-            <label htmlFor="family-person-instagram" className="block text-sm font-bold text-gray-300 mb-1">Instagram</label>
-            <input id="family-person-instagram" type="text" value={form.instagram} onChange={e => setForm({...form, instagram: e.target.value})} placeholder="@handle or Instagram profile URL" className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white" />
-          </div>
+          <PeopleProfileForm kind={isCouncilMode ? 'council' : isHeadMode ? 'head' : 'member'} form={form} onChange={patch => setForm({ ...form, ...patch })} departments={coreCommittees || []} onProcessingChange={setPhotoBusy} />
         </fieldset>
       </AdminModal>
     </div>

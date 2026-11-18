@@ -4,12 +4,14 @@ import type { RoadmapMilestone } from '../../types/data';
 import { Plus, Trash2, Pencil, Check, X, ArrowUp, ArrowDown, Power, Milestone, GripVertical, Download, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { BRAND_YEAR } from '../../constants/brand';
+import { RoadmapPhotoEditor } from './RoadmapPhotoEditor';
+import { nextRoadmapYear, normalizeRoadmapImages } from '../../utils/homepageRoadmap';
 
 // RICO-themed Roadmap Milestones Admin
 // Features: CRUD, enable toggle, duplicate year validation, drag & drop reorder + up/down buttons,
 // fallback default dataset import (edit individual default before adding) + bulk import.
 
-const emptyForm = { year: new Date().getFullYear(), title: '', points: '' };
+const emptyForm = { year: new Date().getFullYear(), title: '', points: '', images: [] as string[] };
 
 const DEFAULT_FALLBACK: { year: number; title: string | null; points: string[]; side: 'auto'|'left'|'right' }[] = [
   { year: 2015, title: null, points: ['Biggest ever in History of RICORRENZA','Radiant Glow Bands','National Artists','Indo Western Band'], side: 'right' },
@@ -35,6 +37,7 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [mediaBusy,setMediaBusy] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [list, setList] = useState<RoadmapMilestone[]>([]);
   const [savingOrder, setSavingOrder] = useState(false);
@@ -51,9 +54,11 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
   }, [roadmapMilestones, dragIndex, savingOrder]);
 
   const sorted = list;
+  const suggestedYear=nextRoadmapYear(roadmapMilestones.length?roadmapMilestones:DEFAULT_FALLBACK);
 
   // --- CRUD ---
   const submit = async () => {
+    if(mediaBusy)return;
     setError(null); setNotice(null);
     if (!form.year || isNaN(form.year)) { setError('Enter a valid year.'); return; }
     if (form.year < 1900 || form.year > 3000) { setError('Year out of allowed range.'); return; }
@@ -61,7 +66,7 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
     if (dup) { setError('A milestone with this year already exists.'); return; }
     const pts = form.points.split('\n').map(p=>p.trim()).filter(Boolean);
     if (pts.length === 0 && !form.title) { setError('Provide at least one point or a title.'); return; }
-    const payload = { year: form.year, title: form.title || null, points: pts, side };
+    const payload = { year: form.year, title: form.title || null, points: pts, images: normalizeRoadmapImages(form.images), side, ...(!editingId?{enabled:true,order_position:Math.max(0,...roadmapMilestones.map(item=>item.order_position))+1}:{}) };
     setSubmitting(true);
     try {
       const steps = savingProgress.withSteps(3, 'Preparing…');
@@ -95,9 +100,10 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
   };
 
   const startEdit = (m: RoadmapMilestone) => {
+    if(mediaBusy)return;
     setEditingId(m.id);
     setFallbackEditingIndex(null);
-    setForm({ year: m.year, title: m.title || '', points: m.points.join('\n') });
+    setForm({ year: m.year, title: m.title || '', points: (m.points||[]).join('\n'), images: normalizeRoadmapImages(m.images) });
     setSide(m.side as any);
   };
 
@@ -105,7 +111,7 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
     const f = DEFAULT_FALLBACK[i];
     setFallbackEditingIndex(i);
     setEditingId(null);
-    setForm({ year: f.year, title: f.title || '', points: f.points.join('\n') });
+    setForm({ year: f.year, title: f.title || '', points: f.points.join('\n'), images: [] });
     setSide(f.side);
   };
 
@@ -158,7 +164,7 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
     try {
       const steps = savingProgress.withSteps(2, 'Preparing…');
       steps.next('Importing');
-      await addRoadmapMilestone({ year: editing ? form.year : f.year, title, points, side: editing ? side : f.side, order_position: index+1, enabled: true });
+      await addRoadmapMilestone({ year: editing ? form.year : f.year, title, points, images: editing ? form.images : [], side: editing ? side : f.side, order_position: index+1, enabled: true });
       setNotice('Milestone added.');
       if (editing) resetForm(false);
     } catch (e: any) {
@@ -295,10 +301,11 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
             </div>
             <h3 className="text-sm font-black text-white tracking-tight">{editingId ? 'Edit Milestone' : 'Add Milestone'}</h3>
           </div>
-          <div className="p-6 space-y-5">
+          <fieldset disabled={mediaBusy} className="p-6 space-y-5">
             <div>
               <label className={labelCls}>Year</label>
-              <input type="number" value={form.year} onChange={e=>setForm(f=>({...f,year:parseInt(e.target.value,10)}))} className={inputCls} />
+              <input type="number" min={1900} max={3000} value={form.year} onChange={e=>setForm(f=>({...f,year:parseInt(e.target.value,10)}))} className={inputCls} />
+              {!editingId&&fallbackEditingIndex==null&&suggestedYear!=null&&<button type="button" onClick={()=>setForm(previous=>({...previous,year:suggestedYear}))} className="mt-2 text-xs text-emerald-300 hover:text-emerald-100">Use next year: {suggestedYear}</button>}
             </div>
             <div>
               <label className={labelCls}>Title (optional)</label>
@@ -316,6 +323,8 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
                 <option value="right">Right</option>
               </select>
             </div>
+
+            <RoadmapPhotoEditor key={editingId??fallbackEditingIndex??'new'} images={form.images} year={form.year} onChange={images=>setForm(previous=>({...previous,images}))} onProcessingChange={setMediaBusy} />
 
             {(editingId || fallbackEditingIndex !== null) && (
               <div className="text-xs text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 rounded-xl px-3 py-2 font-bold flex items-center gap-2">
@@ -347,7 +356,7 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
               )}
               {savingOrder && <span className="text-xs text-gray-500 font-bold animate-pulse">Saving order...</span>}
             </div>
-          </div>
+          </fieldset>
         </div>
 
         {/* ═══ Milestones List ═══ */}
@@ -398,8 +407,9 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
                       <span className="text-[10px] uppercase tracking-widest text-gray-600 font-bold">Side: {m.side}</span>
                     </div>
                     {m.title && <p className="text-sm text-gray-300 font-bold mt-1">{m.title}</p>}
+                    {m.images?.length>0&&<div className="mt-3 flex gap-2" aria-label={`${m.year} photos`}>{m.images.slice(0,4).map(image=><img key={image} src={image} alt={`${m.year} memory`} className="h-12 w-16 rounded object-cover"/>)}<span className="text-xs self-center">{m.images.length} photos</span></div>}
                     <ul className="text-sm space-y-1 mt-2.5 text-gray-400">
-                      {m.points.map((p: string, i: number)=>(
+                      {(m.points||[]).map((p: string, i: number)=>(
                         <li key={i} className="flex items-start gap-2">
                           <span className="w-1 h-1 rounded-full bg-indigo-500/60 mt-2 flex-shrink-0" />
                           <span>{p}</span>

@@ -1,127 +1,53 @@
-import { supabase } from '../lib/supabase';
+import type { getPortalLogoUrl } from '../components/cinematic/portalLogoUrl';
 
 const LOGO_CACHE_KEY = 'rico_brand_logo_url';
+type BrandingSettings = Parameters<typeof getPortalLogoUrl>[0];
 
-/**
- * Step 1 (synchronous, zero-latency):
- * Read the logo URL we cached last visit from localStorage and
- * inject a <link rel="preload"> immediately — before the DB responds.
- */
-function preloadLogoFromCache() {
+function safeLogoUrl(value: string | null): string | null {
+  if (!value) return null;
   try {
-    const cachedUrl = localStorage.getItem(LOGO_CACHE_KEY);
-    if (!cachedUrl) return;
-    injectPreloadLink(cachedUrl, 'image');
-    // Also prime the browser image cache by creating an Image object
-    const img = new Image();
-    img.src = cachedUrl;
-  } catch (_) {
-    // localStorage unavailable — silent fail
-  }
+    const url = new URL(value, window.location.href);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+  } catch { return null; }
 }
 
-/**
- * Step 2 (async, happens in background):
- * Fetch full homepage settings from Supabase.
- * Update the localStorage cache with fresh URLs so next visit is instant.
- */
-async function fetchAndCacheAssets() {
-  try {
-    const { data: homepage } = await supabase
-      .from('homepage_settings')
-      .select('brand_logo_url, hero_media_url, sponsor_logos')
-      .eq('id', 1)
-      .maybeSingle();
-
-    if (!homepage) return;
-
-    const assetsToPreload: Array<{ url: string; type: 'image' | 'video' }> = [];
-
-    // Brand logo
-    if (homepage.brand_logo_url) {
-      // Cache logo URL in localStorage for the NEXT page load
-      try {
-        localStorage.setItem(LOGO_CACHE_KEY, homepage.brand_logo_url);
-      } catch (_) { /* quota exceeded - silent */ }
-      assetsToPreload.push({ url: homepage.brand_logo_url, type: 'image' });
-    }
-
-    // Hero media
-    if (homepage.hero_media_url) {
-      const ext = homepage.hero_media_url.split('.').pop()?.toLowerCase();
-      const isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(ext || '');
-      assetsToPreload.push({ url: homepage.hero_media_url, type: isVideo ? 'video' : 'image' });
-    }
-
-    // Homepage sponsor logos
-    if (homepage.sponsor_logos && Array.isArray(homepage.sponsor_logos)) {
-      for (const sponsor of homepage.sponsor_logos) {
-        if (sponsor?.logo_url) {
-          assetsToPreload.push({ url: sponsor.logo_url, type: 'image' });
-        }
-      }
-    }
-
-    // Inject preload links for anything not already preloaded
-    const uniqueUrls = new Set<string>();
-    for (const asset of assetsToPreload) {
-      if (uniqueUrls.has(asset.url)) continue;
-      uniqueUrls.add(asset.url);
-      injectPreloadLink(asset.url, asset.type);
-    }
-
-    console.log(`[Preload] Cached & preloaded ${uniqueUrls.size} critical assets`);
-  } catch (err) {
-    console.warn('[Preload] Failed to fetch/cache assets:', err);
-  }
-}
-
-function injectPreloadLink(url: string, type: 'image' | 'video') {
-  if (!url) return;
-  const existing = document.querySelector(`link[rel="preload"][href="${url}"]`);
-  if (existing) return;
-
+function preloadLogo(url: string) {
+  // Animated logo data belongs to BrandLogo3D, not the browser image loader.
+  if (/\.json$/i.test(new URL(url).pathname)) return;
+  if ([...document.querySelectorAll<HTMLLinkElement>('link[rel="preload"][as="image"]')].some(link => link.href === url)) return;
+  if (!document.head) return;
   const link = document.createElement('link');
   link.rel = 'preload';
+  link.setAttribute('as', 'image');
   link.href = url;
-
-  if (type === 'video') {
-    link.as = 'video';
-    const ext = url.split('.').pop()?.toLowerCase();
-    link.type = ext === 'webm' ? 'video/webm' : ext === 'ogg' ? 'video/ogg' : 'video/mp4';
-  } else {
-    link.as = 'image';
-    const ext = url.split('.').pop()?.toLowerCase();
-    if (ext === 'svg') link.type = 'image/svg+xml';
-    else if (ext === 'png') link.type = 'image/png';
-    else if (ext === 'jpg' || ext === 'jpeg') link.type = 'image/jpeg';
-    else if (ext === 'webp') link.type = 'image/webp';
-  }
-
-  if (!document.head) {
-    console.warn('[Preload] document.head not found, skipping injection for:', url);
-    return;
-  }
   document.head.appendChild(link);
 }
 
-// Export a helper so App.tsx can read the cached logo URL synchronously
-// (for passing to Preloader before Supabase responds)
-export function getCachedLogoUrl(): string | null {
-  try {
-    return localStorage.getItem(LOGO_CACHE_KEY);
-  } catch {
-    return null;
-  }
+/** Cache-only startup warmup; settings are fetched once by CoreDataProvider. */
+export function preloadLogoFromCache() {
+  const cached = safeLogoUrl(getCachedLogoUrl());
+  if (cached) preloadLogo(cached);
 }
 
-// ── Run immediately ──
-// Step 1 is synchronous (no await) — cached URL preloaded in <1ms
-preloadLogoFromCache();
-// Step 2 runs in background — updates cache for next visit. 
-// Use a small delay to ensure application modules are initialized first (avoids race conditions).
-setTimeout(() => {
-  fetchAndCacheAssets();
-}, 200);
+/** Reuse the published settings response, including its upload version. */
+export function preloadBrandAssets(settings: BrandingSettings) {
+  if (!settings?.brand_logo_url?.trim()) {
+    try { localStorage.removeItem(LOGO_CACHE_KEY); } catch { /* Optional storage. */ }
+    return;
+  }
+  // Match Navbar's current URL construction exactly, including its version fallback.
+  let publishedUrl = settings.brand_logo_url.trim();
+  if (publishedUrl.startsWith('//')) publishedUrl = `https:${publishedUrl}`;
+  if (publishedUrl.startsWith('http://')) publishedUrl = `https://${publishedUrl.slice(7)}`;
+  const version = settings.updated_at || settings.brand_logo_size_px || '1';
+  const url = safeLogoUrl(`${publishedUrl}${publishedUrl.includes('?') ? '&' : '?'}v=${encodeURIComponent(String(version))}`);
+  if (!url) return;
+  try { localStorage.setItem(LOGO_CACHE_KEY, url); } catch { /* Optional storage. */ }
+  preloadLogo(url);
+}
 
-export { fetchAndCacheAssets as preloadBrandAssets };
+export function getCachedLogoUrl(): string | null {
+  try { return localStorage.getItem(LOGO_CACHE_KEY); } catch { return null; }
+}
+
+preloadLogoFromCache();

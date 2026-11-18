@@ -7,9 +7,7 @@ const modern = { userAgent: 'Mozilla/5.0 (Linux; Android 14) Mobile', hardwareCo
 beforeEach(() => { sessionStorage.clear(); vi.spyOn(document, 'hidden', 'get').mockReturnValue(false); });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); sessionStorage.clear(); delete document.documentElement.dataset.staticExperience; });
 it.each([
-  [{ deviceMemory: 2 }, 'limited-hardware'], [{ deviceMemory: 4 }, 'limited-hardware'],
-  [{ hardwareConcurrency: 4 }, 'limited-hardware'], [{ connection: { saveData: true } }, 'save-data'],
-  [{ connection: { effectiveType: '3g' } }, 'slow-network'], [{ connection: { downlink: 1.5 } }, 'slow-network'],
+  [{ deviceMemory: 2 }, 'limited-hardware'], [{ hardwareConcurrency: 2 }, 'limited-hardware'], [{ connection: { saveData: true } }, 'save-data'],
   [{ userAgent: 'Android 9 Mobile' }, 'older-platform'],
   [{ userAgent: 'iPhone; CPU iPhone OS 15_7 like Mac OS X' }, 'older-platform'],
   [{ onLine: false }, 'offline'],
@@ -22,12 +20,20 @@ it('uses a bounded mobile tier in both orientations and tolerates missing Safari
   expect(getIntroPolicy({ userAgent: 'iPhone; CPU iPhone OS 18_0 like Mac OS X' }, 390).reason).toBeUndefined();
   expect(getIntroPolicy({ userAgent: 'Macintosh', hardwareConcurrency: 8 }, 1440).quality).toBe('high');
 });
-it('remembers a failure for this tab and tolerates storage being unavailable', () => {
+it('keeps failures within the current document and ignores old session failures after refresh', () => {
+  sessionStorage.setItem(INTRO_FALLBACK_KEY, 'video-timeout');
+  expect(savedIntroFallback()).toBeUndefined();
   rememberIntroFallback('scene-failed'); expect(savedIntroFallback()).toBe('scene-failed');
-  expect(sessionStorage.getItem(INTRO_FALLBACK_KEY)).toBe('scene-failed');
+  // A fresh document does not retain the previous HTML element's state.
+  delete document.documentElement.dataset.staticExperience;
+  expect(savedIntroFallback()).toBeUndefined();
   vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('Blocked'); });
   vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Blocked'); });
-  expect(savedIntroFallback()).toBe('device-fallback'); expect(() => rememberIntroFallback('slow')).not.toThrow();
+  expect(() => rememberIntroFallback('video-failed')).not.toThrow();
+  expect(savedIntroFallback()).toBe('video-failed');
+});
+it('uses low quality rather than skipping modern four-core, 4GB mobile hardware', () => {
+  expect(getIntroPolicy({...modern, deviceMemory: 4, hardwareConcurrency: 4}, 390)).toEqual({mobile:true, quality:'low', reason:undefined});
 });
 function supportedBrowser() {
   const loseContext = vi.fn();
@@ -43,15 +49,25 @@ it('checks the actual portrait codec budget and releases the probe context immed
   expect(browser.loseContext).toHaveBeenCalledOnce();
   expect(browser.decode).toHaveBeenCalledWith({ type: 'file', video: { contentType: 'video/mp4; codecs="avc1.64001F"', width: 720, height: 1280, bitrate: 3400000, framerate: 24 } });
 });
-it.each([{ supported: false, smooth: false, powerEfficient: false }, { supported: true, smooth: false, powerEfficient: true }, { supported: true, smooth: true, powerEfficient: false }])('bypasses unsupported, choppy or software-only mobile decoding: %j', async info => {
+it.each([{ supported: false, smooth: false, powerEfficient: false }, { supported: true, smooth: false, powerEfficient: true }])('bypasses unsupported or choppy mobile decoding: %j', async info => {
   const browser = supportedBrowser(); browser.decode.mockResolvedValue(info);
   expect(await supportsCinematicIntro(true)).toBe(false);
+});
+it('keeps smooth supported mobile video when power efficiency is unreported', async () => {
+  const browser = supportedBrowser(); browser.decode.mockResolvedValue({supported: true, smooth: true, powerEfficient: false});
+  expect(await supportsCinematicIntro(true)).toBe(true);
 });
 it('rejects missing WebGL2/codec support without loading an asset', async () => {
   const browser = supportedBrowser(); browser.getContext.mockReturnValue(null);
   expect(await supportsCinematicIntro(false)).toBe(false); expect(browser.decode).not.toHaveBeenCalled();
   vi.mocked(HTMLMediaElement.prototype.canPlayType).mockReturnValue('');
   expect(await supportsCinematicIntro(false)).toBe(false);
+});
+it('does not require or probe WebGL for the video-only opening', async () => {
+  const browser = supportedBrowser(); browser.getContext.mockReturnValue(null);
+  expect(await supportsCinematicIntro(false, false)).toBe(true);
+  expect(browser.getContext).not.toHaveBeenCalled();
+  expect(browser.decode).toHaveBeenCalledOnce();
 });
 it('keeps optional MediaCapabilities API absence/rejection compatible with runtime watchdogs', async () => {
   const browser = supportedBrowser(); browser.decode.mockRejectedValue(new TypeError('Old browser query'));
@@ -75,4 +91,8 @@ it('reacts to sustained slow frame work, tolerates isolated compilation spikes a
   for (let i = 0; i < 7; i++) monitor.sample(85); expect(fail).not.toHaveBeenCalled();
   monitor.reset(); for (let i = 0; i < 8; i++) monitor.sample(85);
   expect(fail).toHaveBeenCalledOnce(); monitor.sample(100); expect(fail).toHaveBeenCalledOnce();
+});
+
+it.each([{effectiveType:'3g'}, {downlink:1.5}])('uses low quality without removing the intro for network estimates: %j', connection => {
+  expect(getIntroPolicy({...modern, userAgent: 'Macintosh', connection}, 1440)).toEqual({mobile:false, quality:'low', reason:undefined});
 });

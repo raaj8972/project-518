@@ -134,7 +134,7 @@ export const isUrlReferencedSomewhere = (
 };
 
 const KNOWN_BUCKETS = [
-  'registration-photos','gallery-images','sponsor-logos','team-images','band-images','guest-artist-images','faculty-images','event-images',
+  'registration-photos','gallery-images','roadmap-images','sponsor-logos','team-images','band-images','guest-artist-images','faculty-images','event-images',
   'artists','members','uploads','hero-media','hero-videos','hero-video','guest-artist-videos','pdf','documents', 'hero_v2'
 ];
 

@@ -42,6 +42,7 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
   const [isManualPaused, setIsManualPaused] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
+  const [documentVisible, setDocumentVisible] = useState(() => !document.hidden);
   const [pageCount, setPageCount] = useState(1);
   const [currentPage, setCurrentPage] = useState(0);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -54,24 +55,32 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
     const el = containerRef.current;
     if (!el) return;
 
+    let viewportWidth = 0;
+    let pages = 1;
+    const updateCurrentPage = () => {
+      // During a smooth scroll, only the scroll position changes. Keep child
+      // offset/layout reads in the resize pass instead of repeating them per event.
+      const page = itemNavigation ? scrollStops.current.reduce((closest, position, index, positions) => Math.abs(position - el.scrollLeft) < Math.abs(positions[closest] - el.scrollLeft) ? index : closest, 0) : viewportWidth > 0 ? Math.round(el.scrollLeft / viewportWidth) : 0;
+      setCurrentPage(Math.min(pages - 1, Math.max(0, page)));
+    };
     const computePages = () => {
       // Responsive/hidden sections can briefly have no layout width. Dividing
       // by zero would make the dot count infinite and crash the whole page.
-      const viewportWidth = el.clientWidth;
+      viewportWidth = el.clientWidth;
       scrollStops.current = itemNavigation && viewportWidth > 0 ? getItemScrollStops(el) : [0];
-      const pages = itemNavigation ? scrollStops.current.length : viewportWidth > 0 ? Math.max(1, Math.ceil(el.scrollWidth / viewportWidth)) : 1;
+      pages = itemNavigation ? scrollStops.current.length : viewportWidth > 0 ? Math.max(1, Math.ceil(el.scrollWidth / viewportWidth)) : 1;
       setPageCount(pages);
       // Update current page according to scroll position
-      const page = itemNavigation ? scrollStops.current.reduce((closest, position, index, positions) => Math.abs(position - el.scrollLeft) < Math.abs(positions[closest] - el.scrollLeft) ? index : closest, 0) : viewportWidth > 0 ? Math.round(el.scrollLeft / viewportWidth) : 0;
-      setCurrentPage(Math.min(pages - 1, Math.max(0, page)));
+      updateCurrentPage();
     };
 
     computePages();
 
     const resizeObs = new ResizeObserver(() => computePages());
     resizeObs.observe(el);
+    Array.from(el.children).forEach(child => resizeObs.observe(child));
 
-    const onScroll = computePages;
+    const onScroll = updateCurrentPage;
     el.addEventListener('scroll', onScroll, { passive: true });
 
     return () => {
@@ -80,10 +89,17 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
     };
   }, [children, itemNavigation]);
 
+  useEffect(() => {
+    const sync = () => setDocumentVisible(!document.hidden);
+    document.addEventListener('visibilitychange', sync);
+    sync();
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
+
   // Pause when not visible in viewport
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
     const observer = new IntersectionObserver((entries) => {
       const entry = entries[0];
       setIsVisible(entry?.isIntersecting ?? true);
@@ -95,7 +111,7 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
   // Auto-advance
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el || isPaused || !isVisible || !documentVisible || pageCount <= 1) return;
 
     const tick = () => {
       const next = currentPage + 1;
@@ -107,11 +123,11 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
     };
 
     const id = setInterval(() => {
-      if (!isPaused && isVisible && pageCount > 1) tick();
+      tick();
     }, intervalMs);
 
     return () => clearInterval(id);
-  }, [intervalMs, isPaused, isVisible, pageCount, currentPage, itemNavigation, scrollBehavior]);
+  }, [intervalMs, isPaused, isVisible, documentVisible, pageCount, currentPage, itemNavigation, scrollBehavior]);
 
   const onPrev = () => {
     if (stopOnInteraction) setHasInteracted(true);

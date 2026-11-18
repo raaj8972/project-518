@@ -22,7 +22,9 @@
     "check:types": "tsc -p tsconfig.app.json --noEmit",
     "test:repairs": "vitest run tests/functionality-repairs.test.tsx",
     "test:database-repairs": "node scripts/check-repair-migration.mjs",
-    "prepare:vercel": "node scripts/generate-vercel-api.mjs"
+    "prepare:vercel": "node scripts/generate-vercel-api.mjs",
+    "test:rico-family-db": "node scripts/check-rico-family-database.mjs",
+    "audit:rico-family": "node scripts/audit-rico-family.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.989.0",

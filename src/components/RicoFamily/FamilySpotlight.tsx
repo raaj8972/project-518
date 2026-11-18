@@ -18,8 +18,11 @@ export const FamilySpotlight = memo(function FamilySpotlight({ soft = false, col
         </linearGradient>
         <filter id={`${id}-diffuse`} x="-30%" y="-15%" width="160%" height="130%"><feGaussianBlur stdDeviation="7" /></filter>
       </defs>
+      <g className="family-beam-volume">
       <path d="M80 0H100L178 225H2Z" fill={`url(#${id}-volume)`} filter={`url(#${id}-diffuse)`} />
       <path d="M86 0H94L135 205H45Z" fill={`url(#${id}-volume)`} opacity=".28" filter={`url(#${id}-diffuse)`} />
+      </g>
+      <path className="family-beam-stream" d="M88 8L55 215M90 8V220M92 8L125 215" fill="none" stroke={tone} strokeWidth="1" strokeOpacity=".22" strokeDasharray="4 28" />
     </svg>
     <img className="family-spotlight-fixture" src="/images/partner-stage-lamp.webp" alt="" width="36" height="48" loading="lazy" decoding="async" draggable="false" />
     <span className="family-spotlight-lens" />

@@ -1,0 +1,18 @@
+.family-contact-links{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin-top:9px}
+.family-contact-links .family-contact{--contact-color:#ed6bac;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;max-width:100%;padding:6px 10px;border:1px solid color-mix(in srgb,var(--contact-color) 35%,transparent);border-radius:8px;background:color-mix(in srgb,var(--contact-color) 8%,#06120b);color:var(--contact-color);font:400 10px/1.4 'Poppins',sans-serif;text-decoration:none;position:relative;isolation:isolate;transition:transform .2s,background .2s}
+.family-contact-links .family-contact::before{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:0 0 13px color-mix(in srgb,var(--contact-color) 30%,transparent),inset 0 0 7px color-mix(in srgb,var(--contact-color) 12%,transparent);pointer-events:none;animation:familyContactGlow 3.8s ease-in-out infinite;z-index:-1}
+.family-contact-links .family-contact span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.family-contact-links .family-contact--facebook{--contact-color:#69a8ff}
+.family-contact-links .family-contact--phone{--contact-color:#74e696}
+.family-contact-links .family-contact--facebook::before{animation-delay:-1.2s}
+.family-contact-links .family-contact--phone::before{animation-delay:-2.3s}
+.family-contact-links .family-contact svg{flex-shrink:0;filter:drop-shadow(0 0 3px color-mix(in srgb,var(--contact-color) 55%,transparent))}
+.family-contact-links a.family-contact:hover{color:var(--contact-color);background:color-mix(in srgb,var(--contact-color) 17%,#06120b);transform:translateY(-1px)}
+.family-contact-links a.family-contact:focus-visible{outline:2px solid var(--contact-color);outline-offset:3px}
+.family-contact-links .is-unavailable{opacity:.65}
+.family-contact-links .is-unavailable::before{animation:none;opacity:.4}
+.family-contact-links--compact .family-contact{width:38px;height:38px;padding:9px}
+.family-contact-links--compact .family-contact span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.family-profile-batch{font:400 10px/1.5 'Poppins',sans-serif;color:#b9c4a5;margin:5px 0 0;text-align:center}
+@keyframes familyContactGlow{0%,100%{opacity:.45}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.family-contact-links .family-contact::before{animation:none}.family-contact-links a.family-contact{transition:none}}

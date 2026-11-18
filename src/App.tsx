@@ -283,7 +283,7 @@ const InnerRouter: React.FC = () => {
         { path: 'sports-admin', element: <Navigate to="/login" replace /> },
         { path: 'security-login', element: <React.Suspense fallback={null}><SecurityLogin /></React.Suspense> },
         { path: 'security-dashboard', element: <React.Suspense fallback={null}><SecurityDashboard /></React.Suspense> },
-        { path: 'health', element: <React.Suspense fallback={null}><Home /></React.Suspense> },
+        { path: 'health', element: <React.Suspense fallback={<FestivalLoadingPreview />}><LockedPageGuard pageKey="home"><CinematicHome><Home /></CinematicHome></LockedPageGuard></React.Suspense> },
         { path: 'master-node-access', element: <React.Suspense fallback={null}><MasterGate /></React.Suspense> },
         { path: 'forgot-password', element: <React.Suspense fallback={null}><ForgotPassword /></React.Suspense> },
         { path: 'student/forgot-password', element: <React.Suspense fallback={null}><StudentForgotPassword /></React.Suspense> },

@@ -5,14 +5,13 @@ import { useTheme } from '../context/ThemeContext';
 import { SpiderHeroContent } from './ui/SpiderHeroContent';
 const CyberpunkHeroContent = React.lazy(() => import('./ui/CyberpunkHeroContent').then(module => ({ default: module.CyberpunkHeroContent })));
 
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
 
 
 export const HomeHero: React.FC = React.memo(() => {
   const { theme } = useTheme();
   const [media, setMedia] = useState<HeroMediaV2 | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
   const [videoError, setVideoError] = useState(false);
 
   const containerRef = useRef<HTMLElement>(null);
@@ -49,31 +48,6 @@ export const HomeHero: React.FC = React.memo(() => {
       vid.play().catch(() => {});
     }
   }, [media, isMobile]);
-
-  useEffect(() => {
-    if (theme === 'spiderman') return;
-    gsap.registerPlugin(ScrollTrigger);
-    
-    // All themes now use standard scrolling (no pinning)
-    // We just ensure the content is visible immediately without scroll interaction.
-    if (textContainerRef.current) {
-      gsap.set(textContainerRef.current, { clearProps: 'all', opacity: 1, y: 0, scale: 1 });
-    }
-
-    // Still use ScrollTrigger for a simple fade-in effect if desired, but NO pinning.
-    // However, for this request, we'll keep it as a totally static, non-scroll-animated hero
-    // that scrolls naturally with the page.
-    
-    return () => {
-      // Cleanup any active ScrollTriggers for this section
-      ScrollTrigger.getAll().forEach(st => {
-        if (st.vars.trigger === containerRef.current) {
-          st.kill();
-        }
-      });
-      ScrollTrigger.refresh();
-    };
-  }, [media, isMobile, theme]);
 
   if (theme === 'spiderman') return <SpiderHeroContent media={media} mobile={isMobile} />;
 

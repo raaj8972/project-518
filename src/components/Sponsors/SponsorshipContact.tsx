@@ -1,6 +1,6 @@
 import React from 'react';
 import { Mail, Phone, MapPin, Download } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { SponsorIconCatalog as LucideIcons } from '../../lib/sponsorIconCatalog';
 
 interface ContactSection {
   id: string;

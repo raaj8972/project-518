@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import LottieComponent from 'lottie-react';
+import React, { lazy, Suspense, useState, useEffect } from 'react';
 
-const Lottie = (LottieComponent as any).default || LottieComponent;
+// Bitmap/SVG logos should never download the animation player.
+const BrandLogoAnimation = lazy(() => import('./BrandLogoAnimation'));
 
 type Props = {
   src?: string | null;
@@ -21,23 +21,28 @@ type Props = {
 // - Falls back to text logo if src missing
 export function BrandLogo3D({ src, prioritySrc, alt = 'Brand', size = 32, glowStrength = 1, glowColor, className = '', animated = true }: Props) {
   const [animationData, setAnimationData] = useState<any>(null);
-  const [isLottie, setIsLottie] = useState(false);
+  const isLottie = !!(prioritySrc || src)?.toLowerCase().includes('.json');
+  const [animationFailed, setAnimationFailed] = useState(false);
 
   useEffect(() => {
     const finalSrc = prioritySrc || src;
+    const controller = new AbortController();
+    let active = true;
+    setAnimationData(null);
+    setAnimationFailed(false);
     if (finalSrc && finalSrc.toLowerCase().includes('.json')) {
-      setIsLottie(true);
-      fetch(finalSrc)
-        .then(res => res.json())
-        .then(data => setAnimationData(data))
+      fetch(finalSrc, { signal: controller.signal })
+        .then(res => { if (!res.ok) throw new Error('Logo animation could not be loaded'); return res.json(); })
+        .then(data => { if (active) setAnimationData(data); })
         .catch(err => {
+          if (!active) return;
           console.error('[BrandLogo3D] Failed to load lottie:', err);
-          setIsLottie(false);
+          setAnimationFailed(true);
         });
     } else {
-      setIsLottie(false);
       setAnimationData(null);
     }
+    return () => { active = false; controller.abort(); };
   }, [src, prioritySrc]);
 
   const height = Math.max(20, size);
@@ -50,7 +55,7 @@ export function BrandLogo3D({ src, prioritySrc, alt = 'Brand', size = 32, glowSt
 
   const renderContent = () => {
     const finalSrc = prioritySrc || src;
-    if (!finalSrc) {
+    if (!finalSrc || animationFailed) {
       return (
         <span className="brand3d-fallback" style={{ fontSize: Math.round(height * 0.8) }}>
           R
@@ -58,15 +63,13 @@ export function BrandLogo3D({ src, prioritySrc, alt = 'Brand', size = 32, glowSt
       );
     }
 
-    if (isLottie && animationData) {
+    if (isLottie) {
       return (
         <span className={`brand3d-wrap ${animated ? 'brand3d-animated' : ''}`} style={{ height, width: height, '--h': `${height}px` } as any}>
           <div className="brand3d-img" style={{ height, width: height }}>
-            <Lottie 
-              animationData={animationData} 
-              loop={true} 
-              style={{ height: '100%', width: '100%' }}
-            />
+            {animationData ? <Suspense fallback={<span role="img" aria-label={alt}>R</span>}>
+              <BrandLogoAnimation animationData={animationData} />
+            </Suspense> : <span role="img" aria-label={alt}>R</span>}
           </div>
         </span>
       );

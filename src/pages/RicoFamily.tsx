@@ -1,5 +1,7 @@
+import { ProfileContactLinks } from '../components/RicoFamily/ProfileContactLinks';
+import { personBatch } from '../utils/familyPeople';
 import React, { useEffect, useState, startTransition } from 'react';
-import { Shield, Users, ArrowRight, Instagram, Phone, Facebook } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import type { FacultyHead } from '../types/data';
 
@@ -196,31 +198,8 @@ export const RicoFamily: React.FC = () => {
                   <div className="mcu-title-text text-lg md:text-xl text-center glow-text text-cyan-50 mt-1">{head.name}</div>
                   <div className="text-xs text-cyan-400 font-mono text-center mt-2 tracking-[0.16em] uppercase font-bold hud-monospace mb-3">{head.title}</div>
                   
-                  {/* Social Links Centered — only show if data exists */}
-                  {((head.social_links?.instagram || (head as any).phone || head.social_links?.facebook || (head as any).email)) && (
-                    <div onClick={(e) => e.stopPropagation()} className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-cyan-500/20 w-full relative z-20">
-                       {head.social_links?.instagram && (
-                         <a
-                           href={head.social_links.instagram}
-                           target="_blank" rel="noopener noreferrer"
-                           className="w-10 h-10 clip-angular-sm flex items-center justify-center bg-[#E1306C]/10 border border-[#E1306C]/30 text-[#E1306C] hover:bg-[#E1306C]/20 hover:border-[#E1306C] shadow-[0_0_15px_rgba(225,48,108,0.3)] hover:shadow-[0_0_20px_rgba(225,48,108,0.5)] transition-all"
-                         >
-                           <Instagram size={16} />
-                         </a>
-                       )}
-                       {(head as any).phone && (
-                         <a
-                           href={`tel:${(head as any).phone}`}
-                           className="w-10 h-10 clip-angular-sm flex items-center justify-center bg-green-500/10 border border-green-500/30 text-green-500 hover:bg-green-500/20 hover:border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_20px_rgba(34,197,94,0.5)] transition-all"
-                         >
-                           <Phone size={16} />
-                         </a>
-                       )}
-                       {head.social_links?.facebook && (
-                         <a href={head.social_links.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 clip-angular-sm flex items-center justify-center bg-[#1877F2]/10 border border-[#1877F2]/30 text-[#1877F2] hover:bg-[#1877F2]/20 hover:border-[#1877F2] shadow-[0_0_15px_rgba(24,119,242,0.3)] hover:shadow-[0_0_20px_rgba(24,119,242,0.5)] transition-all"><Facebook size={16} /></a>
-                       )}
-                    </div>
-                  )}
+                  {personBatch(head) && <p className="family-profile-batch">Batch {personBatch(head)}</p>}
+                  <div className="pt-3 border-t border-cyan-500/20 relative z-20"><ProfileContactLinks name={head.name} instagram={head.social_links?.instagram} facebook={head.social_links?.facebook} phone={head.phone} showFacebook showPhone compact /></div>
                 </div>
               )}
             />

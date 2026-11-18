@@ -107,7 +107,7 @@ export const FestivalEnvironment = memo(function FestivalEnvironment({ logoUrl, 
       <img className="festival-environment-plate" src="/images/ricorrenza-emerald-environment.webp" alt="" fetchPriority="high" onLoad={() => setPlateLoaded(true)} onError={() => setState('fallback')} />
       <div className="festival-mobile-architecture festival-mobile-architecture-left"><img src="/images/ricorrenza-emerald-environment.webp" alt="" /></div>
       <div className="festival-mobile-architecture festival-mobile-architecture-right"><img src="/images/ricorrenza-emerald-environment.webp" alt="" /></div>
-      {(unavailable || state !== 'ready') && <img className="festival-environment-fallback spider-hero-city" src="/images/ricorrenza-emerald-city.webp" alt="" fetchPriority="high" />}
+      <img className="festival-environment-fallback spider-hero-city" src="/images/ricorrenza-emerald-city.webp" alt="" fetchPriority="high" />
     </div>
     <div ref={islandControl} className="festival-island-control" role="slider" tabIndex={unavailable || paused ? -1 : 0} aria-label="Rotate floating island" aria-valuemin={0} aria-valuemax={360} aria-valuenow={0} aria-disabled={paused || unavailable} onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag} onLostPointerCapture={() => { drag.current = null; }} onKeyDown={rotateKey} />
   </>;

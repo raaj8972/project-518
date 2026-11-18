@@ -1,6 +1,14 @@
-# Device-specific film → cloud wipe → 3D → Home
+# Device-specific film → cloud wipe → Home
 
-Active flow, per the latest instructions:
+## Current mode: video to homepage
+
+The owner temporarily removed the **live 3D character / hall / portal chapter** shown after the film. `INTRO_PORTAL_ENABLED` in `src/components/cinematic/introConfig.ts` is `false`. The opening video and its floating-island footage remain, followed by the sampled-cloud transition directly into the same mounted homepage. The runway is shortened to 520svh; the removed chapter leaves no blank scroll section. The film-only opening does not import the scene, show drag-to-look controls, wait for scene readiness, or require a WebGL capability probe.
+
+**Restore only when the owner asks:** set `INTRO_PORTAL_ENABLED = true` in `introConfig.ts`. Character, hall, portal, camera motion, model assets and original chapter timing remain in place. Tests exercise both the current video-only default and the retained portal-enabled flow.
+
+## Retained full version (currently disabled)
+
+Preserved full flow for restoration:
 
 1. Phones/tablets use the previously supplied portrait film. Desktop/laptop uses the newly supplied landscape film.
 2. Scroll scrubs video forward/backward. Mobile freezes at source time 17.75s, matching the user's marked floating-campus frame (previously at 72% scroll).

@@ -57,7 +57,8 @@ beforeEach(() => {
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); sessionStorage.clear(); delete document.documentElement.dataset.cinematicIntro; delete document.documentElement.dataset.staticExperience; });
-async function mount() { await act(async () => root.render(<CinematicHome><ExistingHome /></CinematicHome>)); }
+// Keep the retained portal chapter covered so restoring its flag stays safe.
+async function mount() { await act(async () => root.render(<CinematicHome portalEnabled><ExistingHome /></CinematicHome>)); }
 async function cloudLoaded() { await act(async () => host.querySelector('[data-video-clouds]')!.dispatchEvent(new MouseEvent('click', {bubbles:true}))); }
 async function progressTo(progress: number) { y = 4800 * progress; mocks.state.progress = progress; await act(async () => mocks.options!.onUpdate(mocks.state)); }
 async function tick(ms: number) { await act(async () => vi.advanceTimersByTime(ms)); }
@@ -143,12 +144,13 @@ it('automatically opens the same live homepage on media failure and releases dec
   await tick(0); // Flush jsdom's asynchronous session-storage notification.
   expect(vi.getTimerCount()).toBe(0);
   expect(host.querySelector('[data-cinematic-homepage]')?.getAttribute('aria-hidden')).toBeNull();
-  expect(sessionStorage.getItem(INTRO_FALLBACK_KEY)).toBe('video-failed');
+  expect(document.documentElement.dataset.introFallback).toBe('video-failed');
+  expect(host.querySelector('a.cinematic-replay')?.getAttribute('href')).toBe('/?intro=replay');
 });
 
 it.each([
   { cores: 2, memory: 8, ua: 'Mozilla/5.0' },
-  { cores: 8, memory: 4, ua: 'Mozilla/5.0 (Linux; Android 14) Mobile' },
+  { cores: 8, memory: 2, ua: 'Mozilla/5.0 (Linux; Android 14) Mobile' },
   { cores: 6, memory: undefined, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_7 like Mac OS X)' },
 ])('opens Home immediately on limited/older hardware without downloading intro media: %j', async ({cores,memory,ua}) => {
   vi.spyOn(navigator, 'hardwareConcurrency', 'get').mockReturnValue(cores);
@@ -171,10 +173,26 @@ it('waits for codec/GPU approval before assigning the film source and bypasses a
   expect(host.querySelector('[data-intro-bypass]')?.getAttribute('data-intro-bypass')).toBe('unsupported-device');
 });
 
-it('does not retry an intro that already failed in this tab', async () => {
+it('plays the opening again on a fresh document despite an old tab-wide failure', async () => {
   sessionStorage.setItem(INTRO_FALLBACK_KEY, 'video-failed');
   await mount();
-  expect(host.querySelector('video')).toBeNull(); expect(mocks.support).not.toHaveBeenCalled();
+  expect(host.querySelector('video')).not.toBeNull(); expect(mocks.support).toHaveBeenCalledOnce();
+  await cloudLoaded(); await progressTo(.4);
+  expect(host.querySelector('[data-scene]')).not.toBeNull();
+  await progressTo(1); await tick(CLOUD_HOLD_MS); await progressTo(1); await tick(HOME_FADE_MS);
+  expect(host.querySelector<HTMLElement>('[data-cinematic-homepage]')!.inert).toBe(false);
+});
+
+it('keeps the video and 3D opening on modern four-core, 4GB phones', async () => {
+  vi.spyOn(navigator, 'hardwareConcurrency', 'get').mockReturnValue(4);
+  vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Linux; Android 14) Mobile');
+  Object.defineProperty(navigator, 'deviceMemory', { configurable: true, value: 4 });
+  try {
+    await mount();
+    expect(host.querySelector('[data-intro-mode]')?.getAttribute('data-intro-mode')).toBe('video-3d');
+    expect(host.querySelector('video')?.getAttribute('src')).toBe('/media/cinematic/ricorrenza-mobile-v2.mp4');
+    await progressTo(.4); expect(host.querySelector('[data-scene]')).not.toBeNull();
+  } finally { delete (navigator as Navigator & {deviceMemory?: number}).deviceMemory; }
 });
 
 it.each(['probe', 'videoStart', 'sceneStart', 'transition'] as const)('bounds a stalled %s phase and restores the real Home automatically', async phase => {
@@ -250,6 +268,7 @@ it('does not replay an unfinished film when Home remounts after another page', a
   await act(async () => root.render(<div>Events page</div>));
   await mount();
   expect(host.querySelector('[data-intro-bypass]')?.getAttribute('data-intro-bypass')).toBe('navigation');
+  expect(host.querySelector('a.cinematic-replay')?.textContent).toContain('Replay intro');
   expect(host.querySelector('[data-cinematic-overlay]')).toBeNull();
   expect(host.querySelector('video')).toBeNull();
   expect(host.querySelector('a[href="/events"]')).not.toBeNull();
@@ -261,14 +280,49 @@ it('opens Home directly when the document entry is no longer eligible', async ()
   documentVisit.eligible = false;
   await mount();
   expect(host.querySelector('[data-intro-bypass]')?.getAttribute('data-intro-bypass')).toBe('navigation');
+  expect(host.querySelector('a.cinematic-replay')?.textContent).toContain('Replay intro');
   expect(host.querySelector('[data-cinematic-overlay]')).toBeNull();
   expect(mocks.support).not.toHaveBeenCalled();
   expect(mocks.controller).not.toHaveBeenCalled();
 });
 
 it('keeps the first entry intro enabled during StrictMode effect replay', async () => {
-  await act(async () => root.render(<React.StrictMode><CinematicHome><ExistingHome /></CinematicHome></React.StrictMode>));
+  await act(async () => root.render(<React.StrictMode><CinematicHome portalEnabled><ExistingHome /></CinematicHome></React.StrictMode>));
   expect(documentVisit.played).toBe(true);
   expect(host.querySelector('[data-cinematic-overlay]')).not.toBeNull();
   expect(host.querySelector('[data-intro-mode]')?.getAttribute('data-intro-mode')).toBe('video-3d');
+});
+
+it('defaults to the film and cloud handoff with the portal chapter preserved but disabled', async () => {
+  await act(async () => root.render(<CinematicHome><ExistingHome /></CinematicHome>));
+  const page = host.querySelector<HTMLElement>('[data-cinematic-homepage]')!, title = host.querySelector('h1');
+  expect(host.querySelector('[data-intro-mode]')?.getAttribute('data-intro-mode')).toBe('video');
+  expect(mocks.support).toHaveBeenCalledWith(false, false);
+  await progressTo(.7);
+  expect(host.querySelector('video')).not.toBeNull();
+  expect(host.querySelector('[data-scene-state]')).toBeNull();
+  expect(host.querySelector('[data-scene]')).toBeNull();
+  expect(host.querySelector('.cinematic-look-hint')).toBeNull();
+  expect(host.querySelector('.cinematic-portal-wash')).toBeNull();
+  expect(page.inert).toBe(true);
+  await cloudLoaded(); await progressTo(1);
+  expect(page.inert).toBe(true);
+  await tick(CLOUD_HOLD_MS); await progressTo(1); await tick(HOME_FADE_MS);
+  expect(page.inert).toBe(false);
+  expect(host.querySelector<HTMLElement>('[data-cinematic-overlay]')!.style.visibility).toBe('hidden');
+  expect(host.querySelector('h1')).toBe(title); expect(mounts).toBe(1); expect(unmounts).toBe(0);
+  expect(host.querySelector('[data-scene]')).toBeNull();
+});
+
+it('reverses the video-only handoff without mounting the paused 3D chapter', async () => {
+  await act(async () => root.render(<CinematicHome><ExistingHome /></CinematicHome>));
+  await cloudLoaded(); await progressTo(1); await tick(CLOUD_HOLD_MS); await progressTo(1); await tick(HOME_FADE_MS);
+  await progressTo(.4);
+  expect(host.querySelector<HTMLElement>('[data-cinematic-homepage]')!.inert).toBe(true);
+  expect(host.querySelector<HTMLElement>('[data-cinematic-overlay]')!.style.visibility).toBe('visible');
+  expect(mocks.seek).toHaveBeenLastCalledWith(.4 * .65);
+  expect(host.querySelector('[data-scene]')).toBeNull();
+  await act(async () => host.querySelector<HTMLButtonElement>('.cinematic-skip')!.click());
+  expect(host.querySelector('video')).toBeNull();
+  expect(host.querySelector<HTMLElement>('[data-cinematic-homepage]')!.inert).toBe(false);
 });

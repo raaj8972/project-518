@@ -2,6 +2,7 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { FestivalEnvironment } from '../src/components/ui/festival/FestivalEnvironment';
 import { publishIntroPhase, rememberIntroFallback } from '../src/components/cinematic/introCapability';
 
@@ -44,6 +45,28 @@ it('shows artwork and releases loading before renderer setup starts', async () =
   await act(async () => vi.advanceTimersByTime(120));
   expect(mocks.create).toHaveBeenCalledOnce();
   expect(host.querySelector('.festival-environment-fallback')).not.toBeNull();
+});
+it('retains the same wallpaper and crossfades it only after the fully rendered world is ready', async () => {
+  let finish!: () => void;
+  mocks.world.ready = new Promise<void>(resolve => { finish = resolve; });
+  const styles = document.createElement('style');
+  styles.textContent = readFileSync('src/components/ui/festival/FestivalEnvironment.css', 'utf8');
+  document.head.append(styles);
+  const canvas = document.createElement('canvas');
+  mocks.create.mockImplementationOnce(element => { element.append(canvas); return mocks.world; });
+  try {
+    await mount();
+    const wallpaper = host.querySelector<HTMLImageElement>('.festival-environment-fallback')!;
+    expect(getComputedStyle(wallpaper).opacity).toBe('1');
+    expect(getComputedStyle(canvas).opacity).toBe('0');
+    await act(async () => finish());
+    expect(host.querySelector('.festival-environment-fallback')).toBe(wallpaper);
+    expect(wallpaper.isConnected).toBe(true);
+    expect(getComputedStyle(wallpaper).opacity).toBe('0');
+    expect(getComputedStyle(canvas).opacity).toBe('1');
+    expect(getComputedStyle(wallpaper).transition).toBe('opacity 700ms ease-in-out');
+    expect(getComputedStyle(canvas).transition).toBe('opacity 700ms ease-in-out');
+  } finally { styles.remove(); }
 });
 it('loads the scene after its clean plate, maps the real logo and reacts to pointer movement/touch bursts', async () => {
   await mount();

@@ -1,6 +1,6 @@
 import React from 'react';
 import { SpotlightCard } from '../ui/SpotlightCard';
-import * as LucideIcons from 'lucide-react';
+import { SponsorIconCatalog as LucideIcons } from '../../lib/sponsorIconCatalog';
 import { Mail } from 'lucide-react';
 
 interface SponsorshipPackageCardProps {

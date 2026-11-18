@@ -61,29 +61,13 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// After activation, warm up the cache progressively in background (doesn't block anything)
-function warmUpCache() {
-  caches.open(CACHE_NAME).then((cache) => {
-    console.log('[SW] Starting background cache warm-up...');
-    
-    // Cache pages one at a time with delays to avoid performance impact
-    let delay = 0;
-    PROGRESSIVE_CACHE_ROUTES.forEach((route, index) => {
-      setTimeout(() => {
-        fetch(route)
-          .then((response) => {
-            if (response.ok) {
-              cache.put(route, response);
-              console.log(`[SW] Background cached: ${route}`);
-            }
-          })
-          .catch(() => {
-            // Silently fail - will cache on first visit instead
-          });
-      }, delay);
-      delay += 100; // 100ms between each request to avoid overwhelming the browser
-    });
-  });
+// All these routes use the same SPA HTML shell. Reuse its precached bytes
+// for offline navigation instead of fetching the same document 15 more times.
+async function warmUpCache() {
+  const cache = await caches.open(CACHE_NAME);
+  const shell = await cache.match('/index.html');
+  if (!shell || !shell.ok) return;
+  await Promise.all(PROGRESSIVE_CACHE_ROUTES.map(route => cache.put(route, shell.clone())));
 }
 
 // Activate event - clean up old caches and start warm-up
@@ -101,7 +85,7 @@ self.addEventListener('activate', (event) => {
     }).then(() => {
       console.log('[SW] Service worker activated');
       // Start warming up cache in background (non-blocking)
-      warmUpCache();
+      return warmUpCache();
     })
   );
   self.clients.claim();
@@ -139,6 +123,7 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const isNavigation = request.mode === 'navigate';
   const isHtml = request.headers.get('accept')?.includes('text/html');
+  const immutableAsset = /^\/assets\/[^/]+-[\w-]{8,}\.(?:m?js|css|woff2?|png|jpe?g|webp|avif|svg)$/.test(new URL(request.url).pathname);
 
   /**
    * STRATEGY 1: Network-First for HTML & Navigation
@@ -187,7 +172,9 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Even with a cache hit, we refresh the cache in the background (stale-while-revalidate)
+        // Content-hashed URLs already identify their exact bytes. Reuse them
+        // without a second download. Mutable images still refresh as before.
+        if (immutableAsset) return cachedResponse;
         fetch(request).then((response) => {
           if (response && response.status === 200) {
             caches.open(CACHE_NAME).then((cache) => cache.put(request, response));
