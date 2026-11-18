@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
-const FestivalSceneReadiness = createContext({ pending: false, setSettled: (_settled: boolean) => {} });
+const FestivalSceneReadiness = createContext({ pending: false, setSettled: (_settled: boolean) => {}, preparing: false, setPreparing: (_preparing: boolean) => {} });
 
-/** Release the opening when the homepage has visible artwork; 3D can finish later. */
+/** Prepare the actual homepage behind the film; reveal only its complete frame. */
 export function FestivalSceneProvider({ required, children }: { required: boolean; children: ReactNode }) {
   const [settled, setSettled] = useState(false);
-  useEffect(() => { if (!required) setSettled(false); }, [required]);
-  return <FestivalSceneReadiness.Provider value={{ pending: required && !settled, setSettled }}>{children}</FestivalSceneReadiness.Provider>;
+  const [preparing, setPreparing] = useState(false);
+  useEffect(() => { if (!required) { setSettled(false); setPreparing(false); } }, [required]);
+  return <FestivalSceneReadiness.Provider value={{ pending: required && !settled, setSettled, preparing, setPreparing }}>{children}</FestivalSceneReadiness.Provider>;
 }
 
 export const useFestivalSceneReadiness = () => useContext(FestivalSceneReadiness);

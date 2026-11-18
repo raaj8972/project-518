@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { FestivalEnvironment } from '../src/components/ui/festival/FestivalEnvironment';
+import { FestivalSceneProvider, useFestivalSceneReadiness } from '../src/components/ui/festival/FestivalSceneReadiness';
 import { publishIntroPhase, rememberIntroFallback } from '../src/components/cinematic/introCapability';
 
 const mocks = vi.hoisted(() => ({
@@ -33,20 +34,20 @@ function pointer(target: Element, type: string, clientX: number, clientY = 200) 
   const event = new MouseEvent(type, { clientX, clientY, bubbles: true, button: 0 });
   Object.defineProperty(event, 'pointerId', { value: 1 }); target.dispatchEvent(event);
 }
-it('shows artwork and releases loading before renderer setup starts', async () => {
+it('keeps the opening covered when only the wallpaper has loaded', async () => {
   mocks.world.ready = new Promise<void>(() => {});
   const settled = vi.fn();
   await act(async () => root.render(<section><FestivalEnvironment onSettled={settled} /></section>));
   expect(host.querySelector('.festival-environment-fallback')).not.toBeNull();
   expect(mocks.create).not.toHaveBeenCalled();
   await act(async () => { host.querySelector('img')!.dispatchEvent(new Event('load')); });
-  expect(settled).toHaveBeenLastCalledWith(true);
+  expect(settled).toHaveBeenLastCalledWith(false);
   expect(mocks.create).not.toHaveBeenCalled();
   await act(async () => vi.advanceTimersByTime(120));
   expect(mocks.create).toHaveBeenCalledOnce();
   expect(host.querySelector('.festival-environment-fallback')).not.toBeNull();
 });
-it('retains the same wallpaper and crossfades it only after the fully rendered world is ready', async () => {
+it('hides the loading wallpaper and reveals only the ready 3D frame, retaining artwork for a real failure', async () => {
   let finish!: () => void;
   mocks.world.ready = new Promise<void>(resolve => { finish = resolve; });
   const styles = document.createElement('style');
@@ -57,15 +58,16 @@ it('retains the same wallpaper and crossfades it only after the fully rendered w
   try {
     await mount();
     const wallpaper = host.querySelector<HTMLImageElement>('.festival-environment-fallback')!;
-    expect(getComputedStyle(wallpaper).opacity).toBe('1');
+    expect(getComputedStyle(wallpaper).opacity).toBe('0');
     expect(getComputedStyle(canvas).opacity).toBe('0');
     await act(async () => finish());
     expect(host.querySelector('.festival-environment-fallback')).toBe(wallpaper);
     expect(wallpaper.isConnected).toBe(true);
     expect(getComputedStyle(wallpaper).opacity).toBe('0');
     expect(getComputedStyle(canvas).opacity).toBe('1');
-    expect(getComputedStyle(wallpaper).transition).toBe('opacity 700ms ease-in-out');
-    expect(getComputedStyle(canvas).transition).toBe('opacity 700ms ease-in-out');
+    await act(async () => rememberIntroFallback('renderer-failed'));
+    expect(getComputedStyle(wallpaper).opacity).toBe('1');
+    expect(getComputedStyle(canvas).opacity).toBe('0');
   } finally { styles.remove(); }
 });
 it('loads the scene after its clean plate, maps the real logo and reacts to pointer movement/touch bursts', async () => {
@@ -137,7 +139,7 @@ it('retains the static artwork fallback when WebGL is unavailable', async () => 
   expect(host.querySelector('.festival-environment-fallback')?.getAttribute('src')).toBe('/images/ricorrenza-emerald-city.webp');
 });
 
-it('opens on the visible image while the island and flags prepare, including reduced motion', async () => {
+it('waits for the island and flags before releasing the opening, including reduced motion', async () => {
   let finish!: () => void;
   mocks.world.ready = new Promise<void>(resolve => { finish = resolve; });
   const settled = vi.fn();
@@ -147,7 +149,7 @@ it('opens on the visible image while the island and flags prepare, including red
   await act(async () => { vi.advanceTimersByTime(120); });
   expect(host.querySelector('[data-festival-environment]')?.getAttribute('data-state')).toBe('loading');
   expect(host.querySelector('.festival-environment-fallback')).not.toBeNull();
-  expect(settled).toHaveBeenLastCalledWith(true);
+  expect(settled).toHaveBeenLastCalledWith(false);
   expect(mocks.world.setPaused).toHaveBeenLastCalledWith(true);
   await act(async () => finish());
   expect(host.querySelector('[data-festival-environment]')?.getAttribute('data-state')).toBe('ready');
@@ -196,4 +198,30 @@ it('releases an already-mounted homepage renderer after a runtime performance fa
   expect(mocks.world.dispose).toHaveBeenCalledOnce();
   expect(host.querySelector('[data-festival-environment]')?.getAttribute('data-state')).toBe('fallback');
   expect(host.querySelector('[role="slider"]')?.getAttribute('aria-disabled')).toBe('true');
+});
+
+it('prepares a hidden scene behind the intro and reuses it at handoff without a second load', async () => {
+  publishIntroPhase('active');
+  let finish!: () => void;
+  mocks.world.ready = new Promise<void>(resolve => { finish = resolve; });
+  function PreparedHome() {
+    const {preparing, pending, setPreparing, setSettled} = useFestivalSceneReadiness();
+    return <><button data-pending={pending} data-preparing={preparing} onClick={() => setPreparing(true)}>Prepare campus</button><section><FestivalEnvironment onSettled={setSettled} /></section></>;
+  }
+  await act(async () => root.render(<FestivalSceneProvider required><PreparedHome /></FestivalSceneProvider>));
+  await act(async () => host.querySelector('img')!.dispatchEvent(new Event('load')));
+  await act(async () => vi.advanceTimersByTime(120));
+  expect(mocks.create).not.toHaveBeenCalled();
+  await act(async () => host.querySelector<HTMLButtonElement>('button')!.click());
+  await act(async () => vi.advanceTimersByTime(120));
+  expect(mocks.create).toHaveBeenCalledOnce();
+  expect(mocks.world.setVisible).toHaveBeenLastCalledWith(false);
+  expect(host.querySelector('button')?.dataset.pending).toBe('true');
+  await act(async () => finish());
+  expect(host.querySelector('button')?.dataset.pending).toBe('false');
+  expect(host.querySelector('[data-festival-environment]')?.getAttribute('data-state')).toBe('ready');
+  await act(async () => publishIntroPhase('handoff'));
+  expect(mocks.create).toHaveBeenCalledOnce();
+  expect(mocks.world.dispose).not.toHaveBeenCalled();
+  expect(mocks.world.setVisible).toHaveBeenLastCalledWith(true);
 });

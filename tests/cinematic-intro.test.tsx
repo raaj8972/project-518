@@ -3,6 +3,7 @@ import React, { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import CinematicHome from '../src/components/cinematic/CinematicHome';
+import { FestivalSceneProvider, useFestivalSceneReadiness } from '../src/components/ui/festival/FestivalSceneReadiness';
 import { CLOUD_HOLD_MS, HOME_FADE_MS } from '../src/components/cinematic/scrollVideo';
 import { INTRO_FALLBACK_KEY, INTRO_LIMITS } from '../src/components/cinematic/introCapability';
 
@@ -343,5 +344,43 @@ it('reverses the video-only handoff without mounting the paused 3D chapter', asy
   expect(host.querySelector('[data-scene]')).toBeNull();
   await act(async () => host.querySelector<HTMLButtonElement>('.cinematic-skip')!.click());
   expect(host.querySelector('video')).toBeNull();
+  expect(host.querySelector<HTMLElement>('[data-cinematic-homepage]')!.inert).toBe(false);
+});
+
+it('holds the clouds until the actual homepage island is ready instead of revealing its wallpaper first', async () => {
+  function HomePreparation() {
+    const {preparing, setSettled} = useFestivalSceneReadiness();
+    return <><button data-campus-ready data-preparing={preparing} onClick={() => setSettled(true)}>First complete frame</button><CinematicHome><ExistingHome /></CinematicHome></>;
+  }
+  await act(async () => root.render(<FestivalSceneProvider required><HomePreparation /></FestivalSceneProvider>));
+  const home = host.querySelector<HTMLElement>('[data-cinematic-homepage]')!;
+  const film = host.querySelector<HTMLElement>('[data-cinematic-overlay]')!;
+  await cloudLoaded(); await progressTo(.6);
+  expect(host.querySelector('[data-campus-ready]')?.getAttribute('data-preparing')).toBe('true');
+  await progressTo(1); await tick(CLOUD_HOLD_MS); await progressTo(1); await tick(HOME_FADE_MS);
+  expect(film.style.opacity).toBe('1'); expect(home.inert).toBe(true);
+  expect(window.scrollTo).toHaveBeenLastCalledWith({top: 4800 * (.58 / .65), behavior:'instant'});
+  await act(async () => host.querySelector<HTMLButtonElement>('[data-campus-ready]')!.click());
+  await progressTo(1); await tick(HOME_FADE_MS);
+  expect(film.style.visibility).toBe('hidden'); expect(home.inert).toBe(false);
+  expect(mocks.create).toHaveBeenCalledOnce(); expect(mounts).toBe(1);
+  expect(host.querySelector('[data-scene]')).toBeNull();
+});
+
+it('keeps the retained portal chapter usable while waiting for the same homepage frame', async () => {
+  function HomePreparation() {
+    const {preparing, setSettled} = useFestivalSceneReadiness();
+    return <><button data-campus-ready data-preparing={preparing} onClick={() => setSettled(true)}>First complete frame</button><CinematicHome portalEnabled><ExistingHome /></CinematicHome></>;
+  }
+  await act(async () => root.render(<FestivalSceneProvider required><HomePreparation /></FestivalSceneProvider>));
+  await cloudLoaded(); await progressTo(.6); await tick(CLOUD_HOLD_MS); await progressTo(.75);
+  expect(host.querySelector('[data-scene]')).not.toBeNull();
+  expect(host.querySelector('[data-campus-ready]')?.getAttribute('data-preparing')).toBe('false');
+  await progressTo(.96);
+  expect(host.querySelector('[data-campus-ready]')?.getAttribute('data-preparing')).toBe('true');
+  expect(host.querySelector<HTMLElement>('[data-cinematic-homepage]')!.inert).toBe(true);
+  expect(window.scrollTo).toHaveBeenLastCalledWith({top:4800 * .93, behavior:'instant'});
+  await act(async () => host.querySelector<HTMLButtonElement>('[data-campus-ready]')!.click());
+  await progressTo(1); await tick(HOME_FADE_MS);
   expect(host.querySelector<HTMLElement>('[data-cinematic-homepage]')!.inert).toBe(false);
 });

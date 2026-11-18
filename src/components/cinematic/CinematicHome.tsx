@@ -9,6 +9,7 @@ import { getIntroPolicy, INTRO_LIMITS, publishIntroPhase, rememberIntroFallback,
 import { canLookAround, createInlineLook } from './inlineLook';
 import { canPlayDocumentIntro, markDocumentIntroPlayed } from './documentIntro';
 import { INTRO_PORTAL_ENABLED } from './introConfig';
+import { useFestivalSceneReadiness } from '../ui/festival/FestivalSceneReadiness';
 import './CinematicIntro.css';
 const CinematicScene = lazy(() => import('./CinematicScene'));
 class SceneBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
@@ -23,6 +24,10 @@ const reducedMotion = () => typeof window.matchMedia === 'function' && window.ma
 /** Scroll-scrubbed film; the real homepage remains mounted below the runway. */
 export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_ENABLED }: { children: ReactNode; portalEnabled?: boolean }) {
   const { homepageSettings } = useCoreData();
+  const { pending: homePending, preparing: homePreparing, setPreparing: prepareHome } = useFestivalSceneReadiness();
+  const homePendingRef = useRef(homePending);
+  homePendingRef.current = homePending;
+  const homeRequested = useRef(false);
   const portalLogoUrl = getPortalLogoUrl(homepageSettings);
   const [policy] = useState(() => getIntroPolicy(navigator, window.innerWidth));
   const { mobile, quality } = policy;
@@ -49,6 +54,9 @@ export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_E
   const finishTimer = useRef<ReturnType<typeof setTimeout>>(), complete = useRef(false);
   const resetAfterBypass = useRef(false);
   const enabled = !bypassReason;
+
+  useEffect(() => { updateVisual.current(); }, [homePending]);
+  useEffect(() => () => prepareHome(false), [prepareHome]);
 
   useEffect(() => { if (initialEntry) markDocumentIntroPlayed('cinematic'); }, [initialEntry]);
 
@@ -157,19 +165,29 @@ export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_E
       const timelineEnd = portalEnabled ? 1 : .65;
       let phase = p * timelineEnd;
       const sceneAvailable = !portalEnabled || sceneReady.current;
+      const homeAvailable = !homePendingRef.current;
+      if (!homeRequested.current && phase >= (portalEnabled ? .9 : .36)) {
+        homeRequested.current = true; prepareHome(true);
+      }
       if (portalEnabled && capabilityReady.current && phase >= .36 && !mountedScene && !complete.current) { mountedScene = true; setSceneMounted(true); }
-      setWaitingForTransition(phase >= .48 && (!cloudLoaded.current || !sceneAvailable) && !complete.current);
+      setWaitingForTransition(!complete.current && ((phase >= .48 && (!cloudLoaded.current || !sceneAvailable)) || (phase >= (portalEnabled ? .9 : .48) && !homeAvailable)));
       const showingClouds = phase >= .55;
       if (!showingClouds) { clearTimeout(cloudTimer.current); cloudTimer.current = undefined; cloudHeld.current = false; }
       else if (cloudLoaded.current && !cloudHeld.current && !cloudTimer.current) {
         cloudTimer.current = setTimeout(() => { cloudTimer.current = undefined; cloudHeld.current = true; apply(); }, CLOUD_HOLD_MS);
       }
-      if (phase > .59 && (!sceneAvailable || !cloudHeld.current) && !complete.current) {
+      if (phase > .59 && (!sceneAvailable || !cloudHeld.current || (!portalEnabled && !homeAvailable)) && !complete.current) {
         const start = host.getBoundingClientRect().top + window.scrollY;
         const checkpoint = start + spacer.offsetHeight * (.58 / timelineEnd);
         window.dispatchEvent(new CustomEvent('rico:scroll-to', { detail: { top: checkpoint } }));
         window.scrollTo({ top: checkpoint, behavior: 'instant' as ScrollBehavior });
         phase = .58; p = phase / timelineEnd; progress.current = p;
+      }
+      if (portalEnabled && p > .94 && !homeAvailable && !complete.current) {
+        const checkpoint = host.getBoundingClientRect().top + window.scrollY + spacer.offsetHeight * .93;
+        window.dispatchEvent(new CustomEvent('rico:scroll-to', { detail: { top: checkpoint } }));
+        window.scrollTo({ top: checkpoint, behavior: 'instant' as ScrollBehavior });
+        p = phase = .93; progress.current = p;
       }
       mediaProgress.current = phase;
       const flow = introFlow(phase);
@@ -184,7 +202,7 @@ export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_E
       if (videoHost.current) videoHost.current.style.visibility = !portalEnabled || flow.videoVisible || !cloudLoaded.current ? 'visible' : 'hidden';
       if (wash.current) wash.current.style.opacity = String(smoothRange(.78, .845, flow.scene) * (1 - smoothRange(.86, .94, flow.scene)) * .88);
       if (!document.hidden && p >= .55 && p < 1) sceneInvalidate.current?.();
-      const handoff = (cloudHeld.current && sceneAvailable) || complete.current ? smoothRange(portalEnabled ? .94 : .59, timelineEnd, phase) : 0;
+      const handoff = (cloudHeld.current && sceneAvailable && homeAvailable) || complete.current ? smoothRange(portalEnabled ? .94 : .59, timelineEnd, phase) : 0;
       const ending = p >= 1 && handoff === 1;
       if (!ending) { clearTimeout(finishTimer.current); finishTimer.current = undefined; complete.current = false; }
       // A large flick can cross the whole runway. Land at the actual hero's top
@@ -240,7 +258,7 @@ export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_E
       page.style.transform = ''; page.style.opacity = ''; page.inert = false; page.removeAttribute('aria-hidden');
       publishIntroPhase();
     };
-  }, [enabled, releaseHome, openHome, portalEnabled, mediaProgress]);
+  }, [enabled, releaseHome, openHome, portalEnabled, mediaProgress, prepareHome]);
 
   const skip = () => openHome('skipped', false);
   return <div ref={root} className="cinematic-experience cinematic-video-experience" data-cinematic-experience data-intro-mode={enabled ? portalEnabled ? 'video-3d' : 'video' : 'direct'} data-intro-portal={portalEnabled} data-intro-bypass={bypassReason} data-video-device={mobile ? 'mobile' : 'desktop'}>
@@ -259,6 +277,7 @@ export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_E
         <div className="cinematic-video-shade" aria-hidden="true" />
         <button type="button" onClick={skip} className="cinematic-skip cinematic-video-skip">Skip intro <span aria-hidden="true">↗</span></button>
         {!ready && <div className="cinematic-video-loading" role="status" aria-live="polite"><span className="cinematic-video-spinner" aria-hidden="true" /><span>Preparing the film{buffered > 0 ? ` · ${buffered}%` : '…'}</span></div>}
+        {ready && waitingForTransition && homePreparing && homePending && <div className="cinematic-video-loading" role="status">Opening your campus…</div>}
         {sceneMounted && !sceneLoaded && progress.current >= .55 && <div className="cinematic-video-loading" role="status">Opening the 3D realm…</div>}
         <div ref={hint} className="cinematic-video-scroll"><span aria-hidden="true">↓</span><span>SCROLL TO ENTER<small>Your journey moves with you.</small></span></div>
         {portalEnabled && <div ref={lookHint} className="cinematic-video-scroll cinematic-look-hint" hidden><span aria-hidden="true">↔</span><span>DRAG TO LOOK AROUND<small>Scroll to move forward.</small></span></div>}

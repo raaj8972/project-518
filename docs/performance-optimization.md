@@ -31,8 +31,8 @@ Opening follow-up: Chrome preview verified the original complete sequence, then 
 
 Final verification: **158 tests across 19 files**, application TypeScript check and production Vite build passed. Chrome production preview rendered the existing Gallery and Sponsors pages, including the synchronous configured sponsor-package icons. No original image, video, model or stylesheet artwork was edited by this optimization pass. The portal remains disabled as requested.
 
-## Wallpaper to 3D loading follow-up
+## Intro to complete homepage handoff
 
-The wallpaper stays mounted as the island prepares. Once the island, flag logos and ground texture have loaded and the renderer has painted its complete frame, the canvas fades in over 700ms while the wallpaper fades out. The original background plate, artwork, island and text remain unchanged. Reduced-motion preferences disable the fade; renderer failure keeps the static artwork available. Verified the ready-frame opacity states and retained wallpaper node, existing fallback/timeout behavior and intro separation: 49 focused tests passed, plus TypeScript and production build. Chrome production preview confirmed the completed island view.
+The homepage island, flags and textures prepare behind the intro, with their animation loop suspended while covered. Loading the wallpaper no longer counts as scene readiness. The intro keeps its full cloud cover until the first complete homepage frame is painted, then reveals that scene directly; no temporary wallpaper or image-to-3D crossfade appears. The same renderer instance survives handoff. Static artwork is reserved for an actual unsupported/failed renderer. Visible-time loading deadlines prevent a stuck intro, and both the video-only default and retained portal version are covered.
 
-These are source, bundle-graph and behavioral results; no production Core Web Vitals score is claimed. Existing festival canvas/WebGL renderers were audited and already cap frame rate/pixel density and pause offscreen/hidden work. No production database schema or infrastructure changes were needed for the identified bottlenecks.
+Validation: 84 targeted tests across eight files, TypeScript and production build passed. Chrome preview showed the film, opaque cloud hold and completed island/flag scene, without the temporary wallpaper stage.

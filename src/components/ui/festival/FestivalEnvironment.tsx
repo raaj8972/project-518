@@ -2,25 +2,33 @@ import { memo, useEffect, useRef, useState, type KeyboardEvent, type PointerEven
 import type { EnvironmentController } from './environmentRenderer';
 import './FestivalEnvironment.css';
 import { useCinematicIntroActive, useStaticExperience } from '../../../hooks/useStaticExperience';
+import { useFestivalSceneReadiness } from './FestivalSceneReadiness';
+import { visibleTimeout } from '../../cinematic/introCapability';
 
 /** The real-time world is isolated from the site's text, routing and forms. */
 export const FestivalEnvironment = memo(function FestivalEnvironment({ logoUrl, onSettled }: { logoUrl?: string; onSettled?: (settled: boolean) => void }) {
   const staticExperience = useStaticExperience();
   const introActive = useCinematicIntroActive();
+  const { preparing } = useFestivalSceneReadiness();
+  const canPrepare = !introActive || preparing;
+  const covered = useRef(introActive);
+  covered.current = introActive;
+  const inView = useRef(true);
   const host = useRef<HTMLDivElement>(null);
   const islandControl = useRef<HTMLDivElement>(null);
   const controller = useRef<EnvironmentController | null>(null);
   const [plateLoaded, setPlateLoaded] = useState(false);
   const [state, setState] = useState<'loading' | 'ready' | 'fallback'>('loading');
   const unavailable = staticExperience || state === 'fallback';
-  // A visible image is sufficient to open the page; WebGL upgrades it afterward.
-  useEffect(() => { onSettled?.(plateLoaded || unavailable || state !== 'loading'); }, [plateLoaded, state, unavailable, onSettled]);
+  // A wallpaper decode is not readiness: the handoff waits for the real island,
+  // flags, textures and their first rendered frame (or an actual fallback).
+  useEffect(() => { onSettled?.(unavailable || state === 'ready'); }, [state, unavailable, onSettled]);
   useEffect(() => {
-    if (state !== 'loading' || staticExperience || introActive) return;
+    if (state !== 'loading' || staticExperience || !canPrepare) return;
     // A stalled image/module must not leave the opening blocking navigation forever.
-    const timer = setTimeout(() => setState('fallback'), 10000);
-    return () => clearTimeout(timer);
-  }, [state, staticExperience, introActive]);
+    return visibleTimeout(() => setState('fallback'), 10000);
+  }, [state, staticExperience, canPrepare]);
+  useEffect(() => { controller.current?.setVisible(!introActive && inView.current); }, [introActive]);
   const [paused, setPaused] = useState(() => {
     try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
     catch { return false; }
@@ -38,7 +46,7 @@ export const FestivalEnvironment = memo(function FestivalEnvironment({ logoUrl, 
   useEffect(() => {
     const element = host.current; const control = islandControl.current;
     const section = element?.closest('section');
-    if (!plateLoaded || !element || !section || !control || unavailable || introActive || document.documentElement.dataset.cinematicIntro === 'active') return;
+    if (!plateLoaded || !element || !section || !control || unavailable || !canPrepare || (!preparing && document.documentElement.dataset.cinematicIntro === 'active')) return;
     setState('loading');
     let disposed = false;
     let cleanup = () => {};
@@ -48,6 +56,7 @@ export const FestivalEnvironment = memo(function FestivalEnvironment({ logoUrl, 
       const world = createFestivalEnvironment(element, () => { if (!disposed) setState('fallback'); }, { logoUrl, islandControl: control });
       if (!world) return;
       controller.current = world;
+      world.setVisible(!covered.current && inView.current);
       let sectionBounds = { width: 0, height: 0, left: 0, top: 0 };
       let contentBottom = 0;
       const resize = () => {
@@ -68,7 +77,10 @@ export const FestivalEnvironment = memo(function FestivalEnvironment({ logoUrl, 
       }
       else window.addEventListener('resize', resize);
       let intersection: IntersectionObserver | undefined;
-      if (typeof IntersectionObserver !== 'undefined') { intersection = new IntersectionObserver(([entry]) => world.setVisible(entry.isIntersecting && (entry.intersectionRatio ?? 1) >= .08), { threshold: [0, .08] }); intersection.observe(section); }
+      if (typeof IntersectionObserver !== 'undefined') { intersection = new IntersectionObserver(([entry]) => {
+        inView.current = entry.isIntersecting && (entry.intersectionRatio ?? 1) >= .08;
+        world.setVisible(!covered.current && inView.current);
+      }, { threshold: [0, .08] }); intersection.observe(section); }
       let lastPointer = -Infinity;
       const react = (event: globalThis.PointerEvent) => {
         const now = performance.now();
@@ -81,7 +93,7 @@ export const FestivalEnvironment = memo(function FestivalEnvironment({ logoUrl, 
       cleanup = () => { resizeObserver?.disconnect(); intersection?.disconnect(); window.removeEventListener('resize', resize); section.removeEventListener('pointermove', react); section.removeEventListener('pointerdown', react); section.removeEventListener('pointerleave', release); world.dispose(); controller.current = null; };
     }).catch(() => { if (!disposed) setState('fallback'); }); }, 120);
     return () => { disposed = true; clearTimeout(start); cleanup(); };
-  }, [plateLoaded, logoUrl, unavailable, introActive]);
+  }, [plateLoaded, logoUrl, unavailable, canPrepare, preparing]);
   const setAngle = (angle: number | undefined) => { if (angle !== undefined) islandControl.current?.setAttribute('aria-valuenow', String(Math.round(angle))); };
   const startDrag = (event: PointerEvent<HTMLDivElement>) => {
     if (paused || !controller.current || event.button > 0) return;

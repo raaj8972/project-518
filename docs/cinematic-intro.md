@@ -2,7 +2,7 @@
 
 ## Current mode: video to homepage
 
-The owner temporarily removed the **live 3D character / hall / portal chapter** shown after the film. `INTRO_PORTAL_ENABLED` in `src/components/cinematic/introConfig.ts` is `false`. The opening video and its floating-island footage remain, followed by the sampled-cloud transition directly into the same mounted homepage. The runway is shortened to 520svh; the removed chapter leaves no blank scroll section. The film-only opening does not import the scene, show drag-to-look controls, wait for scene readiness, or require a WebGL capability probe.
+The owner temporarily removed the **live 3D character / hall / portal chapter** shown after the film. `INTRO_PORTAL_ENABLED` in `src/components/cinematic/introConfig.ts` is `false`. The opening video and its floating-island footage remain, followed by the sampled-cloud transition directly into the same mounted homepage. The runway is shortened to 520svh; the removed chapter leaves no blank scroll section. The film-only opening does not import the retained character/portal scene, show its drag-to-look controls, or require its WebGL capability probe. The actual homepage island prepares behind the film and must paint its first complete frame before the cloud cover releases; the fallback wallpaper is hidden during normal preparation.
 
 Fresh eligible document loads reset both native scrolling and Lenis to zero and temporarily use manual browser scroll restoration. Refreshing after reaching the homepage must start at the opening film, rather than restoring the old end-of-intro scroll position. The previous restoration mode is restored on teardown. Both `/` and the legacy `/health` homepage route use the cinematic wrapper; ordinary in-app navigation still avoids forced replay.
 

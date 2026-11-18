@@ -321,7 +321,7 @@ const InnerRouter: React.FC = () => {
 
   return (
     <>
-      <FestivalSceneProvider required={pathname === '/' && theme === 'spiderman'}>
+      <FestivalSceneProvider required={(pathname === '/' || pathname === '/health') && theme === 'spiderman'}>
         <SiteSpiderEffects pathname={pathname} theme={theme} isReady={isReady} />
         {actuallyShowLoader && theme !== 'spiderman' && (
           <div role="progressbar" aria-label="Loading" className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0a0a0a]">
