@@ -140,6 +140,12 @@ export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_E
     }
     let disposed = false, cleanup = () => {};
     const host = root.current!, page = home.current!, spacer = runway.current!, film = overlay.current!;
+    // A fresh film must start at frame zero. Browser scroll restoration can
+    // otherwise reopen the document at the old film ending or below Home.
+    const previousRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    window.dispatchEvent(new CustomEvent('rico:scroll-to', { detail: { top: 0 } }));
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     publishIntroPhase('active');
     page.inert = true; page.setAttribute('aria-hidden', 'true');
     let mountedScene = false;
@@ -230,6 +236,7 @@ export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_E
       disposed = true; cleanup(); window.removeEventListener('scroll', afterIntroScroll); clearTimeout(cloudTimer.current); clearTimeout(finishTimer.current);
       cloudTimer.current = undefined; finishTimer.current = undefined; cloudHeld.current = false;
       updateVisual.current = () => {};
+      window.history.scrollRestoration = previousRestoration;
       page.style.transform = ''; page.style.opacity = ''; page.inert = false; page.removeAttribute('aria-hidden');
       publishIntroPhase();
     };

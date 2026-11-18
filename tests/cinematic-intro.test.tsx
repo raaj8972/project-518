@@ -63,6 +63,25 @@ async function cloudLoaded() { await act(async () => host.querySelector('[data-v
 async function progressTo(progress: number) { y = 4800 * progress; mocks.state.progress = progress; await act(async () => mocks.options!.onUpdate(mocks.state)); }
 async function tick(ms: number) { await act(async () => vi.advanceTimersByTime(ms)); }
 
+it('starts a fresh intro at frame zero even when the browser restores a previous scroll position', async () => {
+  y = 4200;
+  window.history.scrollRestoration = 'auto';
+  vi.mocked(window.scrollTo).mockImplementation(options => {
+    if (typeof options === 'object') y = options.top || 0;
+  });
+  mocks.create.mockImplementation((options: Options) => {
+    mocks.options = options;
+    return { ...mocks.state, progress: y / 4800, kill: mocks.kill, refresh: vi.fn() };
+  });
+  await mount();
+  expect(y).toBe(0);
+  expect(window.history.scrollRestoration).toBe('manual');
+  expect(mocks.seek).toHaveBeenLastCalledWith(0);
+  expect(host.querySelector('.cinematic-video-meter > span')?.textContent).toBe('0%');
+  await act(async () => root.render(null));
+  expect(window.history.scrollRestoration).toBe('auto');
+});
+
 it('holds the cloud ending before revealing the same live Home, including on a fast scroll to the end', async () => {
   await mount(); await cloudLoaded();
   const page = host.querySelector<HTMLElement>('[data-cinematic-homepage]')!, title = host.querySelector('h1'), input = host.querySelector<HTMLInputElement>('input')!;
