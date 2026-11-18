@@ -54,7 +54,7 @@ describe.each(phones)('mobile festival at $width px', ({ width, height, contentB
     island.dispose();
   });
 
-  it('fits the large foreground flag below the buttons and above the footer', () => {
+  it('keeps the smaller side banner below the buttons and above the footer', () => {
     const flag = createBattleFlag();
     try {
       flag.root.scale.set(layout.foregroundFlagWidth / unit, layout.foregroundFlagHeight / 2.2 / unit, 1);
@@ -67,7 +67,7 @@ describe.each(phones)('mobile festival at $width px', ({ width, height, contentB
         expect(bounds.top).toBeGreaterThan(contentBottom + 8);
         expect(bounds.bottom).toBeLessThan(footerTop - 48);
       }
-      expect(layout.foregroundFlagHeight).toBeGreaterThan(layout.flagHeight * 1.3);
+      expect(layout.foregroundFlagWidth).toBeLessThan(width * .2);
     } finally { flag.dispose(); }
   });
 });

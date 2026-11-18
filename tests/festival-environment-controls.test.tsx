@@ -116,7 +116,7 @@ it('rotates the island by dragging and by keyboard without taking over vertical 
   await act(async () => slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true })));
   expect(mocks.world.resetRotation).toHaveBeenCalled(); expect(slider.getAttribute('aria-valuenow')).toBe('0');
 });
-it('respects reduced motion without displaying a scene toolbar or drag instructions', async () => {
+it('respects reduced motion without displaying scene controls', async () => {
   vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
   await mount();
   expect(mocks.world.setPaused).toHaveBeenLastCalledWith(true);
@@ -224,4 +224,11 @@ it('prepares a hidden scene behind the intro and reuses it at handoff without a 
   expect(mocks.create).toHaveBeenCalledOnce();
   expect(mocks.world.dispose).not.toHaveBeenCalled();
   expect(mocks.world.setVisible).toHaveBeenLastCalledWith(true);
+});
+
+it('shows the enlarged island without zoom buttons or a zoom toolbar', async () => {
+  await mount();
+  expect(host.querySelector('[data-island-tools]')).toBeNull();
+  expect(host.querySelector('button')).toBeNull();
+  expect(host.querySelector('[role="slider"]')).not.toBeNull();
 });

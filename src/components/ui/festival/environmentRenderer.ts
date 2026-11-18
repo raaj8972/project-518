@@ -7,7 +7,8 @@ import {
 } from 'three';
 import { createBattleFlag, createFloatingIsland, createGlowTexture } from './environmentModel';
 import { burstParticles, createParticleField, seededRandom, stepParticles, type WorldPointer } from './environmentMotion';
-import { getMobileFestivalLayout, MOBILE_ISLAND_BOUNDS } from './environmentLayout';
+import { getMobileFestivalLayout } from './environmentLayout';
+import { getIslandViewLayout } from './islandView';
 
 const vertexShader = 'varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
 const riverVertexShader = 'varying vec2 vUv; void main(){vUv=vec2(uv.x,uv.y*.24);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
@@ -200,6 +201,7 @@ export function createFestivalEnvironment(host: HTMLDivElement, onUnavailable: (
   let width = 1; let height = 1; let aspect = 1.7; let halfWidth = 8.5; let islandScale = 1;
   let seconds = 0; let lastTime = 0; let lastPaint = 0; let frame = 0; let frameInterval = 1000 / 25;
   let rotationOffset = 0;
+  let reservedSpace = 0, baseHeight = 1;
   let paused = true; let visible = true; let disposed = false; let contextLost = false; let pointerUntil = 0;
   const update = (delta: number) => {
     const t = seconds;
@@ -316,74 +318,70 @@ export function createFestivalEnvironment(host: HTMLDivElement, onUnavailable: (
   const lost = (event: Event) => { event.preventDefault(); contextLost = true; wake(); onUnavailable(); };
   renderer.domElement.addEventListener('webglcontextlost', lost);
   document.addEventListener('visibilitychange', wake);
+  const resizeScene = (nextWidth: number, nextHeight: number) => {
+    baseHeight = Math.max(1, nextHeight - reservedSpace);
+    width = Math.max(1, nextWidth); height = Math.max(1, nextHeight); aspect = width / height; halfWidth = aspect * 5;
+    camera.left = -halfWidth; camera.right = halfWidth; camera.updateProjectionMatrix();
+    frameInterval = 1000 / (width < 768 ? 20 : 25);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, width < 768 ? 1 : 1.5)); renderer.setSize(width, height);
+    sky.scale.set(halfWidth * 2, 10, 1); skyMaterial.uniforms.uAspect.value = aspect;
+    const section = host.closest('section');
+    const sectionTop = section?.getBoundingClientRect().top || 0;
+    const actions = section?.querySelector('.spider-hero-actions')?.getBoundingClientRect();
+    const contentBottom = actions ? actions.bottom - sectionTop : baseHeight * (width < 768 ? .6 : .58);
+    const mobileLayout = width < 768 ? getMobileFestivalLayout(width, height, contentBottom, height - 110) : null;
+    const view = getIslandViewLayout({ width, height, baseHeight, contentBottom, bounds: islandBounds });
+    if (Math.abs(view.extraSpace - reservedSpace) > .1) {
+      reservedSpace = view.extraSpace;
+      section?.style.setProperty('--island-extra-space', `${reservedSpace}px`);
+    }
+    islandScale = view.scale; islandAnchor.position.y = view.anchorY;
+    islandAnchor.scale.setScalar(islandScale);
+    if (options.islandControl) {
+      options.islandControl.style.top = `${view.top}px`;
+      options.islandControl.style.width = `${Math.min(width, view.width)}px`;
+      options.islandControl.style.height = `${view.height}px`;
+    }
+    // The flags attach to the architecture using the same cover crop as the plate.
+    const imageScale = Math.max(width / 1672, height / 941);
+    const offsetX = (width - 1672 * imageScale) * .5; const offsetY = (height - 941 * imageScale) * .64;
+    // Only rasterize the bottom quarter where the river is painted. Its UVs
+    // still use the full-hero cover crop, so it remains pinned to the rocks.
+    ground.scale.set(halfWidth * 2, 2.4, 1); ground.position.y = -3.8;
+    groundMaterial.uniforms.uAspect.value = aspect;
+    groundMaterial.uniforms.uCover.value.set(width / (1672 * imageScale), height / (941 * imageScale), -offsetX / (1672 * imageScale), 1 - height / (941 * imageScale) + offsetY / (941 * imageScale));
+    const anchors = [[.112, .17, .105, .42], [.94, .235, .091, .37], [.205, .51, .04, .19], [.83, .55, .043, .2]];
+    flags.forEach((flag, i) => {
+      const [x, y, w, h] = anchors[i];
+      flag.root.position.set(((x * 1672 * imageScale + offsetX) / width - .5) * halfWidth * 2, (.5 - (y * 941 * imageScale + offsetY) / height) * 10, 0);
+      flag.root.scale.set(w * 1672 * imageScale / height * 10, h * 941 * imageScale / height * 10 / 2.2, 1);
+      if (mobileLayout && i < 2) {
+        const x = i ? width - mobileLayout.flagInset : mobileLayout.flagInset;
+        flag.root.position.set((x / width - .5) * halfWidth * 2, (.5 - mobileLayout.flagTop / height) * 10, 0);
+        flag.root.scale.set(mobileLayout.flagWidth / height * 10, mobileLayout.flagHeight / 2.2 / height * 10, 1);
+      }
+      if (mobileLayout && i === 2) {
+        // Keep the tower-mounted banner along the left edge on phones.
+        flag.root.position.set((mobileLayout.foregroundFlagInset / width - .5) * halfWidth * 2, (.5 - mobileLayout.foregroundFlagTop / height) * 10, 0);
+        flag.root.scale.set(mobileLayout.foregroundFlagWidth / height * 10, mobileLayout.foregroundFlagHeight / 2.2 / height * 10, 1);
+      }
+      // Keep the whole banner behind every angle of the rotating campus.
+      if (i === 2) flag.root.position.z = islandBounds.min.z * islandScale - .6;
+      flag.root.renderOrder = 0;
+      flag.setWallMount(mobileLayout && i === 2 && mobileLayout.foregroundFlagWidth > 0
+        ? (mobileLayout.foregroundFlagInset - 28) / mobileLayout.foregroundFlagWidth : null,
+        mobileLayout && mobileLayout.foregroundFlagWidth > 0
+          ? (height - 42 - mobileLayout.foregroundFlagTop) / mobileLayout.foregroundFlagWidth : undefined);
+      flag.root.visible = width >= 768 || i < 3;
+    });
+    particleMaterial.uniforms.uSize.value = (width < 768 ? 2.8 : 3.2) * renderer.getPixelRatio();
+    sparkMaterial.uniforms.uSize.value = (width < 768 ? 5.5 : 6.5) * renderer.getPixelRatio();
+    update(0);
+  };
   const controller: EnvironmentController = {
     // Paint the fully textured frame even when the saved preference pauses animation.
     ready: Promise.all([island.ready, groundReady, ...flags.map(flag => flag.ready)]).then(() => { if (!disposed && !contextLost) update(0); }),
-    resize(nextWidth, nextHeight) {
-      width = Math.max(1, nextWidth); height = Math.max(1, nextHeight); aspect = width / height; halfWidth = aspect * 5;
-      camera.left = -halfWidth; camera.right = halfWidth; camera.updateProjectionMatrix();
-      frameInterval = 1000 / (width < 768 ? 20 : 25);
-      // Native mobile resolution and a bounded Retina budget keep the facade
-      // smooth without rendering the full-screen shaders at an uncapped DPR.
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, width < 768 ? 1 : 1.5)); renderer.setSize(width, height);
-      sky.scale.set(halfWidth * 2, 10, 1); skyMaterial.uniforms.uAspect.value = aspect;
-      const section = host.closest('section');
-      const sectionTop = section?.getBoundingClientRect().top || 0;
-      const actions = section?.querySelector('.spider-hero-actions')?.getBoundingClientRect();
-      const mobileLayout = width < 768 ? getMobileFestivalLayout(width, height, actions ? actions.bottom - sectionTop : height * .6, height - 110) : null;
-      if (mobileLayout) {
-        islandScale = mobileLayout.islandHeight / MOBILE_ISLAND_BOUNDS.height / height * 10;
-        islandAnchor.position.y = (.5 - mobileLayout.islandCenterY / height) * 10;
-      } else {
-        const sceneTop = (actions ? actions.bottom - sectionTop : height * .58) + 18;
-        const sceneBottom = Math.max(sceneTop + 1, height - 60);
-        const modelHeight = islandBounds.max.y - islandBounds.min.y;
-        const modelWidth = islandBounds.max.x - islandBounds.min.x;
-        const targetWidth = Math.min(width * .46, 760);
-        islandScale = Math.min(targetWidth / height * 10 / modelWidth, (sceneBottom - sceneTop) / height * 10 / modelHeight);
-        islandAnchor.position.y = (.5 - (sceneTop + sceneBottom) / 2 / height) * 10 - (islandBounds.min.y + islandBounds.max.y) / 2 * islandScale;
-      }
-      islandAnchor.scale.setScalar(islandScale);
-      if (options.islandControl) {
-        options.islandControl.style.top = `${(.5 - (islandAnchor.position.y + (mobileLayout ? MOBILE_ISLAND_BOUNDS.height / 2 : islandBounds.max.y) * islandScale) / 10) * height}px`;
-        options.islandControl.style.width = `${(mobileLayout ? MOBILE_ISLAND_BOUNDS.width : islandBounds.max.x - islandBounds.min.x) * islandScale / 10 * height}px`;
-        options.islandControl.style.height = `${(mobileLayout ? MOBILE_ISLAND_BOUNDS.height : islandBounds.max.y - islandBounds.min.y) * islandScale / 10 * height}px`;
-      }
-      // The flags attach to the architecture using the same cover crop as the plate.
-      const imageScale = Math.max(width / 1672, height / 941);
-      const offsetX = (width - 1672 * imageScale) * .5; const offsetY = (height - 941 * imageScale) * .64;
-      // Only rasterize the bottom quarter where the river is painted. Its UVs
-      // still use the full-hero cover crop, so it remains pinned to the rocks.
-      ground.scale.set(halfWidth * 2, 2.4, 1); ground.position.y = -3.8;
-      groundMaterial.uniforms.uAspect.value = aspect;
-      groundMaterial.uniforms.uCover.value.set(width / (1672 * imageScale), height / (941 * imageScale), -offsetX / (1672 * imageScale), 1 - height / (941 * imageScale) + offsetY / (941 * imageScale));
-      const anchors = [[.112, .17, .105, .42], [.94, .235, .091, .37], [.205, .51, .04, .19], [.83, .55, .043, .2]];
-      flags.forEach((flag, i) => {
-        const [x, y, w, h] = anchors[i];
-        flag.root.position.set(((x * 1672 * imageScale + offsetX) / width - .5) * halfWidth * 2, (.5 - (y * 941 * imageScale + offsetY) / height) * 10, 0);
-        flag.root.scale.set(w * 1672 * imageScale / height * 10, h * 941 * imageScale / height * 10 / 2.2, 1);
-        if (mobileLayout && i < 2) {
-          const x = i ? width - mobileLayout.flagInset : mobileLayout.flagInset;
-          flag.root.position.set((x / width - .5) * halfWidth * 2, (.5 - mobileLayout.flagTop / height) * 10, 0);
-          flag.root.scale.set(mobileLayout.flagWidth / height * 10, mobileLayout.flagHeight / 2.2 / height * 10, 1);
-        }
-        if (mobileLayout && i === 2) {
-          // The close banner needs its own portrait anchor: the desktop cover
-          // crop puts it offscreen, and it must sit in front of the campus.
-          flag.root.position.set((mobileLayout.foregroundFlagInset / width - .5) * halfWidth * 2, (.5 - mobileLayout.foregroundFlagTop / height) * 10, 4);
-          flag.root.scale.set(mobileLayout.foregroundFlagWidth / height * 10, mobileLayout.foregroundFlagHeight / 2.2 / height * 10, 1);
-        }
-        flag.root.renderOrder = mobileLayout && i === 2 ? 3 : 0;
-        flag.setWallMount(mobileLayout && i === 2 && mobileLayout.foregroundFlagWidth > 0
-          ? (mobileLayout.foregroundFlagInset - 28) / mobileLayout.foregroundFlagWidth : null,
-          mobileLayout && mobileLayout.foregroundFlagWidth > 0
-            ? (height - 42 - mobileLayout.foregroundFlagTop) / mobileLayout.foregroundFlagWidth : undefined);
-        flag.root.visible = width >= 768 || i < 3;
-      });
-      particleMaterial.uniforms.uSize.value = (width < 768 ? 2.8 : 3.2) * renderer.getPixelRatio();
-      sparkMaterial.uniforms.uSize.value = (width < 768 ? 5.5 : 6.5) * renderer.getPixelRatio();
-      update(0);
-    },
+    resize: resizeScene,
     setPaused(value) { paused = value; renderer.domElement.dataset.paused = String(value); if (value) update(0); wake(); },
     setVisible(value) { visible = value; wake(); },
     react(x, y, burst = false) {
@@ -399,6 +397,7 @@ export function createFestivalEnvironment(host: HTMLDivElement, onUnavailable: (
     },
     resetRotation() { rotationOffset -= island.getRotation(); if (!disposed) update(0); return 0; },
     dispose() {
+      host.closest('section')?.style.removeProperty('--island-extra-space');
       if (disposed) return; disposed = true; if (frame) cancelAnimationFrame(frame);
       document.removeEventListener('visibilitychange', wake); renderer.domElement.removeEventListener('webglcontextlost', lost);
       island.dispose(); scene.remove(islandAnchor); flags.forEach(flag => { flag.dispose(); scene.remove(flag.root); });

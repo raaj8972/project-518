@@ -126,10 +126,10 @@ body.theme-spiderman:not([data-festival-scope="staff"]) footer { border-top: 1px
 .spider-hero-video-shade { position: absolute; inset: 0; z-index: -2; background: linear-gradient(180deg, #020a0566 0%, #020a0533 45%, #020a0500 78%, #050d0833 100%), radial-gradient(ellipse at 50% 29%, #0512087a, transparent 65%); }
 .spider-hero-layout { position: relative; display: flex; justify-content: center; align-items: flex-start; min-height: inherit; max-width: 1540px; margin: auto; padding: clamp(126px, 14vh, 175px) 24px 250px; text-align: center; }
 @media (min-width: 768px) {
-  .spider-hero:has(.festival-environment) { min-height: max(680px, 100svh); }
+  .spider-hero:has(.festival-environment) { min-height: calc(max(680px, 100svh) + var(--island-extra-space, 0px)); }
   .spider-hero:has(.festival-environment) .spider-hero-layout {
     padding-top: clamp(100px, 12svh, 144px);
-    padding-bottom: clamp(260px, 38svh, 520px);
+    padding-bottom: calc(clamp(260px, 38svh, 520px) + var(--island-extra-space, 0px));
   }
 }
 .spider-hero-copy { width: min(100%, 1110px); position: relative; z-index: 1; }
@@ -256,6 +256,8 @@ body:has([data-spider-web-transition]) :is(.site-spider-overlay, .site-spider-co
   body.theme-spiderman:not([data-festival-scope="staff"]) .bollywood-text { font-size: 19px; }
   .spider-hero { min-height: max(780px, 100svh); }
   .spider-hero-layout { padding: clamp(112px, 15svh, 148px) 16px max(430px, calc(79vw + 180px)); }
+  .spider-hero:has(.festival-environment) { min-height: calc(max(780px, 100svh) + var(--island-extra-space, 0px)); }
+  .spider-hero:has(.festival-environment) .spider-hero-layout { padding-bottom: calc(max(430px, 79vw + 180px) + var(--island-extra-space, 0px)); }
   .spider-hero-city { object-position: 49% center; }
   .spider-hero-video-shade { background: linear-gradient(180deg, #04100966, #04100999 27%, #04100933 64%, #0410094d); }
   .spider-hero-eyebrow { gap: 10px; font-size: 8px; letter-spacing: .33em; margin-bottom: 16px; }

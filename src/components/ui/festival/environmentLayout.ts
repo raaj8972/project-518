@@ -8,11 +8,10 @@ export function getMobileFestivalLayout(width: number, height: number, contentBo
   const availableHeight = sceneBottom - sceneTop;
   const islandHeight = Math.min(width * .88 / MOBILE_ISLAND_BOUNDS.width * MOBILE_ISLAND_BOUNDS.height, availableHeight);
   const islandWidth = islandHeight / MOBILE_ISLAND_BOUNDS.height * MOBILE_ISLAND_BOUNDS.width;
-  // Leave the close banner visually larger than the two distant side flags,
-  // even when a short screen compresses the space below the action buttons.
+  // Keep the side banners visible without competing with the campus facade.
   const flagHeight = Math.min(160, width * .38, availableHeight * .5);
   const flagWidth = flagHeight / 2.8;
-  const foregroundFlagHeight = Math.min(250, width * .62, Math.max(0, availableHeight - 16) / 1.2);
+  const foregroundFlagHeight = Math.min(190, width * .42, Math.max(0, availableHeight - 16) * .65);
   const foregroundFlagWidth = foregroundFlagHeight / 2.2;
   return {
     islandWidth, islandHeight,
@@ -20,7 +19,7 @@ export function getMobileFestivalLayout(width: number, height: number, contentBo
     flagWidth, flagHeight, flagTop: sceneTop,
     flagInset: 12 + flagWidth * .7,
     foregroundFlagHeight, foregroundFlagWidth,
-    foregroundFlagInset: 12 + foregroundFlagWidth * .7,
+    foregroundFlagInset: 10 + foregroundFlagWidth * .6,
     foregroundFlagTop: sceneBottom - foregroundFlagHeight - 10,
     toolbarTop: Math.min(height - 44, footerTop - 44),
   };
