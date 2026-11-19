@@ -1,19 +1,17 @@
+import { secureEvent } from './lib/api-security';
 import type { Handler } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
-export const handler: Handler = async (event) => {
+const implementation: Handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
   
   const { getSupabaseClient } = await import('./lib/supabase');
   const supabase = getSupabaseClient(true);
 
   const authHeader = event.headers['authorization'] || event.headers['Authorization']
-  const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key']
-  const MASTER_KEY = process.env.MASTER_PASSWORD;
 
-  const isMasterAuthorized = !!(MASTER_KEY && masterKey === MASTER_KEY);
 
-  if (!isMasterAuthorized) {
+  {
     if (!authHeader) {
       return { statusCode: 401, body: 'Missing authorization header' }
     }
@@ -60,3 +58,5 @@ export const handler: Handler = async (event) => {
     }
   }
 }
+
+export const handler = secureEvent('add-admin-user', implementation);

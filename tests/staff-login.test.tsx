@@ -66,7 +66,7 @@ it('opens the selected identity, focuses its password and clears credentials whe
   expect(container.querySelector<HTMLInputElement>('#staff-email')?.value).toBe(ownerEmail);
   expect(document.activeElement?.id).toBe('staff-password');
   await input('staff-password', 'fixture-password'); await submit();
-  expect(mocks.login).toHaveBeenCalledWith(ownerEmail, 'fixture-password', undefined, false);
+  expect(mocks.login).toHaveBeenCalledWith(ownerEmail, 'fixture-password', undefined);
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('Invalid credentials');
   await click('Reset identity');
   expect(container.querySelector<HTMLInputElement>('#staff-password')?.value).toBe('');
@@ -78,22 +78,22 @@ it('submits an authenticator code through the same login flow', async () => {
   expect(container.querySelector('#staff-code')).not.toBeNull();
   expect(document.activeElement?.id).toBe('staff-code');
   await input('staff-code', '123456'); await submit();
-  expect(mocks.login).toHaveBeenLastCalledWith('admin@example.test', 'fixture-password', '123456', false);
+  expect(mocks.login).toHaveBeenLastCalledWith('admin@example.test', 'fixture-password', '123456');
   expect(mocks.navigate).toHaveBeenCalledWith('/admin');
 });
-it('keeps the owner master-gate handoff', async () => {
+it('requires an owner authenticator code without persisting the account password or navigating to a bypass', async () => {
   mocks.login.mockResolvedValue({ success: false, requiresTOTP: true, role: 'owner' });
   await mount(); await click('Admin'); await click('Super Admin'); await input('staff-password', 'fixture-password'); await submit();
-  expect(mocks.navigate).toHaveBeenCalledWith('/master-node-access');
-  expect(JSON.parse(sessionStorage.getItem('rico_fast_track_creds')!)).toEqual({ e: ownerEmail, p: 'fixture-password' });
+  expect(container.querySelector('#staff-code')).not.toBeNull();
+  expect(mocks.navigate).not.toHaveBeenCalled();
+  expect(sessionStorage.getItem('rico_fast_track_creds')).toBeNull();
 });
-it('consumes fast-track credentials once without using stale form state', async () => {
+it('discards legacy fast-track credentials without using them to sign in', async () => {
   window.history.replaceState({}, '', '/login?mode=master');
   sessionStorage.setItem('rico_master_gate_access', 'vault_v2_fixture');
   sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: 'fixture@example.com', p: 'fixture-password' }));
-  mocks.login.mockResolvedValue({ success: true });
   await mount();
-  expect(mocks.login).toHaveBeenCalledExactlyOnceWith('fixture@example.com', 'fixture-password', undefined, true);
+  expect(mocks.login).not.toHaveBeenCalled();
   expect(sessionStorage.getItem('rico_fast_track_creds')).toBeNull();
 });
 it('supports Google sign-in and renders provider failures', async () => {

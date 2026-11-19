@@ -1,8 +1,9 @@
+import { secureEvent } from './lib/api-security';
 import { type Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { callAI, AIMessage, AIModel } from './lib/ai';
 
-export const handler: Handler = async (event) => {
+const implementation: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
@@ -81,3 +82,5 @@ CRITICAL: Return ONLY raw JSON. No markdown blocks.
     return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
   }
 };
+
+export const handler = secureEvent('ai-extract-passwords', implementation);

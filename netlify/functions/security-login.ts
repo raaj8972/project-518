@@ -1,3 +1,4 @@
+import { trustedClientIp } from './lib/client-ip';
 import type { Handler } from '@netlify/functions';
 import { createHash } from 'node:crypto';
 import { getSupabaseClient } from './lib/supabase';
@@ -9,7 +10,7 @@ export const handler: Handler = async event => {
     const { username, password } = JSON.parse(event.body || '{}');
     if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password || password.length > 128) return reply(400, { error: 'Name and PIN/password are required' });
     const client = getSupabaseClient(true);
-    const ip = event.headers['x-forwarded-for']?.split(',')[0]?.trim() || 'local';
+    const ip = trustedClientIp(event.headers);
     const { data: limit, error: limitError } = await client.rpc('check_rate_limit', { request_ip: ip });
     if (limitError) return reply(503, { error: 'Login service unavailable' });
     if (limit && !limit.allowed) return reply(429, { error: 'Too many attempts' });

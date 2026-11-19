@@ -1,9 +1,10 @@
+import { secureEvent } from './lib/api-security';
 import { Handler } from '@netlify/functions';
 import { verifyAdmin } from './lib/auth-verify';
 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
-export const handler: Handler = async (event) => {
+const implementation: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
@@ -120,3 +121,5 @@ export const handler: Handler = async (event) => {
     };
   }
 };
+
+export const handler = secureEvent('sync-drive-folders', implementation);

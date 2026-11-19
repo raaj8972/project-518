@@ -1,3 +1,4 @@
+import { secureRequest } from './lib/api-security';
 
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from './lib/email';
@@ -77,7 +78,7 @@ const getEmailTemplate = (eventTitle: string, fullName: string, reason: string, 
     `;
 };
 
-export default async (req: Request) => {
+const implementation = async (req: Request) => {
   if (!['POST', 'OPTIONS'].includes(req.method)) return Response.json({ error: 'Method not allowed' }, { status: 405, headers: { Allow: 'POST, OPTIONS' } });
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
@@ -185,3 +186,5 @@ export default async (req: Request) => {
         return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
     }
 };
+
+export default secureRequest('send-rejection', implementation);

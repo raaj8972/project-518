@@ -1,7 +1,8 @@
+import { secureEvent } from './lib/api-security';
 import { type Handler } from '@netlify/functions';
 import { callAI, AIMessage, AIModel } from './lib/ai';
 
-export const handler: Handler = async (event) => {
+const implementation: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
@@ -102,3 +103,5 @@ QUALITY RULES:
     };
   }
 };
+
+export const handler = secureEvent('ai-extract-homebound', implementation);

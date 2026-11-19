@@ -1,8 +1,9 @@
+import { secureEvent } from './lib/api-security';
 import { type Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { callAI, AIMessage, AIModel } from './lib/ai';
 
-export const handler: Handler = async (event) => {
+const implementation: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
@@ -88,3 +89,5 @@ Required JSON structure - an Array of Sponsor objects:
     return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message || 'Internal Server Error' }) };
   }
 };
+
+export const handler = secureEvent('ai-extract-sponsors', implementation);

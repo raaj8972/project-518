@@ -1,25 +1,30 @@
+import { secureEvent } from './lib/api-security';
+import { fetchImage } from './lib/media-fetch';
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
-import { Canvas, Image, ImageData, loadImage } from 'canvas';
+import { createRequire } from 'node:module';
 import { TextEncoder, TextDecoder } from 'util';
 
-// Monkey-patch globals BEFORE requiring face-api
-// This is critical for the browser/wasm bundle to work in Node
-(global as any).Canvas = Canvas;
-(global as any).Image = Image;
-(global as any).ImageData = ImageData;
-(global as any).TextEncoder = TextEncoder;
-(global as any).TextDecoder = TextDecoder;
-
-// Use node-wasm bundle with explicit backend
-require('@tensorflow/tfjs-backend-wasm');
-const faceapi = require('@vladmandic/face-api/dist/face-api.node-wasm.js');
-
-// Explicitly patch env as well
-faceapi.env.monkeyPatch({ Canvas, Image, ImageData } as any);
+// Native vision dependencies are initialized only after API authorization succeeds.
+let faceapi: any;
+let loadImage: any;
+async function initializeVision() {
+    if (faceapi) return;
+    const canvas = await import('canvas');
+    loadImage = canvas.loadImage;
+    (global as any).Canvas = canvas.Canvas;
+    (global as any).Image = canvas.Image;
+    (global as any).ImageData = canvas.ImageData;
+    (global as any).TextEncoder = TextEncoder;
+    (global as any).TextDecoder = TextDecoder;
+    const require = createRequire(`${process.cwd()}/package.json`);
+    require('@tensorflow/tfjs-backend-wasm');
+    faceapi = require('@vladmandic/face-api/dist/face-api.node-wasm.js');
+    faceapi.env.monkeyPatch({ Canvas: canvas.Canvas, Image: canvas.Image, ImageData: canvas.ImageData } as any);
+}
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 console.log('[FaceIndex] Init: Checking Env Vars...');
 if (!supabaseUrl || !supabaseKey) {
@@ -39,6 +44,7 @@ let modelsLoaded = false;
 
 const loadModels = async () => {
     if (modelsLoaded) return;
+    await initializeVision();
 
     try {
         console.log('[FaceIndex] Initializing TensorFlow WASM backend...');
@@ -78,7 +84,7 @@ const loadModels = async () => {
     }
 };
 
-export const handler: Handler = async (event, context) => {
+const implementation: Handler = async (event, context) => {
     console.log('[FaceIndex] Function invoked.');
     
     if (event.httpMethod !== 'POST') {
@@ -90,7 +96,8 @@ export const handler: Handler = async (event, context) => {
         await loadModels();
         
         const body = JSON.parse(event.body || '{}');
-        const { limit = 5 } = body;
+        const limit = body.limit ?? 5;
+        if (!Number.isInteger(limit) || limit < 1 || limit > 10) return { statusCode: 400, body: JSON.stringify({ error: 'Choose a batch of 1 to 10 images' }) };
         console.log('[FaceIndex] Processing batch with limit:', limit);
         
         // Fetch unindexed images using 'faces_indexed'
@@ -122,20 +129,11 @@ export const handler: Handler = async (event, context) => {
             try {
                 console.log(`[FaceIndex] Image ${img.id} start: ${img.src}`);
                 
-                let loadedImage;
-                
-                if (img.src.startsWith('drive://')) {
-                    const fileId = img.src.replace('drive://', '');
-                    const driveUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-                    
-                    const res = await fetch(driveUrl);
-                    if (!res.ok) throw new Error(`Google Drive access failed: ${res.status} ${res.statusText}`);
-                    const arrayBuffer = await res.arrayBuffer();
-                    loadedImage = await loadImage(Buffer.from(arrayBuffer));
-                    
-                } else {
-                    loadedImage = await loadImage(img.src);
-                }
+                const source = img.src.startsWith('drive://')
+                    ? `https://drive.google.com/uc?export=download&id=${encodeURIComponent(img.src.slice(8))}`
+                    : img.src;
+                const { buffer } = await fetchImage(source);
+                const loadedImage = await loadImage(buffer);
 
                 console.log(`[FaceIndex] Image loaded successfully (${loadedImage.width}x${loadedImage.height})`);
                 
@@ -204,3 +202,5 @@ export const handler: Handler = async (event, context) => {
         };
     }
 };
+
+export const handler = secureEvent('index-faces-batch', implementation);

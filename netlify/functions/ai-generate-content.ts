@@ -1,8 +1,9 @@
+import { secureEvent } from './lib/api-security';
 import { type Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { callAI, AIMessage, AIModel } from './lib/ai';
 
-export const handler: Handler = async (event: any) => {
+const implementation: Handler = async (event: any) => {
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
@@ -68,3 +69,5 @@ export const handler: Handler = async (event: any) => {
     };
   }
 };
+
+export const handler = secureEvent('ai-generate-content', implementation);

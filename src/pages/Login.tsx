@@ -20,7 +20,7 @@ const roles = [
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login, loginWithGoogle, isAuthenticated, loading: authLoading, lastAuthError, user } = useAuth();
+  const { login, loginWithGoogle, isAuthenticated, loading: authLoading, lastAuthError, user, requiresMFA, completeMFA } = useAuth();
   const { homepageSettings } = useData();
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([owner]);
   const [email, setEmail] = useState('');
@@ -40,7 +40,6 @@ export const Login: React.FC = () => {
   const passwordRef = useRef<HTMLInputElement>(null);
   const totpRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const fastTrackStarted = useRef(false);
   const isMasterActive = new URLSearchParams(window.location.search).get('mode') === 'master'
     && !!sessionStorage.getItem('rico_master_gate_access')?.startsWith('vault_v2_');
   const rawLogo = homepageSettings?.brand_logo_url?.trim();
@@ -83,20 +82,21 @@ export const Login: React.FC = () => {
     if (isMasterActive) { setStep('credentials');setSelectedRole('owner');setEmail(owner.email); }
   },[isMasterActive]);
 
+  useEffect(() => {
+    sessionStorage.removeItem('rico_fast_track_creds');
+    if (requiresMFA) { setRequiresTOTP(true); setStep('credentials'); }
+  }, [requiresMFA]);
+
   async function authenticate(identity: string, accessKey: string, code?: string) {
     setError('');
     setIsLoading(true);
     try {
-      const result = await login(identity, accessKey, code || undefined, isMasterActive);
+      const result = requiresMFA && completeMFA ? await completeMFA(code || '') : await login(identity, accessKey, code || undefined);
       if (result.success) {
         navigate('/admin');
       } else if (result.requiresTOTP) {
-        if (result.role === 'owner' && !isMasterActive) {
-          sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: identity, p: accessKey }));
-          navigate('/master-node-access');
-        } else {
-          setRequiresTOTP(true);
-        }
+        setRequiresTOTP(true);
+        if (result.error) setError(result.error);
       } else setError(result.error || 'Authentication failed. Please try again.');
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Check your connection.');
@@ -105,23 +105,6 @@ export const Login: React.FC = () => {
     }
   }
 
-  useEffect(() => {
-    if (!isMasterActive || fastTrackStarted.current) return;
-    const credentials = sessionStorage.getItem('rico_fast_track_creds');
-    if (!credentials) return;
-    fastTrackStarted.current = true;
-    sessionStorage.removeItem('rico_fast_track_creds');
-    try {
-      const { e, p } = JSON.parse(credentials);
-      if (typeof e !== 'string' || typeof p !== 'string') return;
-      setStep('credentials');
-      setEmail(e);
-      setPassword(p);
-      void authenticate(e, p);
-    } catch { setError('Please enter your login details again.'); }
-    // Consume the existing master-gate handoff once, using its actual credentials.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMasterActive]);
 
   const openForm = (identity?: string) => {
     setEmail(identity || '');setPassword('');setTotpCode('');setRequiresTOTP(false);setError('');
@@ -234,7 +217,7 @@ export const Login: React.FC = () => {
                   <label htmlFor="staff-code">Authentication code</label>
                   <input id="staff-code" ref={totpRef} name="totp" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={totpCode} onChange={event => setTotpCode(event.target.value.replace(/\D/g, ''))} required placeholder="000000" />
                 </div>}
-                <button className="staff-login-primary" type="submit" disabled={isLoading || !email || !password || (requiresTOTP && totpCode.length !== 6)}><LogIn size={18} />{isLoading ? 'Authenticating…' : requiresTOTP ? 'Verify & continue' : 'Access portal'}{!isLoading && <ArrowUpRight size={17} />}</button>
+                <button className="staff-login-primary" type="submit" disabled={isLoading || (!requiresMFA && (!email || !password)) || (requiresTOTP && totpCode.length !== 6)}><LogIn size={18} />{isLoading ? 'Authenticating…' : requiresTOTP ? 'Verify & continue' : 'Access portal'}{!isLoading && <ArrowUpRight size={17} />}</button>
                 <span className="staff-login-sr-only" role="status">{isLoading ? 'Authentication in progress' : ''}</span>
               </form>
               {!requiresTOTP && <>

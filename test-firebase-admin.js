@@ -6,7 +6,8 @@ admin.initializeApp({
 });
 
 const email = 'sports.council@rico.family';
-const password = process.env.COUNCIL_SECRET_PASSWORD || 'R1c0_Sp0rt5_C0unc1l_H1dd3n_P@ssw0rd!';
+const password = process.env.COUNCIL_SECRET_PASSWORD;
+if (!password) throw new Error('Configure COUNCIL_SECRET_PASSWORD before running this maintenance script');
 
 admin.auth().getUserByEmail(email)
   .then((userRecord) => {

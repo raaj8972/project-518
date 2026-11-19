@@ -16,6 +16,8 @@ export function localApi(): Plugin {
         const match = url.pathname.match(/^\/(?:api|\.netlify\/functions)\/([a-zA-Z0-9_-]+)$/);
         if (!match) return next();
         res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
         try {
           const name = match[1];
           const entry = ['ts', 'mts', 'js'].map(ext => resolve(server.config.root, `netlify/functions/${name}.${ext}`)).find(existsSync);

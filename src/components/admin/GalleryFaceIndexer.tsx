@@ -1,3 +1,4 @@
+import { fetchWithAuth } from '../../lib/authFetch';
 import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { 
@@ -82,7 +83,7 @@ export const GalleryFaceIndexer: React.FC = () => {
 
     while (keepGoing && !stopRequested) {
       try {
-        const res = await fetch('/api/index-faces-batch', {
+        const res = await fetchWithAuth('/api/index-faces-batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ limit: 1 })

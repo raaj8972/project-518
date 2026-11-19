@@ -435,6 +435,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast({ message: 'Use a spreadsheet smaller than 5 MB', type: 'error' }); return; }
 
     const reader = new FileReader();
     reader.onload = async (evt) => {
@@ -445,11 +446,12 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         // Dynamically load XLSX library only when needed
         const XLSX = await import('xlsx');
         
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wb = XLSX.read(bstr, { type: 'binary', sheetRows: 5001, bookVBA: false, cellFormula: false });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const data = XLSX.utils.sheet_to_json(ws);
         
+        if (data.length > 5000) { toast({ message: 'Import at most 5,000 rows at a time', type: 'error' }); return; }
         if (data.length === 0) {
           toast({ message: 'File is empty', type: 'error' });
           return;

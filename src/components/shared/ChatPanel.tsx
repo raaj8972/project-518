@@ -213,7 +213,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         for (let i = 0; i < studentIds.length; i += chunkSize) {
           const chunk = studentIds.slice(i, i + chunkSize);
           const { data: profileRows } = await supabase
-            .from('profiles')
+            .from('public_profiles')
             .select('id, full_name')
             .in('id', chunk);
           if (profileRows) profileRows.forEach((p: any) => {
@@ -259,7 +259,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         for (let i = 0; i < studentIds.length; i += chunkSize) {
           const chunk = studentIds.slice(i, i + chunkSize);
           const { data: profileRows } = await supabase
-            .from('profiles')
+            .from('public_profiles')
             .select('id, full_name')
             .in('id', chunk);
           if (profileRows) profileRows.forEach((p: any) => {

@@ -1,7 +1,8 @@
+import { secureRequest } from './lib/api-security';
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from './lib/email';
 
-export default async (req: Request) => {
+const implementation = async (req: Request) => {
   if (!['POST', 'OPTIONS'].includes(req.method)) return Response.json({ error: 'Method not allowed' }, { status: 405, headers: { Allow: 'POST, OPTIONS' } });
   // CORS headers
   const headers = {
@@ -255,3 +256,5 @@ export default async (req: Request) => {
     }), { status: 500, headers });
   }
 };
+
+export default secureRequest('send-confirmation', implementation);

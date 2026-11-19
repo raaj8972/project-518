@@ -99,7 +99,7 @@ const StudentLogin: React.FC = () => {
     try {
       // Validate uniqueness
       const { data: existingUser, error: checkErr } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id')
         .eq('username', cleanUsername)
         .neq('id', profile?.id)

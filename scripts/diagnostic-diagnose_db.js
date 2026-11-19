@@ -1,4 +1,4 @@
-import { getSupabaseClient } from './lib/supabase';
+import { getSupabaseClient } from '../netlify/functions/lib/supabase';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -16,7 +16,7 @@ async function diagnose() {
     .select('*');
 
   if (adminError) console.error("Admin Users Error:", adminError.message);
-  else console.log("Admins Count:", admins.length, admins);
+  else console.log("Admins Count:", admins.length);
 
   console.log("\n--- Checking Users Table (Target Emails) ---");
   const { data: users, error: userError } = await supabase
@@ -25,7 +25,7 @@ async function diagnose() {
     .in('email', ['raja@rico.fun', 'raaj@rico.fun', 'raaj8972@gmail.com']);
 
   if (userError) console.error("Users Table Error:", userError.message);
-  else console.log("Matching Users:", users);
+  else console.log("Matching user count:", users?.length);
   
   // Also try to check the schema of admin_users via a query that might fail but give us info
   console.log("\n--- Checking Table info ---");

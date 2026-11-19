@@ -1,3 +1,4 @@
+import { secureEvent } from './lib/api-security';
 
 import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
@@ -6,7 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 // Endpoint: POST /.netlify/functions/update-admin-email { userId, newEmail }
 // Auth: requires a Supabase session JWT in Authorization: Bearer <access_token>
 
-export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
+const implementation: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
     const { getSupabaseClient } = await import('./lib/supabase');
@@ -16,16 +17,13 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     if (!userId || !newEmail) return { statusCode: 400, body: 'Missing userId/newEmail' }
 
     const authHeader = event.headers['authorization'] || event.headers['Authorization']
-    const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key']
 
-    const MASTER_KEY = process.env.MASTER_PASSWORD;
-  const isAuthorized = !!(MASTER_KEY && masterKey === MASTER_KEY);
 
-    if (!isAuthorized) {
+    {
       if (!authHeader) {
         return { statusCode: 401, body: 'Missing authorization header' }
       }
-      
+
       const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
       const { isOwner, user } = await verifyAdminHelper(authHeader.toString(), adminClient);
 
@@ -43,7 +41,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
       email: newEmail,
       email_confirm: true,
     } as any)
-    
+
     if (updateErr) return { statusCode: 400, body: updateErr.message }
 
     // Update admin_users table
@@ -51,7 +49,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
       .from('admin_users')
       .update({ email: newEmail })
       .eq('user_id', userId)
-    
+
     if (dbErr) return { statusCode: 400, body: dbErr.message }
 
     return {
@@ -62,3 +60,5 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     return { statusCode: 500, body: e?.message || 'Internal error' }
   }
 }
+
+export const handler = secureEvent('update-admin-email', implementation);

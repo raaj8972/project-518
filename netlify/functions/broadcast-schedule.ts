@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from './lib/email';
+import { secureRequest } from './lib/api-security';
 
-export default async (req: Request) => {
+const implementation = async (req: Request) => {
   const headers = {
     // 'Access-Control-Allow-Origin': '*' // Restricted by policy,
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -260,3 +261,5 @@ export default async (req: Request) => {
       return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
   }
 };
+
+export default secureRequest('broadcast-schedule', implementation);

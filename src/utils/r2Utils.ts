@@ -18,7 +18,8 @@ export const uploadToR2 = async (file: File, folder = 'gallery'): Promise<string
       method: 'POST',
       body: JSON.stringify({
         filename,
-        filetype: file.type
+        filetype: file.type,
+        fileSize: file.size
       }),
       headers: {
         'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`

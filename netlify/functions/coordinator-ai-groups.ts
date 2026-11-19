@@ -1,14 +1,15 @@
+import { secureEvent } from './lib/api-security';
+import { verifyToken } from './lib/auth-verify';
 import type { Handler } from '@netlify/functions';
 import { getSupabaseClient } from './lib/supabase';
 
-export const handler: Handler = async event => {
+const implementation: Handler = async event => {
   const reply = (statusCode: number, body: unknown) => ({ statusCode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (event.httpMethod !== 'POST') return reply(405, { error: 'Method not allowed' });
   try {
     const { eventId, mimeType, data } = JSON.parse(event.body || '{}');
-    const token = event.headers.authorization?.replace(/^Bearer /, '');
-    const { data: identity, error } = await getSupabaseClient(true).auth.getUser(token);
-    if (error || identity.user?.app_metadata.role !== 'coordinator' || identity.user.app_metadata.coordinator_event_id !== String(eventId)) return reply(403, { error: 'Coordinator access required for this event' });
+    const user = await verifyToken(event.headers.authorization || event.headers.Authorization, getSupabaseClient(true));
+    if (!user || user.app_metadata?.role !== 'coordinator' || user.app_metadata.coordinator_event_id !== String(eventId)) return reply(403, { error: 'Coordinator access required for this event' });
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType) || typeof data !== 'string' || data.length > 5_000_000) return reply(400, { error: 'Use a JPEG, PNG or WebP smaller than 3 MB' });
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) return reply(503, { error: 'AI is not configured on the server' });
@@ -24,3 +25,5 @@ export const handler: Handler = async event => {
     return reply(200, await response.json());
   } catch { return reply(500, { error: 'Could not extract groups' }); }
 };
+
+export const handler = secureEvent('coordinator-ai-groups', implementation);

@@ -1,7 +1,8 @@
+import { secureEvent } from './lib/api-security';
 import { Handler } from '@netlify/functions';
 import { supabase } from './lib/supabase';
 
-export const handler: Handler = async (event) => {
+const implementation: Handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
 
   try {
@@ -53,3 +54,5 @@ export const handler: Handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
   }
 };
+
+export const handler = secureEvent('passkey-delete', implementation);

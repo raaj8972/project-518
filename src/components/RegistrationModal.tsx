@@ -120,7 +120,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       setSearchingMembers(true);
       try {
         const { data, error } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, full_name, username, avatar_url, batch')
           .or(`username.ilike.%${searchQuery}%,full_name.ilike.%${searchQuery}%`)
           .not('id', 'eq', user?.id)

@@ -23,7 +23,7 @@ export const passService = {
     onProgress?.(10, `Preparing passes for ${profile?.full_name || userId}...`);
 
     for (let day = 1; day <= 3; day++) {
-      const passToken = `PASS-${userId.substring(0, 6)}-D${day}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const passToken = `PASS-${userId.substring(0, 6)}-D${day}-${crypto.randomUUID()}`;
       
       // Use the configured date for the specific day (fallback to baseDate logic if array is too short)
       const validDateStr = eventDates[day - 1] || eventDates[0];

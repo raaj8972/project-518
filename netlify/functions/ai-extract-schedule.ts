@@ -1,8 +1,9 @@
+import { secureEvent } from './lib/api-security';
 import { type Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { callAI, AIMessage } from './lib/ai';
 
-export const handler: Handler = async (event) => {
+const implementation: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -99,3 +100,5 @@ CRITICAL: Return ONLY raw JSON. Do not include any text before or after the JSON
     };
   }
 };
+
+export const handler = secureEvent('ai-extract-schedule', implementation);

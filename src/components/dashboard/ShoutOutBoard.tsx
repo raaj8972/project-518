@@ -99,8 +99,8 @@ const ShoutOutBoard: React.FC = () => {
     try {
       // 1. Fetch Top 5 IDs (RICO STARS) for ranking badges
       const { data: topProfiles } = await supabase
-        .from('profiles')
-        .select('id, likes_count, student_xp(xp_total)')
+        .from('public_profiles')
+        .select('id, likes_count, student_xp')
         .eq('is_approved', true);
 
       let ricoStarIds: string[] = [];

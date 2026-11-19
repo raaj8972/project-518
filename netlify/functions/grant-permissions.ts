@@ -1,3 +1,4 @@
+import { secureEvent } from './lib/api-security';
 import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
 import { supabase as adminClient } from './lib/supabase';
 import { verifyAdmin } from './lib/auth-verify';
@@ -22,7 +23,7 @@ type Flags = Partial<{
   can_security_passes: boolean;
 }>;
 
-export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
+const implementation: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
     
@@ -87,3 +88,5 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     return { statusCode: 500, body: e?.message || 'Internal error' }
   }
 }
+
+export const handler = secureEvent('grant-permissions', implementation);

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { safeInstagramUrl } from '../utils/safeInstagramUrl';
 import { Sparkles } from 'lucide-react';
 
 interface InstagramTrailerSectionProps {
@@ -12,6 +13,7 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
   title = 'OFFICIAL TRAILER',
   subtitle = 'Watch our official event trailer'
 }) => {
+  const safeUrl = safeInstagramUrl(url);
   const [embedHtml, setEmbedHtml] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -31,14 +33,14 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
         
         // Alternative: use a proxy or direct embed approach
         // For now, we'll use a simple iframe embed approach
-        const postId = extractInstagramPostId(url);
+        const postId = safeUrl;
         if (!postId) {
           throw new Error('Invalid Instagram URL');
         }
 
         // Create embed HTML using Instagram's embed format
         const embed = `
-          <blockquote class="instagram-media" data-instgrm-permalink="${url}?utm_source=ig_embed&utm_campaign=loading" data-instgrm-version="14" style="background:#000; border:0; border-radius:12px; box-shadow:0 0 1em 0 rgba(239,68,68,0.3); margin: 1px; max-width:540px; min-width:326px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);">
+          <blockquote class="instagram-media" data-instgrm-permalink="${safeUrl}?utm_source=ig_embed&utm_campaign=loading" data-instgrm-version="14" style="background:#000; border:0; border-radius:12px; box-shadow:0 0 1em 0 rgba(239,68,68,0.3); margin: 1px; max-width:540px; min-width:326px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);">
           </blockquote>
         `;
         
@@ -67,27 +69,6 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
 
     fetchEmbed();
   }, [url]);
-
-  // Extract Instagram post ID from URL
-  const extractInstagramPostId = (instagramUrl: string): string | null => {
-    try {
-      const patterns = [
-        /instagram\.com\/p\/([A-Za-z0-9_-]+)/,
-        /instagram\.com\/reel\/([A-Za-z0-9_-]+)/,
-        /instagram\.com\/tv\/([A-Za-z0-9_-]+)/,
-      ];
-
-      for (const pattern of patterns) {
-        const match = instagramUrl.match(pattern);
-        if (match && match[1]) {
-          return match[1];
-        }
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
 
   if (!url) {
     return null;
@@ -136,7 +117,7 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
                 <div className="text-center">
                   <p className="text-red-600 mb-4">{error}</p>
                   <a
-                    href={url}
+                    href={safeUrl || undefined}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rico-btn-primary"
@@ -159,7 +140,7 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
         {/* Call to Action */}
         <div className="text-center mt-8 scroll-animate opacity-0 transform translate-y-20">
           <a
-            href={url}
+            href={safeUrl || undefined}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center text-red-500 hover:text-red-400 font-semibold transition-colors font-serif italic tracking-wider"

@@ -22,8 +22,8 @@ export function getRankingData(): Promise<RankingData> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   const request = Promise.all([
-    supabase.from('profiles').select('id, full_name, username, avatar_url, aura_color, background_url, batch, likes_count, student_xp(tier, xp_total)').eq('is_approved', true).abortSignal(controller.signal),
-    supabase.from('registrations').select('id, user_id, status, is_active, event_id, event:events(id, title)').abortSignal(controller.signal),
+    supabase.from('public_profiles').select('id, full_name, username, avatar_url, aura_color, background_url, batch, likes_count, student_xp').eq('is_approved', true).abortSignal(controller.signal),
+    supabase.from('public_ranking_registrations').select('id, user_id, status, is_active, event_id, event').abortSignal(controller.signal),
     supabase.from('registration_rounds').select('id, registration_id, status, round_id, prize_rank').abortSignal(controller.signal),
     supabase.from('event_rounds').select('id, name').abortSignal(controller.signal),
   ]).then(results => {

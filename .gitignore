@@ -78,3 +78,14 @@ supabase/.temp/
 !scripts/check-rico-family-database.mjs
 
 !scripts/audit-rico-family.mjs
+
+# Credentials belong only in local files or the hosting secret store.
+.env.*
+!.env.example
+!.env.local.example
+*.pem
+*.key
+
+!scripts/diagnostic-diagnose_db.js
+!scripts/diagnostic-check_admin_schema.mjs
+!scripts/security-check.mjs

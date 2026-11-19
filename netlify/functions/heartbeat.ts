@@ -1,8 +1,9 @@
+import { secureEvent } from './lib/api-security';
 import type { Handler } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
 // On-demand heartbeat: upserts last_run = now() into health_heartbeats (id=1)
-export const handler: Handler = async () => {
+const implementation: Handler = async () => {
   try {
     const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
     const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -38,3 +39,5 @@ export const handler: Handler = async () => {
     return { statusCode: 500, body: JSON.stringify({ ok: false, error: e?.message || 'Internal error' }) }
   }
 }
+
+export const handler = secureEvent('heartbeat', implementation);

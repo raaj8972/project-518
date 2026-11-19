@@ -1,3 +1,4 @@
+import { secureEvent } from './lib/api-security';
 import { type Handler } from '@netlify/functions';
 import { getSupabaseClient } from './lib/supabase';
 import { pingAI, type AIModel } from './lib/ai';
@@ -12,7 +13,7 @@ let cachedStatuses: Record<string, boolean> | null = null;
 let lastCheckTime = 0;
 const CACHE_DURATION_MS = 60 * 1000; // Cache for 1 minute
 
-export const handler: Handler = async (event) => {
+const implementation: Handler = async (event) => {
   if (event.httpMethod !== 'GET') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
@@ -71,3 +72,5 @@ export const handler: Handler = async (event) => {
     };
   }
 };
+
+export const handler = secureEvent('ai-check-models', implementation);

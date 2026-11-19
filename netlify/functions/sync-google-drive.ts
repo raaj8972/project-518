@@ -1,8 +1,9 @@
+import { secureEvent } from './lib/api-security';
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from './lib/auth-verify';
 
-export const handler: Handler = async (event) => {
+const implementation: Handler = async (event) => {
   const { getSupabaseClient } = await import('./lib/supabase');
   const supabase = getSupabaseClient(true);
   const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
@@ -256,3 +257,5 @@ export const handler: Handler = async (event) => {
     };
   }
 };
+
+export const handler = secureEvent('sync-google-drive', implementation);

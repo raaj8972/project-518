@@ -1,3 +1,4 @@
+import { fetchWithAuth } from '../../lib/authFetch';
 import React, { useEffect, useState, useMemo } from 'react';
 import { Plus, Edit, Trash2, Star, Calendar, CheckSquare, Square, Tag, Image as ImageIcon, ScanFace, Loader2, LayoutGrid, List, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { useData } from '../../context/DataContext';
@@ -35,7 +36,7 @@ export const GalleryManagement: React.FC = () => {
   const handleAutoIndex = async () => {
     try {
       setIsIndexing(true);
-      const res = await fetch('/api/index-faces-batch', {
+      const res = await fetchWithAuth('/api/index-faces-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ limit: 10 }) // Process 10 at a time

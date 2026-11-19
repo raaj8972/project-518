@@ -1,0 +1,1392 @@
+{
+  "date": "2026-11-19",
+  "anonymousAccessChecks": [
+    {
+      "table": "admin_users",
+      "status": 401,
+      "anonymousRowVisible": false,
+      "errorCode": "42501"
+    },
+    {
+      "table": "admin_permissions",
+      "status": 401,
+      "anonymousRowVisible": false,
+      "errorCode": "42501"
+    },
+    {
+      "table": "passkeys",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "passkey_challenges",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "coordinator_credentials",
+      "status": 401,
+      "anonymousRowVisible": false,
+      "errorCode": "42501"
+    },
+    {
+      "table": "coordinator_password_vault",
+      "status": 401,
+      "anonymousRowVisible": false,
+      "errorCode": "42501"
+    },
+    {
+      "table": "admin_invitations",
+      "status": 401,
+      "anonymousRowVisible": false,
+      "errorCode": "42501"
+    },
+    {
+      "table": "user_session_revocations",
+      "status": 401,
+      "anonymousRowVisible": false,
+      "errorCode": "42501"
+    },
+    {
+      "table": "security_settings",
+      "status": 200,
+      "anonymousRowVisible": true
+    },
+    {
+      "table": "profiles",
+      "status": 200,
+      "anonymousRowVisible": true
+    },
+    {
+      "table": "registrations",
+      "status": 200,
+      "anonymousRowVisible": true
+    },
+    {
+      "table": "entry_passes",
+      "status": 200,
+      "anonymousRowVisible": true
+    },
+    {
+      "table": "payment_submissions",
+      "status": 200,
+      "anonymousRowVisible": true
+    },
+    {
+      "table": "pass_registrations",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "security_users",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "security_logs",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "pass_scans",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "chat_messages",
+      "status": 401,
+      "anonymousRowVisible": false,
+      "errorCode": "42501"
+    },
+    {
+      "table": "conversations",
+      "status": 200,
+      "anonymousRowVisible": true
+    },
+    {
+      "table": "auditions",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "memberships",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "sports_registrations",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "annual_sports_registrations",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "batch_crs",
+      "status": 200,
+      "anonymousRowVisible": true
+    },
+    {
+      "table": "portal_password_vault",
+      "status": 404,
+      "anonymousRowVisible": false,
+      "errorCode": "PGRST205"
+    },
+    {
+      "table": "admin_password_resets",
+      "status": 404,
+      "anonymousRowVisible": false,
+      "errorCode": "PGRST205"
+    }
+  ],
+  "privateColumnChecks": [
+    {
+      "table": "profiles",
+      "status": 400,
+      "anonymousRowVisible": false,
+      "errorCode": "42703"
+    },
+    {
+      "table": "registrations",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "entry_passes",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "payment_submissions",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "batch_crs",
+      "status": 200,
+      "anonymousRowVisible": false
+    },
+    {
+      "table": "security_settings",
+      "status": 200,
+      "anonymousRowVisible": false
+    }
+  ],
+  "historyCredentialObjects": 29,
+  "dependencyCountsBefore": {
+    "info": 0,
+    "low": 13,
+    "moderate": 45,
+    "high": 45,
+    "critical": 4,
+    "total": 107
+  },
+  "dependencyCountsAfter": {
+    "info": 0,
+    "low": 6,
+    "moderate": 30,
+    "high": 0,
+    "critical": 0,
+    "total": 36
+  },
+  "productionDatabaseMigrationAppliedByAgent": false,
+  "productionDeploymentPerformed": false,
+  "databaseConnection": "Owner applied the SQL successfully; all 22 checked private tables, seven private-column reads and the introspection RPC now return permission denied to anonymous requests.",
+  "websiteHttpChecks": "Direct DNS resolution failed; cached search-page retrieval does not verify live HTTP headers",
+  "tests": {
+    "passed": 672,
+    "failed": 2,
+    "failures": "Existing hero fallback-image expectations fail in both the isolated staged snapshot and working tree; all security assertions pass.",
+    "command": "npm test -- --run --maxWorkers=2 --reporter=dot"
+  },
+  "newSecurityTests": 26,
+  "localHttpChecks": [
+    {
+      "path": "/",
+      "status": 200,
+      "contentType": "text/html",
+      "cacheControl": "no-cache",
+      "looksLikeEnv": false,
+      "looksLikeGit": false
+    },
+    {
+      "path": "/api/health",
+      "status": 200,
+      "contentType": "application/json",
+      "cacheControl": "no-store",
+      "looksLikeEnv": false,
+      "looksLikeGit": false
+    },
+    {
+      "path": "/api/index-faces-batch",
+      "status": 401,
+      "contentType": "application/json",
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/api/notify-event-update",
+      "status": 401,
+      "contentType": "application/json",
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/api/get-r2-upload-url",
+      "status": 401,
+      "contentType": "application/json",
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/api/master-login",
+      "status": 410,
+      "contentType": "application/json",
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/api/image-proxy?url=http%3A%2F%2F127.0.0.1",
+      "status": 503,
+      "contentType": "application/json",
+      "cacheControl": "no-store"
+    },
+    {
+      "path": "/api/missing-security-test",
+      "status": 404,
+      "contentType": "application/json",
+      "cacheControl": null
+    },
+    {
+      "path": "/.env",
+      "status": 403,
+      "contentType": null,
+      "cacheControl": null
+    },
+    {
+      "path": "/.env.local",
+      "status": 403,
+      "contentType": null,
+      "cacheControl": null
+    },
+    {
+      "path": "/.git/config",
+      "status": 403,
+      "contentType": null,
+      "cacheControl": null
+    },
+    {
+      "path": "/feb28_schema.sql",
+      "status": 403,
+      "contentType": null,
+      "cacheControl": null
+    },
+    {
+      "path": "/netlify/functions/lib/supabase.ts",
+      "status": 403,
+      "contentType": null,
+      "cacheControl": null
+    }
+  ],
+  "localHttpNotes": "Face indexing was retested after deferring native library loading until after authorization; anonymous requests now return 401.",
+  "sqlPrerequisiteRepair": {
+    "reportedError": "42883: public.coordinates_event(text) does not exist",
+    "restoredMigrationSource": true,
+    "definesSessionAdminCoordinatorAndSecurityHelpers": true,
+    "databaseRegressionFixture": "No preinstalled authorization helper functions",
+    "idempotenceTest": "Retains application records and anonymous denials on repeated execution",
+    "productionApplicationVerified": false
+  },
+  "sqlXpSchemaRepair": {
+    "reportedError": "42703: x.user_id does not exist",
+    "verifiedRelationship": "student_xp.id = profiles.id",
+    "schemaEvidence": [
+      "supabase/migrations/20260326000000_baseline.sql",
+      "src/types/supabase.ts:student_xp_id_fkey"
+    ],
+    "regressionFixture": "Reads the real student_xp table definition from the saved baseline and checks per-profile XP values",
+    "focusedSecurityTestsPassed": 22,
+    "productionApplicationVerified": false
+  },
+  "productionDatabaseMigrationApplicationVerified": true,
+  "latestDatabaseVerification": {
+    "checkedAt": "2026-11-19T08:14:15.747Z",
+    "publicKeyValid": true,
+    "results": [
+      {
+        "kind": "public-control",
+        "table": "events",
+        "status": 200,
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "profiles",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "registrations",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "entry_passes",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "payment_submissions",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "conversations",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "batch_crs",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "security_settings",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "admin_users",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "admin_permissions",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "passkeys",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "passkey_challenges",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "coordinator_credentials",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "coordinator_password_vault",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "admin_invitations",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "user_session_revocations",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "security_users",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "security_logs",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "pass_scans",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "pass_registrations",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "chat_messages",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "revoked_admin_accounts",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private",
+        "table": "api_rate_limits",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "public-view",
+        "table": "public_profiles",
+        "status": 200,
+        "anonymousRowVisible": true,
+        "fields": [
+          "id",
+          "full_name",
+          "username",
+          "avatar_url",
+          "aura_color",
+          "background_url",
+          "batch",
+          "likes_count",
+          "is_approved",
+          "student_xp"
+        ],
+        "sensitiveFields": []
+      },
+      {
+        "kind": "public-view",
+        "table": "public_ranking_registrations",
+        "status": 200,
+        "anonymousRowVisible": true,
+        "fields": [
+          "id",
+          "user_id",
+          "status",
+          "is_active",
+          "event_id",
+          "event"
+        ],
+        "sensitiveFields": []
+      },
+      {
+        "kind": "public-view",
+        "table": "public_event_winners",
+        "status": 200,
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "public-view",
+        "table": "security_settings_public",
+        "status": 200,
+        "anonymousRowVisible": true,
+        "fields": [
+          "id",
+          "entry_pass_button_enabled",
+          "event_dates",
+          "councils_enabled",
+          "updated_at",
+          "pass_template_config",
+          "venue"
+        ],
+        "sensitiveFields": []
+      },
+      {
+        "kind": "private-column",
+        "table": "profiles",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private-column",
+        "table": "registrations",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private-column",
+        "table": "entry_passes",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private-column",
+        "table": "payment_submissions",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private-column",
+        "table": "batch_crs",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private-column",
+        "table": "security_settings",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private-column",
+        "table": "passkeys",
+        "status": 401,
+        "errorCode": "42501",
+        "anonymousRowVisible": false
+      },
+      {
+        "kind": "private-rpc",
+        "function": "get_function_definition",
+        "status": 401,
+        "errorCode": "42501",
+        "definitionReturned": false
+      }
+    ]
+  },
+  "latestLocalHttpVerification": {
+    "checkedAt": "2026-11-19T08:25:10.450Z",
+    "total": 58,
+    "passed": 58,
+    "results": [
+      {
+        "path": "/api/broadcast-schedule",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/add-admin-user",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/admin-invitations",
+        "method": "POST",
+        "status": 403,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/admin-security-controls",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/ai-chat",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/ai-check-models",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/ai-extract-core-team",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/ai-extract-events",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/ai-extract-homebound",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/ai-extract-passwords",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/ai-extract-schedule",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/ai-extract-sponsors",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/ai-extract-tiers",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/ai-generate-content",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/ai-generate-event",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/coordinator-ai-groups",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/coordinator-passwords",
+        "method": "POST",
+        "status": 403,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store, private",
+        "privateContent": false
+      },
+      {
+        "path": "/api/coordinator-toggle-registration",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/create-admin",
+        "method": "POST",
+        "status": 403,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/delete-admin-user",
+        "method": "POST",
+        "status": 403,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/delete-r2-file",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/force-logout",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/get-event-candidates",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/get-r2-upload-url",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/grant-permissions",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/heartbeat",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/heartbeat_fallback",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/index-faces-batch",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/install-heartbeat",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/passkey-delete",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/passkey-list",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/passkey-register",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/portal-passwords",
+        "method": "POST",
+        "status": 403,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store, private",
+        "privateContent": false
+      },
+      {
+        "path": "/api/send-confirmation",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/send-custom-email",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/send-rejection",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/sync-drive-folders",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/sync-google-drive",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/update-admin-email",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/update-admin-password",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/update-form-settings",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/list-admin-users",
+        "method": "GET",
+        "status": 401,
+        "expected": [
+          401,
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/health",
+        "method": "GET",
+        "status": 200,
+        "expected": [
+          200
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/master-login",
+        "method": "POST",
+        "status": 410,
+        "expected": [
+          410
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/missing-security-test",
+        "method": "GET",
+        "status": 404,
+        "expected": [
+          404
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/.netlify/functions/get-r2-upload-url",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/notify-event-update",
+        "method": "POST",
+        "status": 403,
+        "expected": [
+          403
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/list-admin-users",
+        "method": "GET",
+        "status": 401,
+        "expected": [
+          401
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/api/force-logout",
+        "method": "POST",
+        "status": 401,
+        "expected": [
+          401
+        ],
+        "pass": true,
+        "cache": "no-store",
+        "privateContent": false
+      },
+      {
+        "path": "/.env",
+        "method": "GET",
+        "status": 403,
+        "expected": [
+          403,
+          404
+        ],
+        "pass": true,
+        "cache": null,
+        "privateContent": false
+      },
+      {
+        "path": "/.env.local",
+        "method": "GET",
+        "status": 403,
+        "expected": [
+          403,
+          404
+        ],
+        "pass": true,
+        "cache": null,
+        "privateContent": false
+      },
+      {
+        "path": "/.env?raw",
+        "method": "GET",
+        "status": 403,
+        "expected": [
+          403,
+          404
+        ],
+        "pass": true,
+        "cache": null,
+        "privateContent": false
+      },
+      {
+        "path": "/.git/config",
+        "method": "GET",
+        "status": 403,
+        "expected": [
+          403,
+          404
+        ],
+        "pass": true,
+        "cache": null,
+        "privateContent": false
+      },
+      {
+        "path": "/.git/HEAD?raw",
+        "method": "GET",
+        "status": 403,
+        "expected": [
+          403,
+          404
+        ],
+        "pass": true,
+        "cache": null,
+        "privateContent": false
+      },
+      {
+        "path": "/feb28_schema.sql",
+        "method": "GET",
+        "status": 403,
+        "expected": [
+          403,
+          404
+        ],
+        "pass": true,
+        "cache": null,
+        "privateContent": false
+      },
+      {
+        "path": "/netlify/functions/lib/supabase.ts",
+        "method": "GET",
+        "status": 403,
+        "expected": [
+          403,
+          404
+        ],
+        "pass": true,
+        "cache": null,
+        "privateContent": false
+      },
+      {
+        "path": "/scripts/security-check.mjs",
+        "method": "GET",
+        "status": 403,
+        "expected": [
+          403,
+          404
+        ],
+        "pass": true,
+        "cache": null,
+        "privateContent": false
+      },
+      {
+        "path": "/api/notify-event-update [oversized]",
+        "status": 413,
+        "expected": [
+          413
+        ],
+        "pass": true
+      }
+    ]
+  },
+  "latestBackendCredentialCheck": {
+    "localBackendCredentialReadCheck": {
+      "status": 200,
+      "recordsRequested": 0
+    }
+  },
+  "latestInvalidTokenCheck": {
+    "status": 401,
+    "errorCode": "PGRST301"
+  },
+  "latestWebsiteHttpAttempt": {
+    "checkedAt": "2026-11-19T08:14:46.090Z",
+    "base": "https://ricorrenza.fun",
+    "results": [
+      {
+        "path": "/",
+        "error": "ENOTFOUND"
+      },
+      {
+        "path": "/api/health",
+        "error": "ENOTFOUND"
+      },
+      {
+        "path": "/api/passkey-register",
+        "error": "ENOTFOUND"
+      },
+      {
+        "path": "/api/master-login",
+        "error": "ENOTFOUND"
+      },
+      {
+        "path": "/.env",
+        "error": "ENOTFOUND"
+      },
+      {
+        "path": "/.env.local",
+        "error": "ENOTFOUND"
+      },
+      {
+        "path": "/.git/config",
+        "error": "ENOTFOUND"
+      },
+      {
+        "path": "/package.json",
+        "error": "ENOTFOUND"
+      }
+    ]
+  },
+  "currentDependencyCounts": {
+    "info": 0,
+    "low": 6,
+    "moderate": 30,
+    "high": 0,
+    "critical": 0,
+    "total": 36
+  },
+  "remainingUnverified": [
+    "Deployment of the local API/frontend fixes",
+    "Rotation or retirement of historical exposed credentials",
+    "Authenticated end-to-end workflows and complete production RPC/storage policy inventory"
+  ],
+  "latestLocalProxyAndCronVerification": [
+    {
+      "path": "/api/image-proxy?url=http%3A%2F%2F127.0.0.1",
+      "status": 400,
+      "expected": 400,
+      "pass": true
+    },
+    {
+      "path": "/api/image-proxy?url=file%3A%2F%2F%2Fetc%2Fpasswd",
+      "status": 400,
+      "expected": 400,
+      "pass": true
+    },
+    {
+      "path": "/api/heartbeat-schedule",
+      "status": 401,
+      "expected": 401,
+      "pass": true
+    },
+    {
+      "path": "/api/r2-garbage-collector",
+      "status": 401,
+      "expected": 401,
+      "pass": true
+    },
+    {
+      "path": "/api/broadcast-schedule",
+      "status": 401,
+      "expected": 401,
+      "pass": true
+    }
+  ],
+  "localHttpCheckTotals": {
+    "total": 63,
+    "passed": 63
+  },
+  "finalFocusedTests": {
+    "passed": 27,
+    "securityTests": 26,
+    "deploymentConfigurationTests": 1
+  },
+  "pushPreflight": {
+    "testedSnapshotTree": "ce5a8cc736c46a0b9ab7c2bc50d62e0835f7655e",
+    "passedTests": 672,
+    "knownUiFailures": 2,
+    "buildPassed": true,
+    "applicationAndServerTypesPassed": true,
+    "secretScanPassed": true,
+    "unrelatedHeroAtmosphereEditsExcluded": true,
+    "workflowYamlValidated": true
+  }
+}

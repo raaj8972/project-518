@@ -2,15 +2,14 @@ import { defineConfig, loadEnv } from 'vite';
 import { localApi } from './scripts/local-api';
 import react from '@vitejs/plugin-react';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
+import { publicEnvironment } from './shared/publicEnv';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Backend variables remain server-side, including legacy VITE-named secrets.
   const env = loadEnv(mode, process.cwd(), '');
   for (const [key, value] of Object.entries(env)) if (process.env[key] === undefined) process.env[key] = value;
-  const privateVariable = /SECRET|PASSWORD|SERVICE_ROLE|BYPASS|PRIVATE_KEY|PASSCODE|MASTER|GOOGLE_API_KEY|GEMINI_API_KEY|OPENAI_API_KEY/i;
-  const publicDefines = Object.fromEntries(Object.entries(env)
-    .filter(([key]) => key.startsWith('VITE_') && !privateVariable.test(key))
+  const publicDefines = Object.fromEntries(Object.entries(publicEnvironment(env))
     .map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)]));
   return {
   // Disable automatic VITE_* export: full import.meta.env reads must stay filtered too.
@@ -43,6 +42,9 @@ export default defineConfig(({ mode }) => {
   },
   server: {
     host: 'localhost',
+    fs: {
+      deny: ['.env', '.env.*', '**/.git/**', '**/*.{pem,key,sql,bak,log}', '**/tmp/**', '**/scratch/**', '**/netlify/**', '**/scripts/**'],
+    },
     port: 8081,
     strictPort: false,
     hmr: {

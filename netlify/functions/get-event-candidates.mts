@@ -1,9 +1,10 @@
+import { secureEvent } from './lib/api-security';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export const handler = async (event: any, context: any) => {
+const implementation = async (event: any, context: any) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
@@ -66,3 +67,5 @@ export const handler = async (event: any, context: any) => {
     return { statusCode: 500, body: JSON.stringify({ error: 'Internal Server Error' }) };
   }
 };
+
+export const handler = secureEvent('get-event-candidates', implementation);

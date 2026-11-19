@@ -1,3 +1,5 @@
+import { verifyToken } from './lib/auth-verify';
+import { secureEvent } from './lib/api-security';
 import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
@@ -8,7 +10,7 @@ import { createClient } from '@supabase/supabase-js'
 //
 // Endpoint: POST /.netlify/functions/update-form-settings
 // Body: { audition_form_enabled?, audition_form_message?, membership_form_enabled?, membership_form_message? }
-export const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) => {
+const implementation: Handler = async (event: HandlerEvent, _context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') {
       return { statusCode: 405, body: 'Method Not Allowed' }
@@ -24,13 +26,11 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     if (!authHeader || !authHeader.toString().startsWith('Bearer ')) {
       return { statusCode: 401, body: 'Missing auth' }
     }
-    const accessToken = authHeader.toString().replace('Bearer ', '')
 
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
-    const userClient = createClient(SUPABASE_URL, accessToken, { auth: { persistSession: false } } as any)
 
     // Validate caller session
-    const { data: caller, error: meErr } = await userClient.auth.getUser()
+    const caller = { user: await verifyToken(authHeader, adminClient) }; const meErr = !caller.user
     if (meErr || !caller?.user) return { statusCode: 401, body: 'Invalid session' }
     const callerId = caller.user.id
 
@@ -96,3 +96,5 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     return { statusCode: 500, body: e?.message || 'Internal error' }
   }
 }
+
+export const handler = secureEvent('update-form-settings', implementation);

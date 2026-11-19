@@ -1,16 +1,12 @@
-import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback, useRef } from 'react';
 console.log('[AuthContext.tsx] Module execution started. React available:', !!React, 'useState available:', !!useState);
 import { supabase } from '../lib/supabase';
-import { AdminService } from '../lib/adminService';
-import { dualUpdate } from '../lib/dualDb';
-import { isMasterOwner } from '../constants/owners';
 
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: any | null; // Generic user object to bridge types
-  login: (email: string, password: string, totpCode?: string, bypassTOTP?: boolean) => Promise<{ success: boolean; requiresTOTP?: boolean; role?: string; error?: string }>;
+  login: (email: string, password: string, totpCode?: string) => Promise<{ success: boolean; requiresTOTP?: boolean; role?: string; error?: string }>;
   logout: () => Promise<void>;
   loading: boolean;
   setupTOTP: () => Promise<{ secret: string; qrCode: string } | { error: string } | null>;
@@ -18,6 +14,8 @@ interface AuthContextType {
   enableTOTP: (token: string, secret: string) => Promise<boolean>;
   disableTOTP: () => Promise<boolean>;
   isTOTPEnabled: boolean;
+  requiresMFA: boolean;
+  completeMFA: (code: string) => Promise<{ success: boolean; requiresTOTP?: boolean; error?: string }>;
   updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   getValidToken: () => Promise<string | null>;
@@ -33,26 +31,6 @@ const PrimaryAuthContext = ((typeof window !== 'undefined')
   : AuthContext) as React.Context<AuthContextType | undefined>;
 
 
-const isMasterBypassUser = (u: any | null | undefined): boolean => {
-  if (!u) return false;
-  
-  // A user is only a "Bypass" user if they are using the virtual recovery identity.
-  // We no longer block password changes based on a metadata flag to allow real accounts to pivot.
-  return u.id === 'master-admin-bypass' || u.email === 'master-admin-bypass@virtual.local';
-};
-
-// Configuration for otplib (will be initialized in useEffect)
-async function getAuthenticator() {
-  const { authenticator } = await import('otplib');
-  authenticator.options = { window: [1, 1] } as any;
-  return authenticator;
-}
-const generateTOTPSecret = async (): Promise<string> => (await getAuthenticator()).generateSecret();
-const buildOtpAuthUri = async (secret: string, email: string): Promise<string> => {
-  const issuer = `${BRAND_NAME.toUpperCase()} ${BRAND_YEAR}`;
-  return (await getAuthenticator()).keyuri(email || 'admin', issuer, secret);
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   console.log('[AuthProvider] Rendering');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -61,23 +39,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isTOTPEnabled, setIsTOTPEnabled] = useState(false);
   const [lastAuthError, setLastAuthError] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [requiresMFA, setRequiresMFA] = useState(false);
+  const pendingFactorRef = useRef<string | null>(null);
+  const enrollmentFactorRef = useRef<string | null>(null);
   const currentInitIdRef = useRef<number>(0);
-
-  const syncSupabaseAdmin = async (email: string) => {
-    try {
-      const { error } = await supabase.rpc('add_admin_by_email', { p_email: email });
-      if (error) console.warn('[Auth] Supabase admin sync failed:', error);
-      else console.log('[Auth] Supabase admin sync successful for:', email);
-    } catch (err) {
-      console.error('[Auth] Error sync admin status:', err);
-    }
-  };
 
   useEffect(() => {
     let pendingAuth: { key: string; request: Promise<void> } | undefined;
     const { data: { subscription: supabaseListener } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) { currentInitIdRef.current += 1; clearAuthState(); return; }
-      const key = session.user.id + JSON.stringify(session.user.app_metadata);
+      const key = session.user.id + session.access_token;
       if (pendingAuth?.key === key) return;
       const request = handleUserAuthenticated(session.user).finally(() => { if (pendingAuth?.request === request) pendingAuth = undefined; });
       pendingAuth = { key, request };
@@ -113,167 +84,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        const { data: assurance, error: assuranceError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (assuranceError || (assurance?.nextLevel === 'aal2' && assurance.currentLevel !== 'aal2')) {
+          clearAuthState();
+          if (!assuranceError) {
+            const { data: factors } = await supabase.auth.mfa.listFactors();
+            pendingFactorRef.current = factors?.totp.find(factor => factor.status === 'verified')?.id || null;
+            setRequiresMFA(!!pendingFactorRef.current);
+          }
+          if (assuranceError) setLastAuthError('Could not verify account security. Please sign in again.');
+          return;
+        }
         const userId = authUser.id;
         
-        // Fetch or create admin record
-        let allowed = false;
-        let role = 'admin';
-        let display_name = 'Admin';
-        let permissions: any = {};
-
-        if (isMasterBypassUser(authUser) || isMasterOwner(email)) {
-          console.log(`[AuthContext] System Owner recognized [${initId}]:`, email);
-          allowed = true;
-          role = 'owner';
-          display_name = isMasterOwner(email) ? 'System Owner' : 'Raaj';
-          permissions = {
-            can_events: true, can_schedule: true, can_gallery: true, can_sponsors: true, 
-            can_registrations: true, can_faculty: true, can_chief_guests: true, can_security_passes: true
-          };
-        } else {
-          console.log(`[AuthContext] Checking whitelist [${initId}] for:`, email);
-          // Timeout the whitelist check individually too
-          const whitelistResult = await Promise.race([
-            AdminService.isEmailAllowed(email),
-            new Promise<{ allowed: boolean; role: string; display_name: string; permissions?: any }>((res) =>
-              setTimeout(() => {
-                console.warn(`[AuthContext] isEmailAllowed [${initId}] timed out — denying access until authorization can be verified`);
-                res({ allowed: false, role: '', display_name: '' });
-              }, 6000)
-            )
-          ]);
-          allowed = whitelistResult.allowed;
-          role = whitelistResult.role;
-          display_name = whitelistResult.display_name || 'Admin';
-          permissions = whitelistResult.permissions || {};
-        }
-
-        console.log(`[AuthContext] [${initId}] Final whitelist result:`, { allowed, role, email });
-
-        // Check if a newer initialization task has started
-        if (currentInitIdRef.current !== initId) {
-          console.warn(`[AuthContext] [${initId}] STALE - Abandoning (another task is current)`);
+        let { data: userData, error: membershipError } = await supabase.from('admin_users')
+          .select('*').eq('user_id', userId).maybeSingle();
+        if (currentInitIdRef.current !== initId) return;
+        if (membershipError || !userData || !['admin', 'owner'].includes(userData.role)) {
+          clearAuthState();
+          setLastAuthError('This account has no active admin access. Contact the owner.');
           return;
         }
-        
-        if (!allowed) {
-          const errMsg = `Access Denied: ${email} is not whitelisted for Admin access.`;
-          console.error(`[AuthContext] [${initId}] ${errMsg}`);
-          setLastAuthError(errMsg);
-          
-          // Check if we are on an admin or management route before signing out.
-          // This prevents regular students logging in from being signed out by the Admin provider.
-          const isAdminPath = window.location.pathname.startsWith('/admin') ||
-                              window.location.pathname.startsWith('/coordinator') ||
-                              window.location.pathname.startsWith('/council') ||
-                              window.location.pathname.startsWith('/security') ||
-                              window.location.pathname.startsWith('/sports-admin');
-
-          if (isAdminPath) {
-            await supabase.auth.signOut();
-          } else {
-            console.log(`[AuthContext] Non-admin path (${window.location.pathname}). Clearing admin auth state without signing out of Supabase.`);
-            clearAuthState();
-          }
-          return;
-        }
-
-        console.log(`[AuthContext] [${initId}] Access granted (role: ${role}). Fetching profile...`);
-        // Fetch additional user data from dualDb
-        let userData: any = null;
-        try {
-          const { data: userDataList } = await supabase.from('admin_users').select('*').eq('user_id',userId);
-          if (userDataList && userDataList.length > 0) {
-            userData = userDataList[0];
-          }
-        } catch (dbErr) {
-          console.warn(`[AuthContext] [${initId}] admin_users read failed/timed out:`, dbErr);
-        }
-        
-        if (currentInitIdRef.current !== initId) return;
-
-        // EMERGENCY FALLBACK: If DB fails but user is known Owner, synthesize and upsert profile to DB
-        if (!userData && isMasterOwner(email)) {
-          console.log(`[AuthContext] [${initId}] Profile lookup failed for Owner. Creating DB record.`);
-          userData = {
-            user_id: userId,
-            email: email.toLowerCase(),
-            role: 'owner',
-            display_name: 'System Owner',
-            photo_url: authUser.photoURL || authUser.user_metadata?.avatar_url || '',
-            last_login: new Date().toISOString()
-          };
-          
-          // Upsert to DB
-          await Promise.resolve(supabase.from('admin_users').upsert(userData, { onConflict: 'user_id' })).then(({ error }) => { if (error) throw error; }).catch(err => {
-            console.warn('[AuthContext] Owner upsert to admin_users failed:', err);
-          });
-          
-          await Promise.resolve(supabase.from('admin_permissions').upsert({
-            user_id: userId,
-            email: email.toLowerCase(),
-            can_events: true, can_schedule: true, can_gallery: true, can_sponsors: true, 
-            can_registrations: true, can_faculty: true, can_chief_guests: true, can_security_passes: true,
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'user_id' })).then(({ error }) => { if (error) throw error; }).catch(err => {
-            console.warn('[AuthContext] Owner upsert to admin_permissions failed:', err);
-          });
-        }
-
-        if (!userData && email) {
-          console.log(`[AuthContext] [${initId}] Profile not found by user_id (${userId}). Trying email lookup:`, email);
-          try {
-            const { data: emailMatches } = await supabase.from('admin_users').select('*').eq('email',email);
-            if (emailMatches && emailMatches.length > 0) {
-              userData = emailMatches[0];
-              console.log(`[AuthContext] [${initId}] Found existing profile by email. Linking to current session ID.`);
-              dualUpdate('admin_users', userData.user_id, { user_id: userId }, 'user_id').catch(() => {});
-              dualUpdate('admin_permissions', userData.user_id, { user_id: userId }, 'user_id').catch(() => {});
-            }
-          } catch (e) {
-            console.warn(`[AuthContext] [${initId}] Profile email lookup failed:`, e);
-          }
-        }
-
-        if (currentInitIdRef.current !== initId) return;
-
-        if (!userData) {
-          console.log('[AuthContext] Syncing first-time allowed user to admin_users:', email);
-          userData = {
-            user_id: userId,
-            email: email.toLowerCase(),
-            role: role || 'admin',
-            display_name: display_name || authUser.displayName || authUser.user_metadata?.full_name || email.split('@')[0],
-            photo_url: authUser.photoURL || authUser.user_metadata?.avatar_url || '',
-            last_login: new Date().toISOString()
-          };
-          // Use direct supabase to avoid dualDb schema cache issues
-          const { error: upsertErr } = await supabase
-            .from('admin_users')
-            .upsert(userData, { onConflict: 'user_id' });
-          if (upsertErr) console.warn('[AuthContext] admin_users upsert failed:', upsertErr.message);
-
-          const { error: permErr } = await supabase
-            .from('admin_permissions')
-            .upsert({
-              user_id: userId,
-              email: email.toLowerCase(),
-              ...permissions,
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id' });
-          if (permErr) console.warn('[AuthContext] admin_permissions upsert failed:', permErr.message);
-        } else {
-          console.log('[AuthContext] Profile found. Updating last login.');
-          // Direct supabase call — avoids stale schema cache in dualDb
-          supabase
-            .from('admin_users')
-            .update({ last_login: new Date().toISOString(), user_id: userId })
-            .eq('user_id', userData.user_id)
-            .then(({ error }) => {
-              if (error) console.warn('[AuthContext] last_login update failed:', error.message);
-            });
-        }
-
+        const role = userData.role;
         if (currentInitIdRef.current !== initId) return;
 
         const { data: assignedPermissions } = await supabase.from('admin_permissions').select('*').eq('user_id',userId).maybeSingle();
@@ -288,13 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role: userData.role || role
           }
         });
+        setRequiresMFA(false);
+        pendingFactorRef.current = null;
         setIsAuthenticated(true);
-        setIsTOTPEnabled(userData.totp_enabled || false);
+        setIsTOTPEnabled(assurance?.nextLevel === 'aal2');
 
-        // Sync admin status to Supabase RPC (for RLS) — fire-and-forget
-        if (role === 'admin' || role === 'owner' || isMasterBypassUser(authUser)) {
-          syncSupabaseAdmin(email);
-        }
       } catch (err: any) {
         if (currentInitIdRef.current !== initId) {
           console.log(`[AuthContext] [${initId}] Caught error but task is stale, ignoring:`, err.message);
@@ -325,6 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setIsAuthenticated(false);
       setIsTOTPEnabled(false);
+      setRequiresMFA(false);
+      pendingFactorRef.current = null;
       setLoading(false);
     };
 
@@ -385,22 +217,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user?.id]);
 
-  const login = async (email: string, password: string, totpCode?: string, bypassTOTP: boolean = false): Promise<{ success: boolean; requiresTOTP?: boolean; role?: string; error?: string }> => {
+  const login = async (email: string, password: string, totpCode?: string): Promise<{ success: boolean; requiresTOTP?: boolean; role?: string; error?: string }> => {
     try {
       const actualEmail = email.trim().toLowerCase();
       let { data, error } = await supabase.auth.signInWithPassword({ email: actualEmail, password });
-      if (error) {
-        const response = await fetch('/api/master-login', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: actualEmail, password })
-        });
-        const recovery = await response.json().catch(() => null);
-        if (!response.ok || !recovery?.token_hash) throw error;
-        const verified = await supabase.auth.verifyOtp({ token_hash: recovery.token_hash, type: 'magiclink' });
-        data = { ...verified.data, user: verified.data.user!, session: verified.data.session! };
-        error = verified.error;
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       const authUser = data.user;
       if (!authUser) return { success: false, error: 'Invalid credentials' };
@@ -413,22 +234,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase.auth.signOut();
         return { success:false, error:'This account has no active admin access. Contact the owner.' };
       }
-      const totpEnabled = userData?.totp_enabled || false;
-      const totpSecret = userData?.totp_secret;
-
-      // Check if 2FA is enabled but no code provided
-      if (totpEnabled && totpSecret && !totpCode && !bypassTOTP) {
-        await supabase.auth.signOut();
-        return { success: false, requiresTOTP: true, role };
-      }
-
-      // 2FA Verification
-      if (totpEnabled && totpSecret && totpCode) {
-        const ok = await verifyTOTP(totpCode, totpSecret);
-        if (!ok) {
-          await supabase.auth.signOut();
-          return { success: false, error: 'Invalid 2FA code' };
-        }
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (factorsError) throw factorsError;
+      const factor = factors.totp.find(item => item.status === 'verified');
+      if (factor) {
+        if (!totpCode) { pendingFactorRef.current = factor.id; setRequiresMFA(true); return { success: false, requiresTOTP: true, role }; }
+        const { error: challengeError } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code: totpCode });
+        if (challengeError) return { success: false, requiresTOTP: true, role, error: 'Invalid 2FA code' };
       }
 
       return { success: true };
@@ -467,6 +279,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setIsAuthenticated(false);
       setIsTOTPEnabled(false);
+      setRequiresMFA(false);
+      pendingFactorRef.current = null;
       setLoading(false);
 
       // 2. Clear all persistence layers
@@ -500,60 +314,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const completeMFA = async (code: string) => {
+    const factorId = pendingFactorRef.current;
+    if (!factorId || !/^\d{6}$/.test(code)) return { success: false, requiresTOTP: true, error: 'Enter your authenticator code' };
+    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
+    if (error) return { success: false, requiresTOTP: true, error: 'Invalid authenticator code' };
+    pendingFactorRef.current = null;
+    setRequiresMFA(false);
+    return { success: true };
+  };
+
   const setupTOTP = async (): Promise<{ secret: string; qrCode: string } | { error: string } | null> => {
     try {
       if (!user) return { error: 'User not authenticated' };
-      if (isMasterBypassUser(user)) return { error: 'Cannot setup 2FA for Master Admin' };
-
-      const secret = await generateTOTPSecret();
-      const otpauth = await buildOtpAuthUri(secret, user.email || '');
-      const { toDataURL } = await import('qrcode');
-      const qrCode = await toDataURL(otpauth, { width:200, margin:2 });
-
-      return { secret, qrCode };
-    } catch (error: any) {
-      console.error('Error setting up TOTP:', error);
-      return { error: error.message || 'Unknown error during TOTP setup' };
-    }
+      const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: `Festival authenticator ${Date.now()}` });
+      if (error) throw error;
+      enrollmentFactorRef.current = data.id;
+      return { secret: data.totp.secret, qrCode: data.totp.qr_code };
+    } catch { return { error: 'Could not start authenticator enrollment. Please try again.' }; }
   };
 
-  const verifyTOTP = async (token: string, secret: string): Promise<boolean> => {
-    try { return (await getAuthenticator()).check(token, secret); } catch { return false; }
+  const verifyTOTP = async (token: string, _secret: string): Promise<boolean> => {
+    const factorId = enrollmentFactorRef.current;
+    if (!factorId || !/^\d{6}$/.test(token)) return false;
+    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code: token });
+    return !error;
   };
 
   const enableTOTP = async (token: string, secret: string): Promise<boolean> => {
-    try {
-      if (!user || !(await getAuthenticator()).check(token, secret)) return false;
-
-      await dualUpdate('admin_users', user.id, {
-        totp_enabled: true,
-        totp_secret: secret
-      }, 'user_id');
-
-      setIsTOTPEnabled(true);
-      return true;
-    } catch (error) {
-      console.error('Error enabling TOTP:', error);
-      return false;
-    }
+    if (!await verifyTOTP(token, secret)) return false;
+    enrollmentFactorRef.current = null;
+    setIsTOTPEnabled(true);
+    return true;
   };
 
   const disableTOTP = async (): Promise<boolean> => {
-    try {
-      if (!user) return false;
-      if (isMasterBypassUser(user)) return false;
-
-      await dualUpdate('admin_users', user.id, {
-        totp_enabled: false,
-        totp_secret: null
-      }, 'user_id');
-
-      setIsTOTPEnabled(false);
-      return true;
-    } catch (error) {
-      console.error('Error disabling TOTP:', error);
-      return false;
+    const { data, error } = await supabase.auth.mfa.listFactors();
+    if (error || !user) return false;
+    for (const factor of data.totp) {
+      const { error: removeError } = await supabase.auth.mfa.unenroll({ factorId: factor.id });
+      if (removeError) return false;
     }
+    setIsTOTPEnabled(false);
+    return true;
   };
 
   const updatePassword = async (newPassword: string): Promise<{ success: boolean; error?: string }> => {
@@ -626,6 +429,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     enableTOTP,
     disableTOTP,
     isTOTPEnabled,
+    requiresMFA,
+    completeMFA,
     updatePassword,
     loginWithGoogle,
     getValidToken,

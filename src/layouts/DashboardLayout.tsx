@@ -147,7 +147,7 @@ const DashboardLayout: React.FC = () => {
     const ch = supabase
       .channel(`user-updates-${user.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profile_likes', filter: `profile_id=eq.${user.id}` }, async (payload) => {
-        const { data: lp } = await supabase.from('profiles').select('full_name').eq('id', payload.new.liker_id).single();
+        const { data: lp } = await supabase.from('public_profiles').select('full_name').eq('id', payload.new.liker_id).single();
         if (lp) {
           toast.success(`${lp.full_name} liked your profile! ❤️`, { duration: 4000, icon: '🔥', style: { background: '#131720', color: '#fff', border: '1px solid rgba(99,102,241,0.3)' } });
           fetchUserRegistrations();

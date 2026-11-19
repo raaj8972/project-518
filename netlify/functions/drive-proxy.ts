@@ -1,3 +1,5 @@
+import { fetchImage } from './lib/media-fetch';
+import { secureEvent } from './lib/api-security';
 import { Handler } from '@netlify/functions';
 import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 
@@ -31,8 +33,7 @@ const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-const USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
 
 // Lazy-init the S3 client (reused across warm invocations)
 let _s3: S3Client | null = null;
@@ -56,14 +57,14 @@ function r2PublicUrl(key: string) {
   return `https://${R2_PUBLIC_HOST}/${key}`;
 }
 
-export const handler: Handler = async (event) => {
+const implementation = async (event) => {
   // CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   }
 
   const fileId = event.queryStringParameters?.id;
-  if (!fileId || !/^[\w-]{10,}$/.test(fileId)) {
+  if (!fileId || !/^[\w-]{10,200}$/.test(fileId)) {
     return {
       statusCode: 400,
       headers: CORS_HEADERS,
@@ -72,7 +73,7 @@ export const handler: Handler = async (event) => {
   }
 
   const width = parseInt(event.queryStringParameters?.width || '1600', 10);
-  const safeWidth = Math.min(Math.max(width, 100), 4000);
+  const safeWidth = Number.isFinite(width) ? Math.min(Math.max(width, 100), 4000) : 1600;
 
   const key = r2Key(fileId, safeWidth);
   const publicUrl = r2PublicUrl(key);
@@ -111,31 +112,7 @@ export const handler: Handler = async (event) => {
 
   for (const driveUrl of urlCandidates) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000); // 12s timeout for Drive (slower than before)
-
-      const response = await fetch(driveUrl, {
-        headers: { 'User-Agent': USER_AGENT },
-        redirect: 'follow',
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        console.warn(`[DriveProxy] ${driveUrl.split('?')[0]} returned ${response.status}`);
-        // If 429, we might want to break, but let's try other candidates just in case they use different backends
-        continue;
-      }
-
-      const contentType = response.headers.get('content-type') || 'image/jpeg';
-      if (contentType.includes('text/html') || contentType.includes('json')) {
-         const preview = (await (await response.clone().text())).substring(0, 50);
-         console.warn(`[DriveProxy] ${driveUrl.split('?')[0]} returned ${contentType} (Preview: ${preview}), skipping`);
-         continue;
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const { buffer, contentType } = await fetchImage(driveUrl);
 
       if (buffer.length < 500) {
         console.warn(`[DriveProxy] File too small (${buffer.length} bytes), likely an error page or spacer.`);
@@ -182,7 +159,7 @@ export const handler: Handler = async (event) => {
         isBase64Encoded: true,
       };
     } catch (err: any) {
-      console.warn(`[DriveProxy] URL failed (${err?.name || 'unknown'}): ${driveUrl} – ${err?.message || ''}`);
+      console.warn('[DriveProxy] Image fetch failed');
     }
   }
 
@@ -194,3 +171,5 @@ export const handler: Handler = async (event) => {
     body: JSON.stringify({ error: 'Unable to fetch image from Google Drive' }),
   };
 };
+
+export const handler = secureEvent('drive-proxy', implementation);

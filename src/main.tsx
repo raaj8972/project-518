@@ -28,7 +28,9 @@ function removeSkeleton() {
 function showFatal(message: string) {
   // Simple visible overlay instead of a silent blank screen
   const style = `position:fixed;inset:0;background:#0a0a0a;color:#ff4444;display:flex;align-items:center;justify-content:center;font-family:Orbitron, sans-serif;padding:16px;text-align:center;z-index:99999;`;
-  rootEl.innerHTML = `<div style="${style}"><div><div style="font-weight:700;margin-bottom:8px;font-size:1.5rem;">FATAL STARTUP ERROR</div><div style="max-width:720px;white-space:pre-wrap;margin-bottom:16px;color:#ccc;">${message}</div><button onclick="window.location.reload()" style="background:#00ffff;color:#000;border:none;padding:12px 24px;border-radius:4px;cursor:pointer;font-weight:900;font-family:inherit;">RETRY LOAD</button></div></div>`;
+  rootEl.innerHTML = `<div style="${style}"><div><div style="font-weight:700;margin-bottom:8px;font-size:1.5rem;">FATAL STARTUP ERROR</div><div style="max-width:720px;white-space:pre-wrap;margin-bottom:16px;color:#ccc;"></div><button onclick="window.location.reload()" style="background:#00ffff;color:#000;border:none;padding:12px 24px;border-radius:4px;cursor:pointer;font-weight:900;font-family:inherit;">RETRY LOAD</button></div></div>`;
+  const detail = rootEl.querySelector('div[style*="white-space"]');
+  if (detail) detail.textContent = message;
   removeSkeleton();
 }
 

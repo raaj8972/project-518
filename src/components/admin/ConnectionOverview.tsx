@@ -1,3 +1,4 @@
+import { fetchWithAuth } from '../../lib/authFetch';
 import React, { useEffect, useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
@@ -118,10 +119,10 @@ export const ConnectionOverview: React.FC = () => {
     setHbPending(true);
     setHbError(null);
     try {
-      let res = await fetch('/api/heartbeat', { method: 'POST' });
+      let res = await fetchWithAuth('/api/heartbeat', { method: 'POST' });
       if (res.status === 404) {
         // Fallback endpoint name
-        res = await fetch('/api/heartbeat_fallback', { method: 'POST' });
+        res = await fetchWithAuth('/api/heartbeat_fallback', { method: 'POST' });
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await fetchHeartbeat();

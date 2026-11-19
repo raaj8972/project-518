@@ -1,3 +1,4 @@
+import { secureEvent } from './lib/api-security';
 import { type Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import { callAI, AIMessage, AIModel } from './lib/ai';
@@ -45,7 +46,7 @@ function inferColorAndIcon(tierName: string) {
   return { color, icon };
 }
 
-export const handler: Handler = async (event: any) => {
+const implementation: Handler = async (event: any) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
@@ -142,3 +143,5 @@ Required JSON structure - an Array of Tier objects:
     return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message || 'Internal Server Error' }) };
   }
 };
+
+export const handler = secureEvent('ai-extract-tiers', implementation);

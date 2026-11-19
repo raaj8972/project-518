@@ -1,8 +1,9 @@
+import { secureEvent } from './lib/api-security';
 import { type Handler } from '@netlify/functions';
 import { getSupabaseClient } from './lib/supabase';
 import { callAI, AIMessage, AIModel } from './lib/ai';
 
-export const handler: Handler = async (event: any) => {
+const implementation: Handler = async (event: any) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
@@ -97,3 +98,5 @@ Required JSON structure - an Object containing 'committees' and 'members' arrays
     return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message || 'Internal Server Error' }) };
   }
 };
+
+export const handler = secureEvent('ai-extract-core-team', implementation);

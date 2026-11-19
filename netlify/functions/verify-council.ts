@@ -1,3 +1,4 @@
+import { trustedClientIp } from './lib/client-ip';
 import type { Handler } from '@netlify/functions';
 import { getSupabaseClient } from './lib/supabase';
 
@@ -8,7 +9,7 @@ export const handler: Handler = async event => {
     const { passcode } = JSON.parse(event.body || '{}');
     if (typeof passcode !== 'string' || passcode.length > 128 || !passcode.trim()) return reply(400, { error: 'Passcode required' });
     const client = getSupabaseClient(true);
-    const ip = event.headers['x-forwarded-for']?.split(',')[0]?.trim() || 'local';
+    const ip = trustedClientIp(event.headers);
     const { data: limit, error: limitError } = await client.rpc('check_rate_limit', { request_ip: ip });
     if (limitError) return reply(503, { error: 'Login service unavailable' });
     if (limit && !limit.allowed) return reply(429, { error: 'Too many attempts. Please try again later.' });

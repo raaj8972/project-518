@@ -1,4 +1,4 @@
-import { getSupabaseClient } from './lib/supabase';
+import { getSupabaseClient } from '../netlify/functions/lib/supabase';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -23,7 +23,7 @@ async function check() {
 
   if (data && data.length > 0) {
     console.log("Columns found:", Object.keys(data[0]));
-    console.log("Sample row:", data[0]);
+    console.log("Sample values omitted for security");
   } else {
     console.log("Table is empty or not found.");
   }

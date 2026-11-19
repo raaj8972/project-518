@@ -201,7 +201,7 @@ export const Teams: React.FC = () => {
       setSearchingMembers(true);
       try {
         const { data } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, full_name, username, avatar_url, batch')
           .or(`username.ilike.%${memberSearch}%,full_name.ilike.%${memberSearch}%`)
           .not('id', 'eq', user?.id)

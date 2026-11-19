@@ -150,7 +150,7 @@ export const Events: React.FC = () => {
   const handleOpenWinnerProfile = async (userId: string) => {
     try {
       const { data: p } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select(`
           id,
           full_name,
@@ -160,7 +160,7 @@ export const Events: React.FC = () => {
           background_url,
           batch,
           likes_count,
-          student_xp(tier, xp_total)
+          student_xp
         `)
         .eq('id', userId)
         .single();

@@ -1,43 +1,13 @@
-import { Handler } from '@netlify/functions';
-
-export const handler: Handler = async (event) => {
-  const { url } = event.queryStringParameters || {};
-
-  if (!url) {
-    return { statusCode: 400, body: 'Missing "url" parameter' };
-  }
-
+import type { Handler } from '@netlify/functions';
+import { secureEvent } from './lib/api-security';
+import { allowedMediaUrl, fetchImage } from './lib/media-fetch';
+const implementation: Handler = async event => {
+  const url = event.queryStringParameters?.url;
+  if (!url) return { statusCode: 400, body: JSON.stringify({ error: 'Image URL required' }) };
+  try { allowedMediaUrl(url); } catch { return { statusCode: 400, body: JSON.stringify({ error: 'Image URL is not allowed' }) }; }
   try {
-    // Determine if we can use native fetch (Node 18+)
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      return { 
-        statusCode: response.status, 
-        body: `Failed to fetch image: ${response.statusText}` 
-      };
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const contentType = response.headers.get('content-type') || 'application/octet-stream';
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': contentType,
-        // 'Access-Control-Allow-Origin': '*' // Restricted by policy, // Allow all origins (fixes CORS)
-        'Access-Control-Allow-Methods': 'GET',
-        'Cache-Control': 'public, max-age=31536000, immutable'
-      },
-      body: buffer.toString('base64'),
-      isBase64Encoded: true
-    };
-  } catch (error) {
-    console.error('Proxy Error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to proxy image', details: String(error) })
-    };
-  }
+    const { buffer, contentType } = await fetchImage(url);
+    return { statusCode: 200, headers: { 'Content-Type': contentType, 'Cache-Control': 'public, max-age=3600', 'Content-Security-Policy': "default-src 'none'; sandbox" }, body: buffer.toString('base64'), isBase64Encoded: true };
+  } catch { return { statusCode: 502, body: JSON.stringify({ error: 'Unable to fetch image' }) }; }
 };
+export const handler = secureEvent('image-proxy', implementation);

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { secureEvent } from './lib/api-security';
 import { getSupabaseClient } from './lib/supabase';
 import { verifyToken } from './lib/auth-verify';
 import { Handler } from '@netlify/functions';
@@ -9,7 +11,7 @@ const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
 
-const handler: Handler = async (event) => {
+const implementation = async (event) => {
   // Handle CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -38,15 +40,15 @@ const handler: Handler = async (event) => {
       const { data: admin } = await client.from('admin_users').select('role').eq('user_id', user.id).maybeSingle();
       if (admin?.role !== 'owner') return { statusCode: 503, body: JSON.stringify({ error: 'Uploads are temporarily paused' }) };
     }
-    const { filename: clientFilename, filetype } = JSON.parse(event.body || '{}');
+    const { filename: clientFilename, filetype, fileSize } = JSON.parse(event.body || '{}');
 
-    if (!clientFilename || !filetype) {
+    if (typeof clientFilename !== 'string' || clientFilename.length > 255 || typeof filetype !== 'string' || !Number.isSafeInteger(fileSize) || fileSize <= 0 || fileSize > 100 * 1024 * 1024) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Missing filename or filetype' }) };
     }
 
     // --- SECURITY: MIME Type & Extension Validation ---
     const ALLOWED_TYPES = [
-      'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml',
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
       'video/mp4', 'video/webm', 'video/ogg',
       'application/pdf'
     ];
@@ -82,9 +84,7 @@ const handler: Handler = async (event) => {
     }
 
     // --- SECURITY: Enforce Random Filename on Server ---
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(2, 11);
-    const filename = `${timestamp}-${randomStr}.${expectedExtension}`;
+    const filename = `${user.id}/${randomUUID()}.${expectedExtension}`;
 
     if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) {
       console.error('Missing R2 environment variables');
@@ -104,6 +104,7 @@ const handler: Handler = async (event) => {
       Bucket: R2_BUCKET_NAME,
       Key: filename,
       ContentType: filetype,
+      ContentLength: fileSize,
     });
 
     // Generate presigned URL (valid for 5 minutes)
@@ -142,4 +143,6 @@ const handler: Handler = async (event) => {
   }
 };
 
-export { handler };
+
+
+export const handler = secureEvent('get-r2-upload-url', implementation);

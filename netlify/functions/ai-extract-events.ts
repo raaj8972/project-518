@@ -1,3 +1,4 @@
+import { secureEvent } from './lib/api-security';
 import { type Handler } from '@netlify/functions';
 import { getSupabaseClient } from './lib/supabase';
 import { callAI, type AIModel, type AIMessage } from './lib/ai';
@@ -8,7 +9,7 @@ const ALLOWED_MODELS: string[] = [
   'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'
 ];
 
-export const handler: Handler = async (event) => {
+const implementation: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
@@ -91,3 +92,5 @@ Required JSON structure - an Array of Event objects:
     return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: error.message || 'Internal Server Error' }) };
   }
 };
+
+export const handler = secureEvent('ai-extract-events', implementation);

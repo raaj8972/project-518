@@ -326,7 +326,7 @@ const ActiveEvents: React.FC = () => {
         let profilesMap: Record<string, any> = {};
         if (userIds.length > 0) {
           const { data: profiles } = await supabase
-            .from('profiles')
+            .from('public_profiles')
             .select('id, full_name, batch, avatar_url, aura_color')
             .in('id', userIds);
           if (profiles) {

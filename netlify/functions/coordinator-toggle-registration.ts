@@ -1,62 +1,17 @@
-import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions'
-import { createClient } from '@supabase/supabase-js'
-
-/**
- * Coordinator Registration Toggle
- * Validates coordinator token via get_coordinator_registrations RPC,
- * then toggles registration_open using service role (bypasses RLS).
- *
- * POST /.netlify/functions/coordinator-toggle-registration
- * Body: { event_id: number, token: string, registration_open: boolean }
- */
-export const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) => {
-  try {
-    if (event.httpMethod !== 'POST') {
-      return { statusCode: 405, body: 'Method Not Allowed' }
-    }
-
-    const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
-    const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!SUPABASE_URL || !SERVICE_ROLE) {
-      return { statusCode: 500, body: 'Server not configured' }
-    }
-
-    const body = JSON.parse(event.body || '{}')
-    const eventId = Number(body.event_id)
-    const token = String(body.token || '')
-    const registrationOpen = body.registration_open
-
-    if (!eventId || !token || typeof registrationOpen !== 'boolean') {
-      return { statusCode: 400, body: 'Missing required fields: event_id, token, registration_open' }
-    }
-
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
-
-    // Validate coordinator token — same RPC the dashboard uses for data fetching
-    const { error: validationError } = await admin.rpc('get_coordinator_registrations', {
-      event_id_param: eventId,
-      token_param: token
-    })
-
-    if (validationError) {
-      return { statusCode: 403, body: 'TRAPPED_LEGACY_CALL' }
-    }
-
-    // Token valid — update registration_open using service role (bypasses RLS)
-    const { error: updateErr } = await admin
-      .from('events')
-      .update({ registration_open: registrationOpen })
-      .eq('id', eventId)
-
-    if (updateErr) {
-      return { statusCode: 400, body: updateErr.message }
-    }
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ ok: true, registration_open: registrationOpen })
-    }
-  } catch (e: any) {
-    return { statusCode: 500, body: e?.message || 'Internal error' }
-  }
-}
+import type { Handler } from '@netlify/functions';
+import { getSupabaseClient } from './lib/supabase';
+import { verifyToken } from './lib/auth-verify';
+import { secureEvent } from './lib/api-security';
+const implementation: Handler = async event => {
+  const client = getSupabaseClient(true);
+  const user = await verifyToken(event.headers?.authorization || event.headers?.Authorization, client);
+  if (!user) return { statusCode: 401, body: JSON.stringify({ error: 'Sign in required' }) };
+  let body; try { body = JSON.parse(event.body || '{}'); } catch { return { statusCode: 400, body: '{}' }; }
+  const eventId = String(body.event_id || '');
+  if (typeof body.registration_open !== 'boolean' || !eventId || eventId.length > 200) return { statusCode: 400, body: JSON.stringify({ error: 'Invalid event settings' }) };
+  if (user.app_metadata?.role !== 'coordinator' || user.app_metadata?.coordinator_event_id !== eventId) return { statusCode: 403, body: JSON.stringify({ error: 'Coordinator access required for this event' }) };
+  const { error } = await client.from('events').update({ registration_open: body.registration_open }).eq('id', eventId);
+  if (error) throw error;
+  return { statusCode: 200, body: JSON.stringify({ ok: true, registration_open: body.registration_open }) };
+};
+export const handler = secureEvent('coordinator-toggle-registration', implementation);

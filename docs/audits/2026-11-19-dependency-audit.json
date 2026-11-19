@@ -1,0 +1,799 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@eslint/config-array": {
+      "name": "@eslint/config-array",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "minimatch"
+      ],
+      "effects": [
+        "eslint"
+      ],
+      "range": "0.23.0 - 0.23.5",
+      "nodes": [
+        "node_modules/@eslint/config-array"
+      ],
+      "fixAvailable": true
+    },
+    "@eslint/eslintrc": {
+      "name": "@eslint/eslintrc",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "minimatch"
+      ],
+      "effects": [],
+      "range": "",
+      "nodes": [
+        "node_modules/@eslint/eslintrc"
+      ],
+      "fixAvailable": true
+    },
+    "@netlify/build": {
+      "name": "@netlify/build",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@netlify/functions-utils",
+        "@netlify/zip-it-and-ship-it",
+        "minimatch"
+      ],
+      "effects": [
+        "netlify-cli"
+      ],
+      "range": "0.0.24 - 0.0.26 || 1.0.0-dl-test || 16.0.0-rc || >=29.6.0",
+      "nodes": [
+        "node_modules/@netlify/build"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "@netlify/build-info": {
+      "name": "@netlify/build-info",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "minimatch"
+      ],
+      "effects": [
+        "netlify-cli"
+      ],
+      "range": ">=7.0.6",
+      "nodes": [
+        "node_modules/@netlify/build-info"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "@netlify/dev": {
+      "name": "@netlify/dev",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@netlify/functions-dev"
+      ],
+      "effects": [
+        "netlify-cli"
+      ],
+      "range": ">=4.6.1",
+      "nodes": [
+        "node_modules/@netlify/dev"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "@netlify/functions-dev": {
+      "name": "@netlify/functions-dev",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@netlify/zip-it-and-ship-it"
+      ],
+      "effects": [
+        "@netlify/dev"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/@netlify/functions-dev"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "@netlify/functions-utils": {
+      "name": "@netlify/functions-utils",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@netlify/zip-it-and-ship-it"
+      ],
+      "effects": [
+        "@netlify/build"
+      ],
+      "range": ">=5.2.0",
+      "nodes": [
+        "node_modules/@netlify/functions-utils"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "@netlify/zip-it-and-ship-it": {
+      "name": "@netlify/zip-it-and-ship-it",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@vercel/nft",
+        "archiver",
+        "minimatch",
+        "precinct"
+      ],
+      "effects": [
+        "@netlify/build",
+        "@netlify/functions-dev",
+        "@netlify/functions-utils",
+        "netlify-cli"
+      ],
+      "range": ">=8.8.0",
+      "nodes": [
+        "node_modules/@netlify/zip-it-and-ship-it"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "@typescript-eslint/eslint-plugin": {
+      "name": "@typescript-eslint/eslint-plugin",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@typescript-eslint/parser",
+        "@typescript-eslint/type-utils",
+        "@typescript-eslint/utils"
+      ],
+      "effects": [],
+      "range": "6.16.0 - 8.73.0",
+      "nodes": [
+        "node_modules/@typescript-eslint/eslint-plugin"
+      ],
+      "fixAvailable": true
+    },
+    "@typescript-eslint/parser": {
+      "name": "@typescript-eslint/parser",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@typescript-eslint/typescript-estree"
+      ],
+      "effects": [
+        "@typescript-eslint/eslint-plugin",
+        "typescript-eslint"
+      ],
+      "range": "6.16.0 - 8.73.0",
+      "nodes": [
+        "node_modules/@typescript-eslint/parser"
+      ],
+      "fixAvailable": true
+    },
+    "@typescript-eslint/type-utils": {
+      "name": "@typescript-eslint/type-utils",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@typescript-eslint/typescript-estree",
+        "@typescript-eslint/utils"
+      ],
+      "effects": [
+        "@typescript-eslint/eslint-plugin"
+      ],
+      "range": "6.16.0 - 8.73.0",
+      "nodes": [
+        "node_modules/@typescript-eslint/type-utils"
+      ],
+      "fixAvailable": true
+    },
+    "@typescript-eslint/typescript-estree": {
+      "name": "@typescript-eslint/typescript-estree",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "minimatch"
+      ],
+      "effects": [
+        "@typescript-eslint/parser",
+        "@typescript-eslint/type-utils",
+        "@typescript-eslint/utils",
+        "detective-typescript",
+        "typescript-eslint"
+      ],
+      "range": "6.16.0 - 8.72.2",
+      "nodes": [
+        "node_modules/@typescript-eslint/typescript-estree"
+      ],
+      "fixAvailable": true
+    },
+    "@typescript-eslint/utils": {
+      "name": "@typescript-eslint/utils",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@typescript-eslint/typescript-estree"
+      ],
+      "effects": [
+        "typescript-eslint"
+      ],
+      "range": "6.16.0 - 8.73.0",
+      "nodes": [
+        "node_modules/@typescript-eslint/utils"
+      ],
+      "fixAvailable": true
+    },
+    "@vercel/nft": {
+      "name": "@vercel/nft",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "glob"
+      ],
+      "effects": [
+        "@netlify/zip-it-and-ship-it"
+      ],
+      "range": "0.29.2 - 1.11.1",
+      "nodes": [
+        "node_modules/@netlify/zip-it-and-ship-it/node_modules/@vercel/nft"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "archiver": {
+      "name": "archiver",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "readdir-glob"
+      ],
+      "effects": [
+        "@netlify/zip-it-and-ship-it"
+      ],
+      "range": ">=8.0.0",
+      "nodes": [
+        "node_modules/@netlify/zip-it-and-ship-it/node_modules/archiver"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "archiver-utils": {
+      "name": "archiver-utils",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "glob"
+      ],
+      "effects": [
+        "zip-stream"
+      ],
+      "range": "3.0.4 || >=5.0.1",
+      "nodes": [
+        "node_modules/zip-stream/node_modules/archiver-utils"
+      ],
+      "fixAvailable": true
+    },
+    "browserify-sign": {
+      "name": "browserify-sign",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        "elliptic"
+      ],
+      "effects": [
+        "crypto-browserify"
+      ],
+      "range": ">=2.4.0",
+      "nodes": [
+        "node_modules/browserify-sign"
+      ],
+      "fixAvailable": {
+        "name": "vite-plugin-node-polyfills",
+        "version": "0.2.0",
+        "isSemVerMajor": true
+      }
+    },
+    "create-ecdh": {
+      "name": "create-ecdh",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        "elliptic"
+      ],
+      "effects": [
+        "crypto-browserify"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/create-ecdh"
+      ],
+      "fixAvailable": {
+        "name": "vite-plugin-node-polyfills",
+        "version": "0.2.0",
+        "isSemVerMajor": true
+      }
+    },
+    "crypto-browserify": {
+      "name": "crypto-browserify",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        "browserify-sign",
+        "create-ecdh"
+      ],
+      "effects": [
+        "node-stdlib-browser"
+      ],
+      "range": ">=3.4.0",
+      "nodes": [
+        "node_modules/crypto-browserify"
+      ],
+      "fixAvailable": {
+        "name": "vite-plugin-node-polyfills",
+        "version": "0.2.0",
+        "isSemVerMajor": true
+      }
+    },
+    "detective-typescript": {
+      "name": "detective-typescript",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "@typescript-eslint/typescript-estree"
+      ],
+      "effects": [
+        "detective-vue2",
+        "precinct"
+      ],
+      "range": ">=12.0.0",
+      "nodes": [
+        "node_modules/detective-typescript"
+      ],
+      "fixAvailable": true
+    },
+    "detective-vue2": {
+      "name": "detective-vue2",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "detective-typescript"
+      ],
+      "effects": [
+        "precinct"
+      ],
+      "range": ">=1.0.2",
+      "nodes": [
+        "node_modules/detective-vue2"
+      ],
+      "fixAvailable": true
+    },
+    "elliptic": {
+      "name": "elliptic",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1112030,
+          "name": "elliptic",
+          "dependency": "elliptic",
+          "title": "Elliptic Uses a Cryptographic Primitive with a Risky Implementation",
+          "url": "https://github.com/advisories/GHSA-848j-6mx2-7j84",
+          "severity": "low",
+          "cwe": [
+            "CWE-1240"
+          ],
+          "cvss": {
+            "score": 5.6,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L"
+          },
+          "range": "<=6.6.1"
+        }
+      ],
+      "effects": [
+        "browserify-sign",
+        "create-ecdh"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/elliptic"
+      ],
+      "fixAvailable": {
+        "name": "vite-plugin-node-polyfills",
+        "version": "0.2.0",
+        "isSemVerMajor": true
+      }
+    },
+    "eslint": {
+      "name": "eslint",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@eslint/config-array",
+        "minimatch"
+      ],
+      "effects": [],
+      "range": "9.39.4 - 10.14.0",
+      "nodes": [
+        "node_modules/eslint"
+      ],
+      "fixAvailable": true
+    },
+    "exceljs": {
+      "name": "exceljs",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "uuid"
+      ],
+      "effects": [],
+      "range": ">=3.5.0",
+      "nodes": [
+        "node_modules/exceljs"
+      ],
+      "fixAvailable": {
+        "name": "exceljs",
+        "version": "3.4.0",
+        "isSemVerMajor": true
+      }
+    },
+    "glob": {
+      "name": "glob",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1244013,
+          "name": "glob",
+          "dependency": "glob",
+          "title": "Glob: AbortSignal cancellation bypass allows post-timeout filesystem traversal",
+          "url": "https://github.com/advisories/GHSA-3g3m-2fjr-6pw4",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=9.0.0 <=14.0.1"
+        },
+        "minimatch"
+      ],
+      "effects": [
+        "@vercel/nft",
+        "archiver-utils"
+      ],
+      "range": "9.0.0 - 14.0.1",
+      "nodes": [
+        "node_modules/@fastify/static/node_modules/glob",
+        "node_modules/@netlify/zip-it-and-ship-it/node_modules/glob",
+        "node_modules/glob"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "minimatch": {
+      "name": "minimatch",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1244623,
+          "name": "minimatch",
+          "dependency": "minimatch",
+          "title": "minimatch has potential denial of service via globparts amplification",
+          "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-405"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=7.0.0 <11.0.1"
+        }
+      ],
+      "effects": [
+        "@eslint/config-array",
+        "@eslint/eslintrc",
+        "@netlify/build",
+        "@netlify/build-info",
+        "@netlify/zip-it-and-ship-it",
+        "@typescript-eslint/typescript-estree",
+        "eslint",
+        "glob",
+        "readdir-glob"
+      ],
+      "range": "7.0.0 - 11.0.0",
+      "nodes": [
+        "node_modules/minimatch"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "netlify-cli": {
+      "name": "netlify-cli",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@netlify/build",
+        "@netlify/build-info",
+        "@netlify/dev",
+        "@netlify/zip-it-and-ship-it"
+      ],
+      "effects": [],
+      "range": ">=13.0.1",
+      "nodes": [
+        "node_modules/netlify-cli"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "node-stdlib-browser": {
+      "name": "node-stdlib-browser",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        "crypto-browserify"
+      ],
+      "effects": [
+        "vite-plugin-node-polyfills"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/node-stdlib-browser"
+      ],
+      "fixAvailable": {
+        "name": "vite-plugin-node-polyfills",
+        "version": "0.2.0",
+        "isSemVerMajor": true
+      }
+    },
+    "precinct": {
+      "name": "precinct",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "detective-typescript",
+        "detective-vue2"
+      ],
+      "effects": [],
+      "range": ">=12.0.0",
+      "nodes": [
+        "node_modules/precinct"
+      ],
+      "fixAvailable": true
+    },
+    "react-router": {
+      "name": "react-router",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1124268,
+          "name": "react-router",
+          "dependency": "react-router",
+          "title": "React Router: Open redirect via backslash in <Link> and useNavigate (CVE-2025-68470 bypass)",
+          "url": "https://github.com/advisories/GHSA-wrjc-x8rr-h8h6",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-601"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=6.0.0 <7.18.0"
+        },
+        {
+          "source": 1124272,
+          "name": "react-router",
+          "dependency": "react-router",
+          "title": "React Router: Arbitrary Constructor Injection via deserializeErrors() in React Router SSR Hydration",
+          "url": "https://github.com/advisories/GHSA-337j-9hxr-rhxg",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-470"
+          ],
+          "cvss": {
+            "score": 6.1,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+          },
+          "range": ">=6.4.0 <7.18.0"
+        }
+      ],
+      "effects": [
+        "react-router-dom"
+      ],
+      "range": "6.0.0 - 7.17.0",
+      "nodes": [
+        "node_modules/react-router"
+      ],
+      "fixAvailable": {
+        "name": "react-router-dom",
+        "version": "7.18.6",
+        "isSemVerMajor": true
+      }
+    },
+    "react-router-dom": {
+      "name": "react-router-dom",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "react-router"
+      ],
+      "effects": [],
+      "range": "6.0.0-alpha.0 - 7.17.0",
+      "nodes": [
+        "node_modules/react-router-dom"
+      ],
+      "fixAvailable": {
+        "name": "react-router-dom",
+        "version": "7.18.6",
+        "isSemVerMajor": true
+      }
+    },
+    "readdir-glob": {
+      "name": "readdir-glob",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "minimatch"
+      ],
+      "effects": [
+        "archiver"
+      ],
+      "range": "2.0.0 - 3.0.0",
+      "nodes": [
+        "node_modules/@netlify/zip-it-and-ship-it/node_modules/readdir-glob",
+        "node_modules/readdir-glob"
+      ],
+      "fixAvailable": {
+        "name": "netlify-cli",
+        "version": "17.22.1",
+        "isSemVerMajor": true
+      }
+    },
+    "typescript-eslint": {
+      "name": "typescript-eslint",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@typescript-eslint/eslint-plugin",
+        "@typescript-eslint/parser",
+        "@typescript-eslint/typescript-estree",
+        "@typescript-eslint/utils"
+      ],
+      "effects": [],
+      "range": "<=8.73.0",
+      "nodes": [
+        "node_modules/typescript-eslint"
+      ],
+      "fixAvailable": true
+    },
+    "uuid": {
+      "name": "uuid",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1119441,
+          "name": "uuid",
+          "dependency": "uuid",
+          "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+          "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-787",
+            "CWE-1285"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<11.1.1"
+        }
+      ],
+      "effects": [
+        "exceljs"
+      ],
+      "range": "<11.1.1",
+      "nodes": [
+        "node_modules/exceljs/node_modules/uuid"
+      ],
+      "fixAvailable": {
+        "name": "exceljs",
+        "version": "3.4.0",
+        "isSemVerMajor": true
+      }
+    },
+    "vite-plugin-node-polyfills": {
+      "name": "vite-plugin-node-polyfills",
+      "severity": "low",
+      "isDirect": true,
+      "via": [
+        "node-stdlib-browser"
+      ],
+      "effects": [],
+      "range": ">=0.3.0",
+      "nodes": [
+        "node_modules/vite-plugin-node-polyfills"
+      ],
+      "fixAvailable": {
+        "name": "vite-plugin-node-polyfills",
+        "version": "0.2.0",
+        "isSemVerMajor": true
+      }
+    },
+    "zip-stream": {
+      "name": "zip-stream",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "archiver-utils"
+      ],
+      "effects": [],
+      "range": "4.1.1 - 5.0.0 || 6.0.0 - 6.0.1",
+      "nodes": [
+        "node_modules/zip-stream"
+      ],
+      "fixAvailable": true
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 6,
+      "moderate": 30,
+      "high": 0,
+      "critical": 0,
+      "total": 36
+    },
+    "dependencies": {
+      "prod": 705,
+      "dev": 1090,
+      "optional": 211,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 1886
+    }
+  }
+}
