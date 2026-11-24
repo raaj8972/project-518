@@ -158,7 +158,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const effectiveImageMaxBytes = (typeof maxImageBytes === 'number' && maxImageBytes > 0) ? maxImageBytes : defaultImageMaxBytes;
   
   const effectiveFileTypeLabel = fileTypeLabel || (isVideoUpload
-    ? 'MP4, MOV up to 50MB'
+    ? `MP4, WebM, MOV up to ${humanSize(maxImageBytes || 50 * 1024 * 1024)}`
     : isAudioUpload
       ? 'MP3, OGG'
       : isPdfUpload 

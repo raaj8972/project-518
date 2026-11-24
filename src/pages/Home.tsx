@@ -2,6 +2,7 @@ import { selectHomepageArtists } from '../utils/guestArtists';
 import { isHomepageRoadmapVisible } from '../utils/homepageRoadmap';
 import { useHomepageEvents } from '../hooks/useHomepageEvents';
 import { resolveHomepagePartners } from '../utils/homepageContent';
+import { BRAND_YEAR } from '../constants/brand';
 import React, { useState, useEffect, startTransition, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -110,7 +111,6 @@ export const Home: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const detailAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,66 +150,20 @@ export const Home: React.FC = () => {
     };
   }, [showInteractive, loading]);
 
-  const stopDetailAudio = useCallback(() => {
-    const player = detailAudioRef.current;
-    if (!player) return;
-    try {
-      player.pause();
-      player.currentTime = 0;
-    } catch {}
-  }, []);
-
-  const primeDetailAudio = useCallback((url?: string | null, userInitiated?: boolean) => {
-    const src = (url || '').trim();
-    if (!src) {
-      stopDetailAudio();
-      return;
-    }
-    if (!userInitiated) {
-      // Avoid autoplaying without a user gesture to satisfy Safari/iOS policies.
-      stopDetailAudio();
-      return;
-    }
-    if (typeof window === 'undefined' || typeof Audio === 'undefined') return;
-    let player = detailAudioRef.current;
-    if (!player) {
-      player = new Audio();
-      player.preload = 'auto';
-      detailAudioRef.current = player;
-    }
-    try {
-      player.pause();
-    } catch {}
-    if (player.src !== src) {
-      player.src = src;
-    }
-    player.loop = true;
-    try {
-      player.currentTime = 0;
-    } catch {}
-    import('../utils/safePlay').then(({ default: safePlay }) => safePlay(player)).catch(() => { try { player.play(); } catch {} });
-  }, [stopDetailAudio]);
-
-  useEffect(() => () => {
-    stopDetailAudio();
-  }, [stopDetailAudio]);
-
-  const openDetailModal = useCallback((artist: GuestArtist, options?: { userInitiated?: boolean }) => {
+  const openDetailModal = useCallback((artist: GuestArtist, _options?: { userInitiated?: boolean }) => {
     if (!artist) return;
-    primeDetailAudio((artist as any)?.detail_music_url, options?.userInitiated ?? false);
     startTransition(() => {
       setDetailArtist(artist);
       setDetailOpen(true);
     });
-  }, [primeDetailAudio]);
+  }, []);
 
   const closeDetailModal = useCallback(() => {
-    stopDetailAudio();
     startTransition(() => {
       setDetailOpen(false);
       setDetailArtist(null);
     });
-  }, [stopDetailAudio]);
+  }, []);
 
   // Heads data and memoized sorted lists (must be before any early return)
   // All data comes from the database — managed via Admin → Core Team Management
@@ -355,6 +309,23 @@ export const Home: React.FC = () => {
       {/* Hero Section */}
       <HomeHero />
 
+      {/* Featured Guest Artists */}
+      <React.Suspense fallback={<div className="h-[500px] bg-black/20 animate-pulse" />}>
+        <ArtistCarousel
+          settings={homepageSettings?.artist_stage_settings}
+          artists={featuredGuestArtists}
+          currentYear={Number(homepageSettings?.brand_year) || Number(BRAND_YEAR)}
+          loading={loading && guestArtists.length === 0}
+          openDetailModal={openDetailModal}
+          setVideoModalOpen={setVideoModalOpen}
+          setSelectedArtistForVideo={setSelectedArtistForVideo}
+          detailOpen={detailOpen}
+          videoModalOpen={videoModalOpen}
+          showInteractive={showInteractive}
+          prefetchDetailModal={prefetchDetailModal}
+        />
+      </React.Suspense>
+
       {/* RICO STARS / Hall of Fame */}
       <React.Suspense fallback={<div className="h-64 bg-black/20 animate-pulse" />}>
         <TopLegendsSection />
@@ -383,21 +354,6 @@ export const Home: React.FC = () => {
         </React.Suspense>
       )}
 
-      {/* Featured Guest Artists */}
-      <React.Suspense fallback={<div className="h-[500px] bg-black/20 animate-pulse" />}>
-        <ArtistCarousel
-          artists={featuredGuestArtists}
-          openDetailModal={openDetailModal}
-          setVideoModalOpen={setVideoModalOpen}
-          setSelectedArtistForVideo={setSelectedArtistForVideo}
-          detailOpen={detailOpen}
-          videoModalOpen={videoModalOpen}
-          showInteractive={showInteractive}
-          prefetchDetailModal={prefetchDetailModal}
-        />
-      </React.Suspense>
-
-      
       {/* Winners Section */}
       <React.Suspense fallback={null}>
         <WinnersSection />

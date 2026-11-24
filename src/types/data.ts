@@ -137,7 +137,21 @@ export interface Team {
   created_by: string;
 }
 export type BandMember = Database['public']['Tables']['band_members']['Row'];
-export type GuestArtist = Database['public']['Tables']['guest_artists']['Row'];
+export interface ArtistSong { title: string; url: string; }
+export type GuestArtist = Database['public']['Tables']['guest_artists']['Row'] & {
+  festival_year?: number | null;
+  gallery_images?: string[] | null;
+  track_title?: string | null;
+  artist_kind?: 'artist' | 'band' | 'dj' | null;
+  stage_media_mode?: 'photos' | 'clips' | null;
+  stage_clip_urls?: string[] | null;
+  stage_clip_seconds?: number | null;
+  desktop_gallery_images?: string[] | null;
+  desktop_stage_clip_urls?: string[] | null;
+  stage_light_color?: string | null;
+  spotify_collection_url?: string | null;
+  featured_songs?: ArtistSong[] | null;
+};
 export type ChiefGuest = Database['public']['Tables']['chief_guests']['Row'];
 export type SponsorshipPackage = Database['public']['Tables']['sponsorship_packages']['Row'];
 export type Audition = Database['public']['Tables']['auditions']['Row'];
@@ -146,6 +160,7 @@ export type FormSettings = Database['public']['Tables']['form_settings']['Row'];
 export type SocialMediaSettings = Database['public']['Tables']['social_media_settings']['Row'];
 export type HomepageSettings = Database['public']['Tables']['homepage_settings']['Row'] & {
   roadmap_enabled?: boolean;
+  artist_stage_settings?: import('../utils/artistStageSettings').ArtistStageSettings | Record<string,unknown> | null;
 };
 export type HomeboundSettings = Database['public']['Tables']['homebound_settings']['Row'];
 export type SiteSettings = Database['public']['Tables']['site_settings']['Row'] & {

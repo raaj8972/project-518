@@ -90,11 +90,10 @@ export const isUrlReferencedSomewhere = (
   if (cache.guestArtists) {
     for (const a of cache.guestArtists) {
       if (skip('guest_artists', a.id)) continue;
-      const u1 = normalizeStorageUrl((a as any).image);
-      const u2 = normalizeStorageUrl((a as any).image_url);
-      const u3 = normalizeStorageUrl((a as any).photo_url);
-      const uv = normalizeStorageUrl((a as any).video_url);
-      if (u1 === t || u2 === t || u3 === t || uv === t) return true;
+      const row=a as any;
+      const references=[row.image,row.image_url,row.photo_url,row.video_url,row.card_media_url,row.detail_music_url,
+        ...(row.gallery_images||[]),...(row.stage_clip_urls||[]),...(row.desktop_gallery_images||[]),...(row.desktop_stage_clip_urls||[])];
+      if(references.some(url=>normalizeStorageUrl(url)===t))return true;
     }
   }
   // events.image
@@ -135,7 +134,7 @@ export const isUrlReferencedSomewhere = (
 
 const KNOWN_BUCKETS = [
   'registration-photos','gallery-images','roadmap-images','sponsor-logos','team-images','band-images','guest-artist-images','faculty-images','event-images',
-  'artists','members','uploads','hero-media','hero-videos','hero-video','guest-artist-videos','pdf','documents', 'hero_v2'
+  'artists','members','uploads','hero-media','hero-videos','hero-video','guest-artist-videos','guest-artist-audio','pdf','documents', 'hero_v2'
 ];
 
 /**

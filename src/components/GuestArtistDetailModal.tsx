@@ -1,225 +1,100 @@
-import React, { useEffect } from 'react';
-import WatchLiveButton from './WatchLiveButton';
-import CountdownTimer from './CountdownTimer';
-import Sparkle3D from './Sparkle3D';
-import { Calendar, MapPin, Music2 } from 'lucide-react';
-import Instagram3DButtonLink from './Instagram3DButtonLink';
-import YouTube3DButtonLink from './YouTube3DButtonLink';
-import Facebook3DButtonLink from './Facebook3DButtonLink';
-import PreserveNewlines from './PreserveNewlines';
+import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ArrowRightIcon, CalendarIcon, Cross2Icon, DiscIcon, ExternalLinkIcon, InstagramLogoIcon, PlayIcon, VideoIcon } from '@radix-ui/react-icons';
+import type { GuestArtist } from '../types/data';
+import { artistMediaUrl, artistStageClips, artistSongTarget, artistYoutubeId, getArtistKind, normalizeArtistSongs, spotifyResource } from '../utils/artistMedia';
+import { getArtistFestivalYear } from '../utils/guestArtists';
+import { ArtistStageImage } from './Home/ArtistStageImage';
+import '../styles/ArtistProfile.css';
 
-type SocialLinks = Record<string, string> | null | undefined;
+export type GuestArtistDetail = Partial<GuestArtist> & { name: string };
+type Playback = {kind:'none'} | {kind:'video';url:string;title:string;youtube:boolean;clipLimit?:number} | {kind:'spotify';url:string;title:string};
 
-export type GuestArtistDetail = {
-  id?: number;
-  name: string;
-  title?: string | null;
-  image?: string | null;
-  specialty?: string | null;
-  description?: string | null;
-  achievements?: string[];
-  social_links?: SocialLinks;
-  video_url?: string | null;
-  youtube_url?: string | null;
-  performance_at?: string | null;
-  venue?: string | null;
-  countdown_enabled?: boolean;
-  watch_live_url?: string | null; // new live stream link
-  detail_music_url?: string | null;
-};
+export default function GuestArtistDetailModal({isOpen,onClose,artist,inline=false}:{inline?:boolean;isOpen:boolean;onClose:()=>void;artist:GuestArtistDetail|null}) {
+  const dialog=useRef<HTMLDialogElement>(null);
+  const closeRef=useRef(onClose);closeRef.current=onClose;
+  const [playback,setPlayback]=useState<Playback>({kind:'none'});
+  const [mediaError,setMediaError]=useState('');
+  const [playerLoading,setPlayerLoading]=useState(false);
+  const [playbackKey,setPlaybackKey]=useState(0);
+  const headingId=useId();
+  const kind=getArtistKind(artist||{});
+  const noun=kind==='band'?'band':kind==='dj'?'DJ':'artist';
+  const collection=spotifyResource(artist?.spotify_collection_url)||spotifyResource(artist?.social_links?.spotify);
+  const clips=artistStageClips(artist||{});
+  const songs=normalizeArtistSongs(artist?.featured_songs);
+  const youtube=artistYoutubeId(artist?.youtube_url);
+  const video=artistMediaUrl(artist?.video_url);
+  const instagram=artistMediaUrl(artist?.social_links?.instagram);
+  const channel=artistMediaUrl(artist?.social_links?.youtube);
+  const live=artistMediaUrl(artist?.watch_live_url);
+  const stop=()=>setPlayback({kind:'none'});
+  const close=()=>{stop();closeRef.current();};
+  const choose=(next:Playback)=>{setPlaybackKey(key=>key+1);setPlayerLoading(next.kind==='spotify'||next.kind==='video'&&next.youtube);setMediaError('');setPlayback(next);};
 
-const GuestArtistDetailModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  artist: GuestArtistDetail | null;
-}> = ({ isOpen, onClose, artist }) => {
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.body.classList.add('modal-open');
-    return () => { 
-      document.removeEventListener('keydown', onKey); 
-      document.body.style.overflow = prevOverflow; 
-      document.body.classList.remove('modal-open');
+  useEffect(()=>{
+    if(!isOpen||!artist||inline)return;
+    const element=dialog.current;
+    const previous=document.activeElement as HTMLElement|null;
+    const overflow=document.body.style.overflow;
+    document.body.style.overflow='hidden';
+    setPlayback({kind:'none'});setMediaError('');
+    window.dispatchEvent(new Event('rico:artist-stop-audio'));
+    window.dispatchEvent(new Event('rico:artist-stop-video'));
+    if(element){if(typeof element.showModal==='function')element.showModal();else element.setAttribute('open','');}
+    const hidden=()=>{if(document.hidden)setPlayback({kind:'none'});};
+    document.addEventListener('visibilitychange',hidden);
+    return()=>{
+      document.removeEventListener('visibilitychange',hidden);
+      if(element?.open){if(typeof element.close==='function')element.close();else element.removeAttribute('open');}
+      document.body.style.overflow=overflow;previous?.focus();
     };
-  }, [isOpen, onClose]);
+  },[isOpen,artist?.id,inline]);
 
-  if (!isOpen || !artist) return null;
-
-  return (
-    <div className="fixed inset-0 z-[1000] overflow-y-auto">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 min-h-full flex items-start justify-center p-4 md:p-8">
-        <div className="relative w-full max-w-5xl bg-[#0b0f1a] text-white rounded-xl shadow-2xl border border-white/10">
-          {/* Full-card background image with transparency */}
-          {artist.image && (
-            <div className="absolute inset-0 z-0 select-none pointer-events-none overflow-hidden rounded-xl">
-               <img 
-                 src={artist.image} 
-                 alt="" 
-                 className="w-full h-full object-cover opacity-40 blur-sm scale-105" 
-               />
-               <div className="absolute inset-0 bg-gradient-to-t from-[#0b0f1a] via-[#0b0f1a]/60 to-black/30" />
-            </div>
-          )}
-
-          {/* Spacer to push content down slightly if header was removed, or just use padding */}
-          {/* Header removed as requested, using just padding in Body */}\n
-
-          {/* Body Content with Glassmorphism Design */}
-          <div className="relative z-10 p-6 md:p-10 flex flex-col h-full bg-gradient-to-b from-transparent via-black/20 to-black/80">
-            
-            {/* Artist Header Section */}
-            <div className="mb-6 md:mb-8 pt-6 md:pt-0">
-              <div className="flex flex-col gap-2 relative">
-                <h3 className="text-3xl sm:text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-400 tracking-tight drop-shadow-sm uppercase font-heading leading-tight">
-                  {artist.name}
-                </h3>
-                {artist.title && (
-                  <div className="text-lg md:text-2xl text-yellow-400/90 font-light tracking-wide font-sans border-l-4 border-yellow-500 pl-3">
-                    {artist.title}
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex flex-wrap gap-2 md:gap-3 mt-4">
-                {artist.specialty && (
-                  <span className="px-3 py-1 md:px-4 md:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white font-medium text-xs md:text-sm shadow-lg">
-                    {artist.specialty}
-                  </span>
-                )}
-                {artist.detail_music_url && (
-                  <span className="px-3 py-1 md:px-4 md:py-1.5 rounded-full bg-purple-500/20 backdrop-blur-md border border-purple-500/30 text-purple-200 font-medium text-xs md:text-sm shadow-lg flex items-center gap-2 animate-pulse-slow">
-                    <Music2 className="w-3.5 h-3.5" />
-                    Now Playing
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 pb-10">
-              {/* Left Column: Description & Achievements */}
-              <div className="lg:col-span-7 space-y-6 md:space-y-8">
-                {artist.description && (
-                  <div className="bg-black/20 backdrop-blur-sm rounded-xl p-5 md:p-6 border border-white/5 shadow-inner">
-                    <PreserveNewlines text={artist.description} className="text-base md:text-lg text-gray-200 leading-relaxed font-light" />
-                  </div>
-                )}
-
-                {artist.achievements && artist.achievements.length > 0 && (
-                  <div>
-                    <h4 className="text-lg font-bold text-cyan-400 mb-3 md:mb-4 flex items-center gap-2">
-                      <span className="w-8 h-1 bg-cyan-500 rounded-full"></span>
-                      Highlights
-                    </h4>
-                    <div className="grid gap-2 md:gap-3">
-                      {artist.achievements.map((a, i) => (
-                        <div key={i} className="flex items-start gap-3 group">
-                          <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400 group-hover:scale-150 transition-transform shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-                          <span className="text-sm md:text-base text-gray-300 group-hover:text-white transition-colors">{a}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Right Column: Schedule & Socials */}
-              <div className="lg:col-span-5 space-y-6">
-                 {/* Live/Schedule Card */}
-                 {(artist.performance_at || artist.countdown_enabled) && (
-                   <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/20 shadow-2xl group hover:border-white/30 transition-colors">
-                     <div className="absolute top-0 right-0 p-4 opacity-50"><Sparkle3D intensity={5} /></div>
-                     <div className="p-5 md:p-6">
-                       <h4 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4 border-b border-white/10 pb-2">Live Performance</h4>
-                       
-                       {artist.performance_at && (
-                         <div className="space-y-4">
-                           <div className="flex items-center gap-4">
-                             <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-pink-500/20 flex items-center justify-center border border-pink-500/30 shrink-0">
-                               <Calendar className="w-5 h-5 md:w-6 md:h-6 text-pink-400" />
-                             </div>
-                             <div>
-                               <div className="text-white font-bold text-base md:text-lg">
-                                 {new Date(artist.performance_at).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
-                               </div>
-                               <div className="text-pink-300 font-mono text-sm md:text-base">
-                                 {new Date(artist.performance_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                               </div>
-                             </div>
-                           </div>
-
-                           {artist.venue && (
-                             <div className="flex items-center gap-4">
-                               <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/30 shrink-0">
-                                 <MapPin className="w-5 h-5 md:w-6 md:h-6 text-blue-400" />
-                               </div>
-                               <div className="text-gray-200 text-sm md:text-base">{artist.venue}</div>
-                             </div>
-                           )}
-                           
-                           {artist.countdown_enabled && (
-                             <div className="mt-6 pt-4 border-t border-white/10">
-                               <CountdownTimer target={artist.performance_at || ''} className="scale-90 origin-left" />
-                             </div>
-                           )}
-
-                           {artist.watch_live_url && (
-                             <div className="mt-4">
-                              <WatchLiveButton 
-                                url={artist.watch_live_url} 
-                                startTime={artist.performance_at}
-                                size="sm"
-                              />
-                             </div>
-                           )}
-                         </div>
-                       )}
-                     </div>
-                   </div>
-                 )}
-
-                 {/* Social Links Card */}
-                 <div className="rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 p-5 md:p-6 shadow-xl">
-                   <h4 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Connect</h4>
-                   <div className="flex flex-wrap gap-3 md:gap-4">
-                     {artist.social_links?.instagram && (
-                       <Instagram3DButtonLink href={artist.social_links.instagram} iconSize={20} buttonSize={40} />
-                     )}
-                     {artist.social_links?.facebook && (
-                        <Facebook3DButtonLink href={artist.social_links.facebook} iconSize={20} buttonSize={40} />
-                     )}
-                     {(artist.social_links?.youtube || artist.youtube_url) && (
-                       <YouTube3DButtonLink href={(artist.social_links?.youtube || artist.youtube_url)!} iconSize={20} buttonSize={40} />
-                     )}
-                   </div>
-                    
-                   {/* Channel Link fallback if only main URL exists */}
-                   {artist.youtube_url && !artist.social_links?.youtube && (
-                      <a href={artist.youtube_url} target="_blank" rel="noopener noreferrer" className="mt-4 block text-xs text-indigo-300 hover:text-white transition-colors text-right">
-                        Visit YouTube Channel →
-                      </a>
-                   )}
-                 </div>
-              </div>
-            </div>
-            
-            {/* Close Button redesign - repositioned on mobile to not overlap header */}
-            <button 
-              onClick={onClose} 
-              className="absolute top-2 right-2 md:top-6 md:right-6 lg:top-8 lg:right-8 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 text-white transition-all transform hover:rotate-90 shadow-lg z-50"
-            >
-              <span className="text-lg md:text-xl leading-none">&times;</span>
-            </button>
+  if(!isOpen||!artist)return null;
+  const openPerformance=()=>{if(youtube)choose({kind:'video',url:`https://www.youtube-nocookie.com/embed/${youtube}?autoplay=1&rel=0`,title:`${artist.name} performance`,youtube:true});else if(video)choose({kind:'video',url:video,title:`${artist.name} performance`,youtube:false});};
+  const spotify=playback.kind==='spotify'?spotifyResource(playback.url):null;
+  const validDate=artist.performance_at&&!isNaN(Date.parse(artist.performance_at))?new Date(artist.performance_at):null;
+  const performerLinks=[{label:'Instagram',href:instagram,icon:InstagramLogoIcon},{label:'YouTube',href:channel,icon:VideoIcon},{label:'Spotify',href:spotifyResource(artist.social_links?.spotify)?.url||collection?.url||'',icon:DiscIcon}].filter(link=>link.href);
+  const content=<div className="artist-profile-shell">
+      <header className="artist-profile-header"><div><span>{artist.id&&artist.id<0?'DESIGN PREVIEW / SAMPLE MEDIA':`RICORRENZA / ${getArtistFestivalYear(artist)}`}</span><strong>BACKSTAGE WITH THE {noun.toUpperCase()}</strong></div>{!inline&&<button type="button" onClick={close} aria-label="Close artist details"><Cross2Icon/></button>}</header>
+      <div className="artist-profile-scroll" data-lenis-prevent>
+        <section className="artist-profile-intro">
+          <div className="artist-profile-photo"><ArtistStageImage src={artistMediaUrl(artist.image)} alt=""/></div>
+          <div className="artist-profile-copy"><span className="artist-profile-eyebrow">ABOUT THE {noun.toUpperCase()}</span><h2 id={headingId}>{artist.name}</h2><p className="artist-profile-role">{artist.title}{artist.specialty&&<span>{artist.specialty}</span>}</p>
+            {(validDate||artist.venue)&&<p className="artist-profile-date"><CalendarIcon/>{validDate?.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}{artist.venue&&`${validDate?' · ':''}${artist.venue}`}</p>}
           </div>
+        </section>
+        {!!(artist.description||artist.achievements?.length)&&<section className="artist-profile-story" aria-label={`The ${noun} story`}>
+          <div className="artist-profile-section-title"><div><span>BEHIND THE SOUND</span><h3>{kind==='band'?'The band’s story':kind==='dj'?'Behind the decks':'The artist’s story'}</h3></div></div>
+          {artist.description&&<p className="artist-profile-bio">{artist.description}</p>}
+          {!!artist.achievements?.length&&<ul className="artist-profile-highlights">{artist.achievements.map((highlight,index)=><li key={index}>{highlight}</li>)}</ul>}
+        </section>}
+        {(youtube||video||collection||clips.length>0)&&
+        <section className="artist-profile-media" aria-label="Artist video and music">
+          <div className="artist-profile-section-title"><div><span>FROM THEIR STAGE TO YOURS</span><h3>Music & performances</h3></div></div>
+          <div className="artist-profile-player-actions">
+            {(youtube||video)&&<button type="button" aria-pressed={playback.kind==='video'} onClick={openPerformance}><VideoIcon/>Watch performance</button>}
+            {collection&&<button type="button" aria-pressed={playback.kind==='spotify'} onClick={()=>choose({kind:'spotify',url:collection.url,title:`${artist.name} on Spotify`})}><PlayIcon/>Spotify player</button>}
+          </div>
+          {clips.length>0&&<div className="artist-profile-clips" role="group" aria-label="Artist short clips">{clips.map((url,index)=><button type="button" key={url} onClick={()=>choose({kind:'video',url,title:`${artist.name} · short clip ${index+1}`,youtube:false,clipLimit:artist.stage_clip_seconds===60?60:30})}><PlayIcon/>Short clip {index+1}</button>)}</div>}
+          {playback.kind!=='none'&&<div className={`artist-profile-player${playback.kind==='spotify'?' is-spotify':''}`}>
+            {playback.kind==='video'?playback.youtube?<iframe key={`${playbackKey}-${playback.url}`} onLoad={()=>setPlayerLoading(false)} src={playback.url} title={playback.title} allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen/>:<video key={`${playbackKey}-${playback.url}`} src={playback.url} controls autoPlay playsInline onTimeUpdate={event=>{if(playback.clipLimit&&event.currentTarget.currentTime>=playback.clipLimit)event.currentTarget.pause();}} onError={()=>setMediaError('This performance is unavailable. Try the artist’s YouTube link.')}/>
+              :playback.kind==='spotify'&&spotify?<iframe key={`${playbackKey}-${spotify.embedUrl}`} onLoad={()=>setPlayerLoading(false)} src={`${spotify.embedUrl}?theme=0`} title={playback.title} width="100%" style={{height:spotify.type==='track'?152:352}} height={spotify.type==='track'?152:352} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen/>
+              :null}
+            {playerLoading&&(playback.kind==='spotify'||playback.kind==='video'&&playback.youtube)&&<div className="artist-profile-player-loading" role="status"><span/><span/><span/><p>Loading {playback.kind==='spotify'?'Spotify':'video'} player…</p></div>}
+          </div>}
+          {mediaError&&<p className="artist-profile-error" role="alert">{mediaError}</p>}
+          {playback.kind!=='none'&&<button type="button" className="artist-profile-stop" onClick={stop}>Stop playback<Cross2Icon/></button>}
+        </section>}
+        {(collection||songs.length>0)&&<section className="artist-profile-songs"><div className="artist-profile-section-title"><div><span>KEEP THE MUSIC GOING</span><h3>Songs to know</h3></div>{collection&&<a href={collection.url} target="_blank" rel="noopener noreferrer">Open in Spotify<ExternalLinkIcon/></a>}</div>
+          {collection&&!songs.length&&<div className="artist-profile-collection"><DiscIcon/><div><strong>{collection.type==='artist'?`More from ${artist.name}`:collection.type==='playlist'?'The artist’s playlist':collection.type==='album'?'Listen to the album':'Featured on Spotify'}</strong><p>Discover their songs in the Spotify player, or keep listening in Spotify.</p></div><button type="button" onClick={()=>choose({kind:'spotify',url:collection.url,title:`${artist.name} songs on Spotify`})}>Explore songs<ArrowRightIcon/></button></div>}
+          {!!songs.length&&<ol className="artist-profile-song-list">{songs.map((item,index)=>{const target=artistSongTarget(item.url)!;return <li key={`${item.url}-${index}`}><span>{String(index+1).padStart(2,'0')}</span><div><strong>{item.title}</strong><small>{target.provider}</small></div><button type="button" aria-label={`Play ${item.title}`} onClick={()=>choose(target.provider==='Spotify'?{kind:'spotify',url:target.url,title:item.title}:{kind:'video',url:target.embedUrl,title:item.title,youtube:true})}><PlayIcon/><span>Play here</span></button><a href={target.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${item.title} in ${target.provider}`}><ExternalLinkIcon/></a></li>;})}</ol>}
+        </section>}
+        {(performerLinks.length>0||live)&&<nav className="artist-profile-links" aria-label={`Follow ${artist.name}`}><span>FOLLOW THE {noun.toUpperCase()}</span>{performerLinks.map(link=><a href={link.href} key={link.label} target="_blank" rel="noopener noreferrer"><link.icon/>{link.label}<ExternalLinkIcon/></a>)}{live&&<a href={live} target="_blank" rel="noopener noreferrer"><VideoIcon/>Watch live<ExternalLinkIcon/></a>}</nav>}
+        <footer className="artist-profile-footer">ONE STAGE. A THOUSAND MEMORIES.</footer>
       </div>
-    </div>
-  </div>
-  );
-};
-
-export default GuestArtistDetailModal;
+    </div>;
+  if(inline)return <section className="artist-profile-dialog artist-profile-inline" data-artist-kind={kind} aria-labelledby={headingId}>{content}</section>;
+  return createPortal(<dialog ref={dialog} className="artist-profile-dialog" data-artist-kind={kind} aria-labelledby={headingId} onCancel={event=>{event.preventDefault();close();}} onClick={event=>{if(event.target===event.currentTarget)close();}}>{content}</dialog>,document.body);
+}

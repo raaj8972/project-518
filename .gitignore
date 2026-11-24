@@ -89,3 +89,9 @@ supabase/.temp/
 !scripts/diagnostic-diagnose_db.js
 !scripts/diagnostic-check_admin_schema.mjs
 !scripts/security-check.mjs
+
+# Repeatable artist schema, role and storage verification.
+!scripts/audit-artist-stage.mjs
+!scripts/audit-artist-access.mjs
+!scripts/diagnostics/artist-access-probes.mjs
+!scripts/diagnostics/guest-artist-save-smoke.mjs

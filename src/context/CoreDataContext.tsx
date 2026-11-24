@@ -151,6 +151,14 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   };
 
   const updateHomepageSettings = async (patch: Partial<HomepageSettings>) => {
+    // Artist staff save only this JSON column through a narrowly scoped RPC.
+    if (Object.keys(patch).length === 1 && 'artist_stage_settings' in patch) {
+      const {error}=await supabase.rpc('save_artist_stage_settings',{p_settings:patch.artist_stage_settings});
+      if(error)throw new Error(error.message);
+      invalidateTableCache('homepage_settings');
+      await refreshAll(true);
+      return;
+    }
     await dualUpsert('homepage_settings', { id: 1, ...patch });
     await refreshAll(true);
   };

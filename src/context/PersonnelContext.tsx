@@ -1,7 +1,7 @@
 import { normalizeGuestArtists } from '../utils/guestArtists';
 import { useDomainRealtime } from '../hooks/useDomainRealtime';
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { dualInsert, dualUpdate, dualDelete } from '../lib/dualDb';
+import { dualInsert, dualUpdate, dualDelete, invalidateTableCache } from '../lib/dualDb';
 import { 
   FacultyHead, CoreCommittee, CoreTeamMember, SportsCommittee, 
   SportsTeamMember, BandMember, GuestArtist
@@ -145,7 +145,7 @@ export function PersonnelProvider({ children, enabled = true }: { children: Reac
     }
   }, [refreshTrigger, user?.id, fetchPersonnelData, enabled]);
 
-  useDomainRealtime('personnel-context-realtime', enabled, ['faculty_heads', 'core_committees', 'core_team_members', 'sports_committees', 'sports_team_members', 'band_members', 'guest_artists', 'chief_guests'], fetchPersonnelData);
+  useDomainRealtime('personnel-context-realtime', enabled, ['faculty_heads', 'core_committees', 'core_team_members', 'sports_committees', 'sports_team_members', 'band_members', 'guest_artists', 'chief_guests', 'homepage_settings'], async()=>{invalidateTableCache('guest_artists');await fetchPersonnelData();});
 
   // Faculty
   const addFacultyHead = async (head: Partial<FacultyHead>) => {

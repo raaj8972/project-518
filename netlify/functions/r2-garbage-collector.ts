@@ -40,7 +40,7 @@ const collector: Handler = async (event) => {
       { table: 'faculty_heads', columns: ['image', 'image_url'] },
       { table: 'core_team_members', column: 'image' },
       { table: 'sports_team_members', column: 'image' },
-      { table: 'guest_artists', columns: ['image', 'image_url', 'photo_url', 'video_url', 'card_media_url', 'detail_music_url'] },
+      { table: 'guest_artists', columns: ['image', 'image_url', 'photo_url', 'video_url', 'card_media_url', 'detail_music_url', 'gallery_images', 'stage_clip_urls', 'desktop_gallery_images', 'desktop_stage_clip_urls'] },
       { table: 'band_members', column: 'image' },
       { table: 'chief_guests', column: 'image' },
       { table: 'events', columns: ['image', 'motion_poster_url'] },
@@ -56,11 +56,13 @@ const collector: Handler = async (event) => {
       for (const col of columns) {
         const { data, error } = await supabase.from(item.table).select(col);
         if (error) {
+           if (item.table === 'guest_artists' && ['gallery_images','stage_clip_urls','desktop_gallery_images','desktop_stage_clip_urls'].includes(col)) throw new Error('Artist media references could not be checked; storage cleanup was skipped.');
            console.warn(`Failed to scan ${item.table}.${col}:`, error);
            continue;
         }
         data?.forEach((row: any) => {
-          if (row[col]) referencedUrls.add(row[col]);
+          const references = Array.isArray(row[col]) ? row[col] : [row[col]];
+          references.forEach((url: unknown) => { if (typeof url === 'string' && url) referencedUrls.add(url); });
         });
       }
     }
