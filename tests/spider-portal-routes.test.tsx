@@ -84,7 +84,7 @@ it('disposes the scene on staff entry, restores it for students, and keeps it al
   expect(mocks.mounted).toHaveBeenCalledTimes(2);
 });
 
-it.each(['/', '/events', '/gallery', '/sports', '/schedule', '/sponsors', '/rico-family', '/home-bound'])('keeps the public festival and loading introduction on %s', async path => {
+it.each(['/', '/events', '/gallery', '/sports', '/schedule', '/sponsors', '/rico-family'])('keeps the public festival and loading introduction on %s', async path => {
   expect(isPortalRoute(path)).toBe(false);
   expect(isFestivalRoute(path)).toBe(true);
   await render(path, false);
@@ -109,4 +109,12 @@ it.each(['/events', '/dashboard', '/student/login'])('does not mount festival sp
   await render(path, true, 'cyberpunk');
   expect(container.childElementCount).toBe(0);
   expect(mocks.mounted).not.toHaveBeenCalled();
+});
+
+it('keeps the Homebound concert page clear and restores effects on other festival pages', async () => {
+  await render('/home-bound', true);
+  expect(container.querySelector('[data-spider-experience]')).toBeNull();
+  expect(container.querySelector('.site-spider-controls')).toBeNull();
+  await render('/events', true);
+  expect(container.querySelector('[data-spider-experience]')).not.toBeNull();
 });

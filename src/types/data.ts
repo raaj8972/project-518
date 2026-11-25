@@ -289,6 +289,7 @@ export interface DataContextType {
   roadmapMilestones: RoadmapMilestone[];
   heroMedia: Partial<Record<PageKey, HeroMedia | null>>;
   loading: boolean;
+  isLoaded: boolean;
   connectionStatus: 'ok' | 'degraded' | 'offline';
   lastError: string | null;
   latencyMs?: number | null;

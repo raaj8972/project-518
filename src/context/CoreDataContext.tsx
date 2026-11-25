@@ -92,7 +92,7 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [heroMedia, setHeroMedia] = useState<Partial<Record<PageKey, HeroMedia | null>>>({});
   const [aboutSettings, setAboutSettings] = useState<AboutSettings | null>(null);
-  const [homeboundSettings, setHomeboundSettings] = useState<AboutSettings | any>(null);
+  const [homeboundSettings, setHomeboundSettings] = useState<HomeboundSettings | null>(null);
   const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null);
   const [formSettings, setFormSettings] = useState<FormSettings | null>(null);
   const [socialMediaSettings, setSocialMediaSettings] = useState<SocialMediaSettings | null>(null);
@@ -146,7 +146,9 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   };
   
   const updateHomeboundSettings = async (patch: Partial<HomeboundSettings>) => {
-    await dualUpsert('homebound_settings', { id: 1, ...patch });
+    const saved = await dualUpsert('homebound_settings', { id: 1, ...patch });
+    if (!saved) throw new Error('The Homebound settings were not saved. Please refresh and try again.');
+    setHomeboundSettings(saved);
     await refreshAll(true);
   };
 
@@ -259,6 +261,16 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   useEffect(() => {
     void refreshAll(true);
   }, [refreshAll, user?.id]);
+
+  useEffect(() => {
+    if (!pathname.startsWith('/home-bound') && !pathname.startsWith('/admin')) return;
+    const channel = supabase.channel('homebound-page-settings-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'homebound_settings', filter: 'id=eq.1' }, payload => {
+        invalidateTableCache('homebound_settings');
+        setHomeboundSettings(payload.eventType === 'DELETE' ? null : payload.new as HomeboundSettings);
+      }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [pathname]);
 
   // Real-time subscription for site_settings & homepage_settings
   useEffect(() => {

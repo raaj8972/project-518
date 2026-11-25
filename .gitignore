@@ -95,3 +95,6 @@ supabase/.temp/
 !scripts/audit-artist-access.mjs
 !scripts/diagnostics/artist-access-probes.mjs
 !scripts/diagnostics/guest-artist-save-smoke.mjs
+
+# Repeatable Homebound schema and content verification.
+!scripts/audit-homebound-content.mjs
