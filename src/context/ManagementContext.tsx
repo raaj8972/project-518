@@ -44,6 +44,7 @@ interface ManagementContextType {
   addSponsorshipPackage: (pkg: Partial<SponsorshipPackage>) => Promise<void>;
   updateSponsorshipPackage: (id: number, patch: Partial<SponsorshipPackage>) => Promise<void>;
   deleteSponsorshipPackage: (id: number) => Promise<void>;
+  toggleSponsorshipPackageEnabled: (id: number) => Promise<void>;
 
   // Admin Management
   refreshAdminUsers: () => Promise<void>;
@@ -114,7 +115,17 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
       const reads: Promise<unknown>[] = [
         fetchSupabaseBatch<Sponsor>('sponsors').then(r => setSponsors(r.data || [])),
         fetchSupabaseBatch<SponsorshipPackage>('sponsorship_packages', { order: { column: 'order_position', ascending: true } }).then(r => setSponsorshipPackages(r.data || [])),
-        dualRead({ table: 'sponsorship_settings', eq: ['id', 1], maybeSingle: true }).then(r => setSponsorshipSettings(r.data)),
+        Promise.allSettled([
+          dualRead({ table: 'sponsorship_settings', eq: ['id', 1], maybeSingle: true }),
+          dualRead({ table: 'contact_sections', eq: ['sponsorship_settings_id', 1], order: ['order', { ascending: true }] }),
+        ]).then(([settings, contacts]) => {
+          if (settings.status === 'fulfilled') {
+            setSponsorshipSettings(settings.value.data ? {
+              ...settings.value.data,
+              contactSections: contacts.status === 'fulfilled' ? contacts.value.data || [] : [],
+            } : null);
+          }
+        }),
       ];
       if (includePrivate) reads.push(
         fetchAllRegistrations().then(r => { if (currentScope.current === privateScope) setRegistrations(r.data || []); }),
@@ -145,7 +156,7 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
     }
   }, [includePrivate]);
   useDomainRealtime('management-context-realtime', enabled,
-    includePrivate ? ['sponsors', 'sponsorship_packages', 'sponsorship_settings', 'registrations', 'auditions', 'memberships', 'admin_users', 'admin_permissions'] : ['sponsors', 'sponsorship_packages', 'sponsorship_settings'],
+    includePrivate ? ['sponsors', 'sponsorship_packages', 'sponsorship_settings', 'contact_sections', 'registrations', 'auditions', 'memberships', 'admin_users', 'admin_permissions'] : ['sponsors', 'sponsorship_packages', 'sponsorship_settings', 'contact_sections'],
     fetchManagementData);
 
   const addSponsor = async (sponsor: Partial<Sponsor>) => {
@@ -179,7 +190,7 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
   };
 
   const updateRegistrationStatus = async (id: string, status: 'approved' | 'rejected' | 'pending') => {
-    await dualUpdate('registrations', id, { status });
+    await dualUpdate('registrations', id, { status, is_active: status === 'approved' });
     await fetchManagementData();
   };
 
@@ -195,6 +206,13 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
 
   const updateSponsorshipPackage = async (id: number, patch: Partial<SponsorshipPackage>) => {
     await dualUpdate('sponsorship_packages', id, patch);
+    await fetchManagementData();
+  };
+
+  const toggleSponsorshipPackageEnabled = async (id: number) => {
+    const { data: current } = await dualRead({ table: 'sponsorship_packages', eq: ['id', id], maybeSingle: true });
+    if (!current) throw new Error('Sponsorship package no longer exists. Refresh and try again.');
+    await dualUpdate('sponsorship_packages', id, { enabled: !current.enabled });
     await fetchManagementData();
   };
 
@@ -317,13 +335,13 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
   };
 
   const bulkApproveRegistrations = async (ids: string[]) => {
-    const { error } = await supabase.from('registrations').update({ status: 'approved' }).in('id', ids);
+    const { error } = await supabase.from('registrations').update({ status: 'approved', is_active: true }).in('id', ids);
     if (error) throw error;
     await fetchManagementData();
   };
 
   const bulkRejectRegistrations = async (ids: string[]) => {
-    const { error } = await supabase.from('registrations').update({ status: 'rejected' }).in('id', ids);
+    const { error } = await supabase.from('registrations').update({ status: 'rejected', is_active: false }).in('id', ids);
     if (error) throw error;
     await fetchManagementData();
   };
@@ -399,6 +417,7 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
     addSponsorshipPackage,
     updateSponsorshipPackage,
     deleteSponsorshipPackage,
+    toggleSponsorshipPackageEnabled,
     refreshAdminUsers,
     addAdminUser,
     removeAdminUser,
@@ -422,5 +441,5 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
     deleteContactSection
   };
 
-  return <ManagementContext.Provider value={value}>{children}</ManagementContext.Provider>;
+  return <PrimaryManagementContext.Provider value={value}>{children}</PrimaryManagementContext.Provider>;
 }

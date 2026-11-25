@@ -19,3 +19,15 @@ it('keeps the refresh callback stable across loading and data renders so account
   await act(async()=>root.render(<ManagementProvider><AccountConsumer/></ManagementProvider>));
   expect(callbacks.size).toBe(1);expect(refreshed).toHaveBeenCalledTimes(1);expect(container.textContent).toBe('Ready');
 });
+
+it('shares management data with existing consumers after the provider module reloads',async()=>{
+  // Hot reload re-evaluates the module while the window context bridge survives.
+  const originalContext=(window as any).__MANAGEMENT_CONTEXT__;
+  vi.resetModules();
+  const {ManagementProvider:ReloadedProvider,useManagementData:useReloadedManagementData}=await import('../src/context/ManagementContext');
+  function ExistingConsumer(){const {sponsors}=useManagementData();return <p>Existing: {sponsors.length}</p>;}
+  function ReloadedConsumer(){const {sponsors}=useReloadedManagementData();return <p>Reloaded: {sponsors.length}</p>;}
+  expect((window as any).__MANAGEMENT_CONTEXT__).toBe(originalContext);
+  await act(async()=>root.render(<ReloadedProvider enabled={false}><ExistingConsumer/><ReloadedConsumer/></ReloadedProvider>));
+  expect(container.textContent).toBe('Existing: 0Reloaded: 0');
+});

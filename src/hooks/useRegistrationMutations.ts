@@ -17,7 +17,7 @@ export function useRegistrationMutations(onSuccess?: () => void) {
   const updateStatus = useCallback(async (id: string, status: 'approved' | 'rejected' | 'pending') => {
     setIsMutating(true);
     try {
-      await dualUpdate('registrations', id, { status });
+      await dualUpdate('registrations', id, { status, is_active: status === 'approved' });
 
       // Search for entry pass linked to this registration
       // Note: We'd ideally have entry_pass_id stored, but for now we search
@@ -99,7 +99,7 @@ export function useRegistrationMutations(onSuccess?: () => void) {
     setIsMutating(true);
     try {
       // 1. Update all registration statuses in one go
-      await dualBulkUpdate('registrations', ids, { status: 'approved' });
+      await dualBulkUpdate('registrations', ids, { status: 'approved', is_active: true });
       
       // 2. Update all linked entry passes in one go
       await dualBulkUpdate('entry_passes', ids, { is_active: true }, 'registration_id');
@@ -114,7 +114,7 @@ export function useRegistrationMutations(onSuccess?: () => void) {
     if (!ids.length) return;
     setIsMutating(true);
     try {
-      await dualBulkUpdate('registrations', ids, { status: 'rejected' });
+      await dualBulkUpdate('registrations', ids, { status: 'rejected', is_active: false });
       await dualBulkUpdate('entry_passes', ids, { is_active: false }, 'registration_id');
 
       push({ type: 'success', message: `Rejected ${ids.length} registrations` });

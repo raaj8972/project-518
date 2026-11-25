@@ -1,0 +1,121 @@
+.festival-weather {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint;
+}
+.festival-weather * { pointer-events: none; }
+
+/* Reuse the opening's cloud plate. Feather the edges to preserve the campus,
+   foreground architecture and contrast behind the title. */
+.festival-weather__clouds {
+  position: absolute;
+  inset: -8% -12% 36%;
+  background: url('/images/cinematic-storm-sky.webp') center top / cover no-repeat;
+  -webkit-mask-image: linear-gradient(to bottom, #000 5%, #0009 48%, transparent 96%);
+  mask-image: linear-gradient(to bottom, #000 5%, #0009 48%, transparent 96%);
+  opacity: .27;
+  animation: festival-cloud-drift 48s ease-in-out infinite alternate;
+}
+.festival-weather__clouds--near {
+  inset: 1% -16% 30%;
+  background-position: 75% 25%;
+  opacity: .15;
+  -webkit-mask-image: radial-gradient(ellipse at 0 30%, #000 5%, transparent 66%), radial-gradient(ellipse at 100% 20%, #000 3%, transparent 57%);
+  mask-image: radial-gradient(ellipse at 0 30%, #000 5%, transparent 66%), radial-gradient(ellipse at 100% 20%, #000 3%, transparent 57%);
+  animation-duration: 32s;
+  animation-delay: -17s;
+  animation-direction: alternate-reverse;
+}
+
+.festival-weather__storm {
+  position: absolute;
+  top: 9%;
+  width: clamp(100px, 22%, 320px);
+  height: 52%;
+  opacity: 0;
+  animation: festival-distant-lightning 23s linear infinite;
+}
+.festival-weather__storm::before {
+  content: '';
+  position: absolute;
+  inset: -20% -70%;
+  background: radial-gradient(ellipse at 50% 35%, #b9f5a333, #7fcf8c12 35%, transparent 68%);
+}
+.festival-weather__storm--west { left: 1%; animation-delay: -4s; }
+.festival-weather__storm--east { right: 0; top: 5%; animation-delay: -16s; }
+.festival-weather__storm svg { position: relative; width: 100%; height: 100%; overflow: visible; }
+.festival-weather__storm path { stroke: #d9fbc5; stroke-width: 1.15; stroke-linejoin: round; stroke-linecap: round; }
+.festival-weather__storm .festival-weather__bolt-halo { stroke: #7fe777; stroke-width: 6; opacity: .19; }
+.festival-weather__storm .festival-weather__bolt-branch { stroke-width: .65; opacity: .64; }
+
+.festival-weather__mist {
+  position: absolute;
+  inset: 59% -16% -12%;
+  background: url('/images/cinematic-storm-sky.webp') 50% 100% / cover no-repeat;
+  -webkit-mask-image: radial-gradient(ellipse at 22% 83%, #0009, transparent 58%), radial-gradient(ellipse at 90% 100%, #000, transparent 62%);
+  mask-image: radial-gradient(ellipse at 22% 83%, #0009, transparent 58%), radial-gradient(ellipse at 90% 100%, #000, transparent 62%);
+  opacity: .2;
+  animation: festival-mist-drift 29s ease-in-out infinite alternate;
+}
+.festival-weather__mist--front {
+  inset: 75% -20% -18%;
+  background-position: 20% 90%;
+  opacity: .26;
+  animation-duration: 21s;
+  animation-delay: -11s;
+  animation-direction: alternate-reverse;
+}
+.festival-weather__fireflies { position: absolute; inset: 0; }
+.festival-weather__fireflies span {
+  position: absolute;
+  left: var(--fly-x);
+  bottom: var(--fly-y);
+  width: var(--fly-size);
+  height: var(--fly-size);
+  border-radius: 50%;
+  background: #d7eab0;
+  box-shadow: 0 0 7px 2px #9acb6340;
+  opacity: 0;
+  animation: festival-firefly-rise var(--fly-duration) ease-in-out var(--fly-delay) infinite;
+}
+.festival-weather[data-running="false"] * { animation-play-state: paused; }
+.festival-weather[data-static="true"] * { animation: none; }
+.festival-weather[data-static="true"] :is(.festival-weather__storm, .festival-weather__fireflies) { display: none; }
+
+@keyframes festival-cloud-drift {
+  from { transform: translate3d(-3%, -1%, 0) scale(1.02); }
+  to { transform: translate3d(3%, 2%, 0) scale(1.07); }
+}
+@keyframes festival-mist-drift {
+  from { transform: translate3d(-5%, 2%, 0) scale(1.02); }
+  to { transform: translate3d(5%, -4%, 0) scale(1.08); }
+}
+/* One soft, localized flash per side, well apart. No full-screen strobe. */
+@keyframes festival-distant-lightning {
+  0%, 45%, 49%, 100% { opacity: 0; }
+  45.5% { opacity: .22; }
+  46% { opacity: .65; }
+  47% { opacity: .14; }
+}
+@keyframes festival-firefly-rise {
+  0% { opacity: 0; transform: translate3d(0, 24px, 0); }
+  18% { opacity: .52; }
+  48% { opacity: .24; }
+  70% { opacity: .6; }
+  100% { opacity: 0; transform: translate3d(var(--fly-drift), -140px, 0); }
+}
+@media (max-width: 767px) {
+  .festival-weather__clouds--near { display: none; }
+  .festival-weather__clouds--far { opacity: .22; }
+  .festival-weather__storm { width: 24%; height: 40%; }
+  .festival-weather__mist--back { opacity: .14; }
+  .festival-weather__mist--front { opacity: .2; }
+  .festival-weather__fireflies span:nth-child(n + 11) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .festival-weather * { animation: none !important; }
+  .festival-weather__storm, .festival-weather__fireflies { display: none; }
+}

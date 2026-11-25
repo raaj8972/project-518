@@ -1,3 +1,4 @@
+import { prepareBrandAsset } from '../../utils/brandAsset';
 import React, { useState, useMemo } from 'react';
 import { Download, Filter, Search, Music, Mail, Phone, Eye, Trash2, CheckCircle, Clock, FileText, Upload, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -153,7 +154,8 @@ export const AuditionManagement: React.FC = () => {
       setUploadingWatermark(true);
       
       // Determine file extension
-      const fileExt = file.type.includes('image/svg') ? 'svg' : 'png';
+      const uploadFile = await prepareBrandAsset(file);
+      const fileExt = 'png';
       const fileName = `watermark.${fileExt}`;
       
       // Delete existing files first to avoid confusion
@@ -161,7 +163,7 @@ export const AuditionManagement: React.FC = () => {
 
       const { error } = await supabase.storage
         .from('pdf-watermarks')
-        .upload(fileName, file, { cacheControl: '0', upsert: true });
+        .upload(fileName, uploadFile, { cacheControl: '0', upsert: true });
 
       if (error) throw error;
 
@@ -204,7 +206,8 @@ export const AuditionManagement: React.FC = () => {
       
       setUploadingStamp(true);
       
-      const fileExt = file.type.includes('image/svg') ? 'svg' : 'png';
+      const uploadFile = await prepareBrandAsset(file);
+      const fileExt = 'png';
       const fileName = `stamp.${fileExt}`;
       
       // Delete existing files first
@@ -212,7 +215,7 @@ export const AuditionManagement: React.FC = () => {
 
       const { error } = await supabase.storage
         .from('pdf-watermarks')
-        .upload(fileName, file, { cacheControl: '0', upsert: true });
+        .upload(fileName, uploadFile, { cacheControl: '0', upsert: true });
 
       if (error) throw error;
 

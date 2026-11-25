@@ -22,19 +22,18 @@ const auraGradients = [
 const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onClose, onLike, isLiked }) => {
   if (!profile) return null;
 
-  const isLegendary = profile.rank <= 5;
-  const usernameText = profile.username || profile.full_name.toLowerCase().replace(/\s+/g, '');
+  const isLegendary = profile.rank > 0 && profile.rank <= 5;
 
-  // Calculate R Points Breakdown dynamically from profile object if available
+  // Only server-verified performance contributes to the competitive score.
   const breakdown = profile.points_breakdown || {
-    likes: (profile.likes_count || 0) * 10,
-    participation: (profile.participated_events?.length || 0) * 15,
-    rounds: (profile.rounds_cleared || 0) * 20,
+    likes: 0,
+    participation: 0,
+    rounds: 0,
     finalRound: 0,
     prizes: 0,
-    events_count: profile.participated_events?.length || 0
+    events_count: 0
   };
-  const totalRPoints = profile.hype_score || (breakdown.likes + breakdown.participation + breakdown.rounds + breakdown.finalRound + breakdown.prizes);
+  const totalRPoints = profile.hype_score ?? (breakdown.likes + breakdown.participation + breakdown.rounds + breakdown.finalRound + breakdown.prizes);
 
   // Dynamic achievement badges based on user stats
   const achievements: string[] = [];
@@ -95,9 +94,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onClose, onLike, i
                 <h2 className="text-xl sm:text-3xl font-black text-white tracking-tight uppercase leading-tight">
                   {profile.full_name}
                 </h2>
-                <p className="text-xs font-black text-indigo-400 tracking-wider">
-                  @{usernameText}
-                </p>
+
               </div>
 
               {/* Ranks & Batch Badge */}
@@ -108,7 +105,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onClose, onLike, i
                     : 'text-gray-400 border-white/10 bg-white/5'
                 }`}>
                   {isLegendary ? <Crown className="w-2.5 h-2.5 fill-current" /> : <Star className="w-2.5 h-2.5 fill-current" />}
-                  <span>Rank #{profile.rank} • {isLegendary ? 'RICO STAR' : 'Star'}</span>
+                  <span>{profile.rank > 0 ? `Rank #${profile.rank}` : 'Not ranked yet'} • {isLegendary ? 'RICO STAR' : 'Star'}</span>
                 </div>
                 {profile.batch && (
                   <span className="px-3 py-1 rounded-full border border-white/5 bg-white/[0.02] text-gray-500 text-[9px] font-black uppercase tracking-widest">
@@ -129,22 +126,22 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onClose, onLike, i
                     <span className="text-2xl font-black text-indigo-400">{totalRPoints} <span className="text-[10px] font-bold text-white uppercase tracking-widest">R POINTS</span></span>
                   </div>
                   <div className="text-right">
-                    <span className="block text-[8px] font-black text-gray-500 uppercase tracking-widest italic mb-0.5">Community Rank</span>
-                    <span className="text-xl font-black text-white">#{profile.rank}</span>
+                    <span className="block text-[8px] font-black text-gray-500 uppercase tracking-widest italic mb-0.5">Performance Rank</span>
+                    <span className="text-xl font-black text-white">{profile.rank > 0 ? `#${profile.rank}` : 'Not ranked'}</span>
                   </div>
                 </div>
 
                 <div className="space-y-2.5 border-t border-white/[0.04] pt-3.5 text-[11px] font-semibold text-gray-400">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5"><Heart className="w-3.5 h-3.5 text-red-500 fill-current" /> Likes Received ({profile.likes_count || 0})</span>
-                    <span className="font-black text-white">+{breakdown.likes} R Pts ({profile.likes_count || 0} × 10)</span>
+                    <span className="font-semibold text-gray-400">Recognition · no R Points</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-emerald-400" /> Events Joined ({breakdown.events_count})</span>
+                    <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-emerald-400" /> Scoring events ({breakdown.events_count} / 3)</span>
                     <span className="font-black text-white">+{breakdown.participation} R Pts</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5"><Trophy className="w-3.5 h-3.5 text-amber-400" /> Rounds Qualified ({profile.rounds_cleared || 0})</span>
+                    <span className="flex items-center gap-1.5"><Trophy className="w-3.5 h-3.5 text-amber-400" /> Non-final qualifications</span>
                     <span className="font-black text-white">+{breakdown.rounds} R Pts</span>
                   </div>
                   {breakdown.finalRound > 0 && (
@@ -160,6 +157,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onClose, onLike, i
                     </div>
                   )}
                 </div>
+                <p className="mt-3 text-[11px] leading-relaxed text-gray-400">Your best three verified events count. Equal scores share a rank.</p>
               </div>
 
               {/* Achievements Badges */}
@@ -197,7 +195,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onClose, onLike, i
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[10px] font-semibold text-gray-600 italic">No approved event participations yet.</p>
+                  <p className="text-[10px] font-semibold text-gray-600 italic">No verified event participations yet.</p>
                 )}
               </div>
 
@@ -218,6 +216,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onClose, onLike, i
             
             {/* Close Button */}
             <button 
+              aria-label="Close student profile"
               onClick={onClose} 
               className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 text-white/40 hover:text-white hover:bg-white/10 border border-white/5 transition-all z-50 cursor-pointer"
             >

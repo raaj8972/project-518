@@ -373,5 +373,5 @@ export function PersonnelProvider({ children, enabled = true }: { children: Reac
     toggleChiefGuestEnabled
   };
 
-  return <PersonnelContext.Provider value={value}>{children}</PersonnelContext.Provider>;
+  return <PrimaryPersonnelContext.Provider value={value}>{children}</PrimaryPersonnelContext.Provider>;
 }

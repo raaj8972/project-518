@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react';
+import EventWhatsAppGroup from '../shared/EventWhatsAppGroup';
 import { createPortal } from 'react-dom';
 import { ArrowRightIcon, CalendarIcon, ClockIcon, Cross2Icon, ExternalLinkIcon, FileTextIcon, PersonIcon, SewingPinIcon } from '@radix-ui/react-icons';
 import { useFestivalDialog } from '../../hooks/useFestivalDialog';
@@ -22,7 +23,6 @@ export function EventDetailsModal({ event, coordinators, eventWinners, origin, o
   const rules = presentRules(event.rules);
   const rulesLink = eventLink(event.rules_link || event.rules_url || event.rules_file_url || event.rules_drive_link);
   const liveLink = eventLink(event.watch_live_url);
-  const groupLink = eventLink(event.whatsapp_group_link);
   const valid = (value: unknown) => typeof value === 'string' && !['', '0', '-', '—', 'Ø', '∅'].includes(value.trim());
   const staff = (coordinators.length ? coordinators : [{ name: event.coordinator_name, phone: event.coordinator_phone }]).filter(person => valid(person.name) || valid(person.phone));
   const winners = eventWinners.filter(winner => String(winner.event_id) === String(event.id)).sort((a, b) => Number(a.position) - Number(b.position));
@@ -42,6 +42,7 @@ export function EventDetailsModal({ event, coordinators, eventWinners, origin, o
       </div>
       <div className="arena-details-body">
         <div className="arena-details-heading"><p className="arena-eyebrow">{eventCategory(event.category)} <span /> {fee}</p><h2 id={titleId}>{event.title}</h2></div>
+        <EventWhatsAppGroup eventId={event.id} eventTitle={event.title} eligible={isRegistered || isOwner} />
         <dl className="arena-logistics">
           <div><CalendarIcon /><dt>Date</dt><dd>{eventDate(event.date)}</dd></div>
           <div><ClockIcon /><dt>Time</dt><dd>{eventTime(event.time)}</dd></div>
@@ -54,7 +55,7 @@ export function EventDetailsModal({ event, coordinators, eventWinners, origin, o
         {rulesLink && <a className="arena-inline-link" href={rulesLink} target="_blank" rel="noopener noreferrer">Open official rulebook <ExternalLinkIcon /></a>}
         <section className="arena-detail-section arena-coordinators"><h3>Event coordinators</h3>{staff.length ? staff.map((person, index) => <div className="arena-coordinator" key={person.id || index}><span className="arena-coordinator-initial" aria-hidden="true">{valid(person.name) ? person.name.trim().slice(0, 1).toUpperCase() : 'C'}</span><span><strong>{valid(person.name) ? person.name : 'Event coordinator'}</strong>{valid(person.phone) && <a href={`tel:${person.phone.replace(/[^\d+]/g, '')}`}>{person.phone}</a>}</span></div>) : <p className="arena-muted">Coordinator details will be announced soon.</p>}</section>
         {winners.length > 0 && <section className="arena-detail-section"><h3>Event winners</h3><div className="arena-event-winners">{winners.map(winner => <div key={winner.id}><span>{Number(winner.position) === 1 ? '1st' : Number(winner.position) === 2 ? '2nd' : Number(winner.position) === 3 ? '3rd' : 'Mention'}</span>{winner.user_id && onOpenProfile ? <button onClick={() => onOpenProfile(winner.user_id)}>{winner.name}</button> : <strong>{winner.name}</strong>}<small>{yearLabelFor(winner.registration_year || winner.year)}</small></div>)}</div></section>}
-        {(liveLink || groupLink) && <div className="arena-extra-links">{liveLink && <a href={liveLink} target="_blank" rel="noopener noreferrer">Watch live <ExternalLinkIcon /></a>}{groupLink && <a href={groupLink} target="_blank" rel="noopener noreferrer">Event WhatsApp group <ExternalLinkIcon /></a>}</div>}
+        {liveLink && <div className="arena-extra-links"><a href={liveLink} target="_blank" rel="noopener noreferrer">Watch live <ExternalLinkIcon /></a></div>}
         {isOwner && <div className="arena-owner-controls"><label><input type="checkbox" checked={!!event.registration_open} disabled={saving} onChange={async e => {
           const checked = e.target.checked; setSaving(true); setError('');
           try { await updateEvent(event.id, { registration_open: checked }); } catch { setError('Could not update registration. Please try again.'); } finally { setSaving(false); }

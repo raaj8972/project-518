@@ -1,3 +1,4 @@
+import { prepareBrandAsset } from '../../utils/brandAsset';
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2, Bell, Upload, FileImage, ArrowLeft, ArrowRight } from 'lucide-react';
@@ -7,6 +8,7 @@ import type { EventCoordinator } from '../../types/data';
 import { ImageUpload } from '../ImageUpload';
 import { VideoUpload } from '../VideoUpload';
 import { supabase } from '../../lib/supabase';
+import { getEventWhatsAppGroup } from '../../services/eventWhatsAppGroups';
 import EventWinnersEditor from './EventWinnersEditor';
 import type { Event } from '../../types/data';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
@@ -202,7 +204,8 @@ export const EventsManagement: React.FC = () => {
       
       setUploadingEmailStamp(true);
       
-      const fileExt = file.type.includes('image/svg') ? 'svg' : 'png';
+      const uploadFile = await prepareBrandAsset(file);
+      const fileExt = 'png';
       const fileName = `email_stamp.${fileExt}`;
       
       // Delete existing files first
@@ -210,7 +213,7 @@ export const EventsManagement: React.FC = () => {
 
       const { error } = await supabase.storage
         .from('pdf-watermarks')
-        .upload(fileName, file, { cacheControl: '0', upsert: true });
+        .upload(fileName, uploadFile, { cacheControl: '0', upsert: true });
 
       if (error) throw error;
 
@@ -967,7 +970,10 @@ export const EventsManagement: React.FC = () => {
     }
   };
 
-  const startEditingEvent = (event: Event) => {
+  const startEditingEvent = async (event: Event) => {
+    let groupLink: string | null;
+    try { groupLink = await getEventWhatsAppGroup(event.id); }
+    catch { push({ message: 'Could not load the protected event group. Please try again.', type: 'error' }); return; }
     setEventForm({
       title: event.title,
       category: eventCategory(event.category),
@@ -978,7 +984,7 @@ export const EventsManagement: React.FC = () => {
       coordinator_name: event.coordinator_name || '',
       coordinator_phone: event.coordinator_phone || '',
       coordinator_password: (event as any).coordinator_password || '',
-      whatsapp_group_link: (event as any).whatsapp_group_link || '',
+      whatsapp_group_link: groupLink || '',
       date: event.date,
       time: event.time,
       venue: event.venue,
@@ -3093,7 +3099,7 @@ export const EventsManagement: React.FC = () => {
                                                 });
                                             }}
                                         />
-                                        <span className="text-sm text-gray-400 group-hover:text-gray-200 transition-colors leading-relaxed" dangerouslySetInnerHTML={{ __html: display }} />
+                                        <span className="text-sm text-gray-400 group-hover:text-gray-200 transition-colors leading-relaxed">{display}</span>
                                     </label>
                                 );
                             })

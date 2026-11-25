@@ -63,17 +63,15 @@ export const isBeforeOpen = (e: any): boolean => {
 };
 
 export const canRegisterNow = (e: any): boolean => {
-  if (e?.registration_open) return true;
-  const openAt = getOpenAtMs(e);
-  const OPEN_GRACE_MS = 1000;
-  const isTimerOpenWithGrace = openAt != null ? Date.now() + OPEN_GRACE_MS >= openAt : false;
-  
-  if (e?.registration_timer_enabled && e?.registration_closes_at) {
-    const closeTime = new Date(e.registration_closes_at).getTime();
-    if (!isNaN(closeTime) && Date.now() >= closeTime) return false;
+  if (e?.registration_open !== true || e?.visible === false) return false;
+  if (!e.registration_timer_enabled) return true;
+  const now = Date.now();
+  for (const [field, opening] of [['registration_opens_at', true], ['registration_closes_at', false]] as const) {
+    if (!e[field]) continue;
+    const boundary = new Date(e[field]).getTime();
+    if (!Number.isFinite(boundary) || (opening ? now < boundary : now >= boundary)) return false;
   }
-  
-  return isTimerOpenWithGrace;
+  return true;
 };
 
 export const getCountdown = (e: any): string | null => {

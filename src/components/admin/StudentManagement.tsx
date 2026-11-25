@@ -10,6 +10,7 @@ import {
   Mail
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import IQMGRosterManagement from './IQMGRosterManagement';
 import { StudentApprovals } from './StudentApprovals';
 import { useData } from '../../context/DataContext';
 import toast from 'react-hot-toast';
@@ -18,7 +19,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 export const StudentManagement: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const requested = params.get('section');
-  const activeSubTab = requested === 'settings' || requested === 'auth' ? requested : 'verifications';
+  const activeSubTab = requested === 'settings' || requested === 'auth' || requested === 'iqmg' ? requested : 'verifications';
   const setActiveSubTab = (section: string) => setParams(previous => { const next = new URLSearchParams(previous); next.set('section', section); return next; });
   const { siteSettings, updateSiteSettings } = useData();
   const [saving, setSaving] = useState(false);
@@ -45,6 +46,7 @@ export const StudentManagement: React.FC = () => {
 
   const subTabs = [
     { id: 'verifications', name: 'Verifications', icon: UserCheck },
+    { id: 'iqmg', name: 'IQMG roster', icon: School },
     { id: 'settings', name: 'Profile Settings', icon: Settings },
     { id: 'auth', name: 'Authentication', icon: Shield },
   ];
@@ -89,6 +91,7 @@ export const StudentManagement: React.FC = () => {
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
         >
+          {activeSubTab === 'iqmg' && <IQMGRosterManagement />}
           {activeSubTab === 'verifications' && (
             <StudentApprovals />
           )}

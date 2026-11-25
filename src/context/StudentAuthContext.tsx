@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { studentProfileProblem, studentReturnPath } from '../utils/studentProfile';
+import {getCollegeIdentity} from '../services/studentTeams';
 
 export interface StudentProfile {
   id: string;
@@ -11,6 +13,9 @@ export interface StudentProfile {
   participant_type: string | null;
   avatar_url: string | null;
   username: string | null;
+  iqmg_number?: string | null;
+  iqmg_status?: 'pending'|'verified'|'correction_required'|null;
+  iqmg_note?: string|null;
   is_approved: boolean;
   created_at: string;
   updated_at: string;
@@ -25,14 +30,14 @@ interface StudentAuthContextType {
   isProfileComplete: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (returnTo?: string) => Promise<void>;
   updateProfile: (updates: Partial<StudentProfile>) => Promise<{ error: any }>;
 }
 
 const StudentAuthContext = createContext<StudentAuthContextType | undefined>(undefined);
 
 // [DEDUPE] Use window bridge for singleton Context
-const PrimaryStudentAuthContext = ((typeof window !== 'undefined') 
+const PrimaryStudentAuthContext = ((typeof window !== 'undefined')
   ? ((window as any).__STUDENT_AUTH_CONTEXT__ || ((window as any).__STUDENT_AUTH_CONTEXT__ = StudentAuthContext))
   : StudentAuthContext) as React.Context<StudentAuthContextType | undefined>;
 
@@ -51,8 +56,9 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
 
   const activeUser = useRef<string | null>(null);
   const profileRequests = useRef(new Map<string, Promise<void>>());
+  const sessionVersion = useRef(0);
 
-  const loadProfile = async (userId: string, userMetadata?: any) => {
+  const loadProfile = async (userId: string, userMetadata: any, version: number) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -60,7 +66,7 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
         .eq('id', userId)
         .single();
 
-      if (activeUser.current !== userId) return;
+      if (activeUser.current !== userId || sessionVersion.current !== version) return;
       if (error) {
         if (error.code === 'PGRST116' && userMetadata) {
           // Profile doesn't exist, create it from metadata
@@ -82,25 +88,30 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
           if (createError) {
             console.error('[StudentAuth] Error creating profile:', createError);
           } else {
-            if (activeUser.current === userId) setProfile(newProfile as StudentProfile);
+            if (activeUser.current === userId && sessionVersion.current === version) setProfile(newProfile as StudentProfile);
           }
         } else {
           console.error('[StudentAuth] Error fetching profile:', error);
           setProfile(null);
         }
       } else {
-        setProfile(data as StudentProfile);
+        const identity = await getCollegeIdentity().catch(error => {
+          console.error('[StudentAuth] College identity refresh failed:', error);
+          return undefined;
+        });
+        if (activeUser.current === userId && sessionVersion.current === version) setProfile(previous => ({...data,iqmg_number:identity===undefined&&previous?.id===userId?previous.iqmg_number:identity?.iqmg_number||null,iqmg_status:identity===undefined&&previous?.id===userId?previous.iqmg_status:identity?.status||null,iqmg_note:identity===undefined&&previous?.id===userId?previous.iqmg_note:identity?.note||null} as StudentProfile));
       }
     } catch (err) {
       console.error('[StudentAuth] Unexpected error fetching profile:', err);
-      if (activeUser.current === userId) setProfile(null);
+      if (activeUser.current === userId && sessionVersion.current === version) setProfile(null);
     }
   };
 
   const fetchProfile = (userId: string, metadata?: any) => {
+    if (activeUser.current !== userId) return Promise.resolve();
     const current = profileRequests.current.get(userId);
     if (current) return current;
-    const request = loadProfile(userId, metadata).finally(() => {
+    const request = loadProfile(userId, metadata, sessionVersion.current).finally(() => {
       if (profileRequests.current.get(userId) === request) profileRequests.current.delete(userId);
     });
     profileRequests.current.set(userId, request);
@@ -121,6 +132,11 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
       const key = currentUser ? currentUser.id + JSON.stringify(currentUser.user_metadata) : 'anonymous';
       if (!force && applied === key) return;
       applied = key;
+      if (activeUser.current !== (currentUser?.id || null) || force) {
+        sessionVersion.current += 1;
+        profileRequests.current.clear();
+        setProfile(null);
+      }
       activeUser.current = currentUser?.id || null;
       setUser(currentUser);
       if (!currentUser) { setProfile(null); setLoading(false); clearTimeout(initTimer); return; }
@@ -152,19 +168,20 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
       .channel(`profile-changes-${user.id}`)
       .on(
         'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'profiles', 
-          filter: `id=eq.${user.id}` 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
         },
         (payload) => {
-          console.log('[StudentAuth] Realtime profile update:', payload.new);
+
           if (payload.new) {
-            setProfile(payload.new as StudentProfile);
+            void fetchProfile(user.id);
           }
         }
       )
+      .on('postgres_changes', {event:'*',schema:'public',table:'student_iqmg_identities',filter:`user_id=eq.${user.id}`},()=>{void fetchProfile(user.id);})
       .subscribe();
 
     return () => {
@@ -172,7 +189,7 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
-  const isProfileComplete = !!(profile?.full_name && profile?.phone && profile?.batch);
+  const isProfileComplete = !!profile && studentProfileProblem(profile) === null;
 
   const value = {
     user,
@@ -190,11 +207,14 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
             localStorage.removeItem(key);
           }
         });
-        
-        // 2. Clear state
+
+        // 2. Invalidate pending responses before clearing this session.
+        activeUser.current = null;
+        sessionVersion.current += 1;
+        profileRequests.current.clear();
         setUser(null);
         setProfile(null);
-        
+
         // 3. Attempt Supabase signOut
         try {
           await supabase.auth.signOut();
@@ -208,11 +228,14 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
       }
     },
     refreshProfile,
-    signInWithGoogle: async () => {
+    signInWithGoogle: async (returnTo?: string) => {
+      const target = studentReturnPath(returnTo);
+      const callback = new URL('/student/login', window.location.origin);
+      if (target !== '/dashboard') callback.searchParams.set('redirect', target);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/student/login`,
+          redirectTo: callback.href,
           queryParams: {
             prompt: 'select_account consent',
             access_type: 'offline'
@@ -222,20 +245,21 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
     },
     updateProfile: async (updates: Partial<StudentProfile>) => {
-      console.log('[StudentAuth] updateProfile initiated', updates);
-      if (!user) return { error: 'No user logged in' };
-      
+
+      if (!user) return { error: new Error('No user logged in') };
+      if (Object.keys(updates).length === 0) { await refreshProfile(); return {error:null}; }
+      let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
         const { error } = await Promise.race([
           supabase.from('profiles').update(updates).eq('id', user.id),
-          new Promise<{ error: any }>((_, reject) => setTimeout(() => reject(new Error('Update timeout')), 8000))
+          new Promise<{ error: any }>((_, reject) => { timeout = setTimeout(() => reject(new Error('Update timeout')), 8000); })
         ]) as { error: any };
-        
+
         if (error) {
           console.error('[StudentAuth] updateProfile error:', error);
           return { error };
         }
-        
+
         console.log('[StudentAuth] updateProfile success');
         await refreshProfile();
         return { error: null };
@@ -243,15 +267,15 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
         console.error('[StudentAuth] updateProfile catch:', err.message);
         // On timeout or error, still try to refresh and return
         await refreshProfile().catch(() => {});
-        return { error: err.message };
-      }
+        return { error: err };
+      } finally { clearTimeout(timeout); }
     }
   };
 
   return (
-    <StudentAuthContext.Provider value={value}>
+    <PrimaryStudentAuthContext.Provider value={value}>
       {children}
-    </StudentAuthContext.Provider>
+    </PrimaryStudentAuthContext.Provider>
   );
 }
 

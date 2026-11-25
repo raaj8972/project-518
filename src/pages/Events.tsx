@@ -1,5 +1,5 @@
 import { getRoundWinners } from '../services/roundWinners';
-import { getRankingData } from '../services/rankingData';
+import { getStudentScoreboard } from '../services/studentRewards';
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowRightIcon, ReloadIcon } from '@radix-ui/react-icons';
@@ -48,7 +48,7 @@ export const Events: React.FC = () => {
     loading
   } = useData() as any;
   const { user: firebaseUser, isAuthenticated: isFirebaseAuthenticated } = useAuth();
-  const { isAuthenticated: isSupabaseAuthenticated } = useStudentAuth();
+  const { isAuthenticated: isSupabaseAuthenticated, isProfileComplete, isApproved } = useStudentAuth();
   
   const isAnyAuthenticated = isFirebaseAuthenticated || isSupabaseAuthenticated;
   const { push } = useToast();
@@ -149,177 +149,11 @@ export const Events: React.FC = () => {
 
   const handleOpenWinnerProfile = async (userId: string) => {
     try {
-      const { data: p } = await supabase
-        .from('public_profiles')
-        .select(`
-          id,
-          full_name,
-          username,
-          avatar_url,
-          aura_color,
-          background_url,
-          batch,
-          likes_count,
-          student_xp
-        `)
-        .eq('id', userId)
-        .single();
-        
-      if (p) {
-        const xpRecord = Array.isArray(p.student_xp) ? p.student_xp[0] : p.student_xp;
-        
-        // Fetch all profiles, registrations, and rounds to calculate correct rank
-        const { profiles: allProfiles, registrations: regsList, rounds: roundsList, eventRounds } = await getRankingData();
-
-        const roundNameMap: Record<string, string> = {};
-        eventRounds.forEach(er => {
-          roundNameMap[er.id] = er.name;
-        });
-
-        // Count approved registrations per event to dynamically find the top 2 Major Events
-        const eventCounts: Record<string, number> = {};
-        regsList.forEach(r => {
-          if (r.status === 'approved' && r.event_id) {
-            eventCounts[r.event_id] = (eventCounts[r.event_id] || 0) + 1;
-          }
-        });
-
-        const computedMajorEventIds = Object.entries(eventCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 2)
-          .map(entry => entry[0]);
-
-        // Map rounds by registration_id (O(N))
-        const roundsByRegMap: Record<string, any[]> = {};
-        roundsList.forEach(rd => {
-          if (!roundsByRegMap[rd.registration_id]) {
-            roundsByRegMap[rd.registration_id] = [];
-          }
-          roundsByRegMap[rd.registration_id].push(rd);
-        });
-
-        // Map registrations by user_id (O(N))
-        const userRegsMap: Record<string, any[]> = {};
-        regsList.forEach(r => {
-          if (!userRegsMap[r.user_id]) {
-            userRegsMap[r.user_id] = [];
-          }
-          const rRounds = roundsByRegMap[r.id] || [];
-          userRegsMap[r.user_id].push({
-            ...r,
-            registration_rounds: rRounds
-          });
-        });
-          
-        let calculatedRank = 100;
-        if (allProfiles) {
-          const sorted = allProfiles
-            .map((prof: any) => {
-              const likes = prof.likes_count || 0;
-              const pRegs = userRegsMap[prof.id] || [];
-              
-              let score = likes * 10;
-              pRegs.forEach((r: any) => {
-                const isMajor = computedMajorEventIds.includes(r.event_id || '');
-                
-                if (r.status === 'approved') {
-                  score += isMajor ? 30 : 15;
-                }
-                
-                const rr = r.registration_rounds || [];
-                rr.forEach((roundObj: any) => {
-                  if (roundObj.status === 'qualified') {
-                    // Base round qualified points
-                    score += isMajor ? 40 : 20;
-                    
-                    // Final round bonus
-                    const roundName = roundNameMap[roundObj.round_id] || '';
-                    const isFinalRound = roundName.toLowerCase().includes('final');
-                    if (isFinalRound) {
-                      score += isMajor ? 60 : 30;
-                    }
-                    
-                    // Winner position points
-                    if (roundObj.prize_rank === '1st') {
-                      score += isMajor ? 100 : 50;
-                    } else if (roundObj.prize_rank === '2nd') {
-                      score += isMajor ? 60 : 30;
-                    } else if (roundObj.prize_rank === '3rd') {
-                      score += isMajor ? 40 : 20;
-                    }
-                  }
-                });
-              });
-
-              return {
-                id: prof.id,
-                hype_score: score
-              };
-            })
-            .sort((a, b) => b.hype_score - a.hype_score);
-            
-          const foundIdx = sorted.findIndex(item => item.id === userId);
-          if (foundIdx !== -1) {
-            calculatedRank = foundIdx + 1;
-          }
-        }
-
-        const pRegs = userRegsMap[p.id] || [];
-        let pScore = (p.likes_count || 0) * 10;
-        let pRoundsCleared = 0;
-        pRegs.forEach((r: any) => {
-          const isMajor = computedMajorEventIds.includes(r.event_id || '');
-          
-          if (r.status === 'approved') {
-            pScore += isMajor ? 30 : 15;
-          }
-          
-          const rr = r.registration_rounds || [];
-          rr.forEach((roundObj: any) => {
-            if (roundObj.status === 'qualified') {
-              pRoundsCleared++;
-              pScore += isMajor ? 40 : 20;
-              
-              const roundName = roundNameMap[roundObj.round_id] || '';
-              const isFinalRound = roundName.toLowerCase().includes('final');
-              if (isFinalRound) {
-                pScore += isMajor ? 60 : 30;
-              }
-              
-              if (roundObj.prize_rank === '1st') {
-                pScore += isMajor ? 100 : 50;
-              } else if (roundObj.prize_rank === '2nd') {
-                pScore += isMajor ? 60 : 30;
-              } else if (roundObj.prize_rank === '3rd') {
-                pScore += isMajor ? 40 : 20;
-              }
-            }
-          });
-        });
-
-        const participatedEvents = Array.from(new Set(
-          pRegs
-            .filter((r: any) => r.status === 'approved' && r.event)
-            .map((r: any) => r.event.title)
-        )) as string[];
-
+      const { students } = await getStudentScoreboard();
+      const profile = students.find(student => student.id === userId);
+      if (profile) {
         setFlippedCards(new Set());
-        setSelectedWinnerProfile({
-          id: p.id,
-          full_name: p.full_name,
-          username: p.username,
-          avatar_url: p.avatar_url,
-          aura_color: p.aura_color,
-          background_url: p.background_url,
-          batch: p.batch,
-          tier: xpRecord?.tier || 'bronze',
-          xp: xpRecord?.xp_total || 0,
-          likes_count: p.likes_count || 0,
-          hype_score: pScore,
-          rank: calculatedRank,
-          participated_events: participatedEvents,
-          rounds_cleared: pRoundsCleared
-        });
+        setSelectedWinnerProfile(profile);
       }
     } catch (err) {
       console.error('[Events] Error loading winner profile:', err);
@@ -437,6 +271,10 @@ export const Events: React.FC = () => {
     }
     if (!isSupabaseAuthenticated) {
       setAuthModalEventId(eventId);
+      return;
+    }
+    if (!isProfileComplete || !isApproved) {
+      navigate(`/dashboard?returnTo=${encodeURIComponent(`/events?event=${eventId}`)}`);
       return;
     }
     if (userRegistrations.some(r => r.event_id === String(eventId))) {

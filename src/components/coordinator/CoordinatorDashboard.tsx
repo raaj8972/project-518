@@ -9,9 +9,11 @@ import { dualRead, dualUpdate } from '../../lib/dualDb';
 import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone, ToggleLeft, ToggleRight, Lock, Unlock, Filter, ChevronDown, Trophy, Loader2, Sparkles, Trash2, UserCheck, Image, IndianRupee, FileText, Clock, CalendarClock } from 'lucide-react';
 import { exportCoordinatorRegistrationsToPDF } from '../../utils/pdfExport';
 import { AnnouncementsPanel } from '../shared/AnnouncementsPanel';
+import { useSupportUnread } from '../../hooks/useSupportUnread';
 import { ChatPanel } from '../shared/ChatPanel';
 import { sanitizeUrl } from '../../utils/dataUtils';
 import { supabase } from '../../lib/supabase';
+import { getEventWhatsAppGroup } from '../../services/eventWhatsAppGroups';
 
 // WhatsApp Logo SVG Component
 const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -29,6 +31,18 @@ export const CoordinatorDashboard: React.FC = () => {
   
   const [session, setSession] = useState<{ eventId: number; eventTitle: string; token?: string } | null>(null);
   const [whatsappLink, setWhatsappLink] = useState('');
+  const [groupLinkReady, setGroupLinkReady] = useState(false);
+  const [groupLinkError, setGroupLinkError] = useState(false);
+  const [groupLinkRevision, setGroupLinkRevision] = useState(0);
+  useEffect(() => {
+    setWhatsappLink(''); setGroupLinkReady(false); setGroupLinkError(false);
+    if (!session?.eventId) return;
+    let active = true;
+    void getEventWhatsAppGroup(session.eventId).then(link => {
+      if (active) { setWhatsappLink(link || ''); setGroupLinkReady(true); }
+    }).catch(() => { if (active) setGroupLinkError(true); });
+    return () => { active = false; };
+  }, [session?.eventId, groupLinkRevision]);
   const [linkSaving, setLinkSaving] = useState(false);
   
   // Local state for registrations fetched via RPC
@@ -57,7 +71,7 @@ export const CoordinatorDashboard: React.FC = () => {
   const [activeSection, setActiveSection] = useState<'participants' | 'rounds' | 'chat' | 'announcements' | 'settings'>('participants');
   const [pageSize, setPageSize] = useState(30);
   const [selectedBatch, setSelectedBatch] = useState<string>('all');
-  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const unreadChatCount = useSupportUnread('coordinator', !!session?.eventId && !showSplash, session?.eventId?.toString());
   const [oldestUnansweredHrs, setOldestUnansweredHrs] = useState<number | null>(null);
   const [showSlaBreachModal, setShowSlaBreachModal] = useState(false);
 
@@ -234,7 +248,6 @@ export const CoordinatorDashboard: React.FC = () => {
         const event = events.find((e: any) => e.id === data.eventId);
         if (event && mounted.current) {
           setEventDetails(event);
-          if (event.whatsapp_group_link) setWhatsappLink(event.whatsapp_group_link);
           if (typeof event.registration_open === 'boolean') setRegistrationOpen(event.registration_open);
           // Load payment settings
           setPaymentEnabled(event.payment_enabled || false);
@@ -577,7 +590,7 @@ export const CoordinatorDashboard: React.FC = () => {
   }, [navigate, fetchData]);
 
   const handleSaveLink = useCallback(async () => {
-    if (!session) return;
+    if (!session || !groupLinkReady) return;
     try {
       setLinkSaving(true);
       await dualUpdate('events', session.eventId, { whatsapp_group_link: whatsappLink });
@@ -587,7 +600,7 @@ export const CoordinatorDashboard: React.FC = () => {
     } finally {
       setLinkSaving(false);
     }
-  }, [session, whatsappLink, push]);
+  }, [session, whatsappLink, push, groupLinkReady]);
 
   // Update registration status (Approve/Reject)
   const handleUpdateStatus = useCallback(async (regId: string, newStatus: 'approved' | 'rejected') => {
@@ -1545,7 +1558,7 @@ export const CoordinatorDashboard: React.FC = () => {
               { key: 'announcements', label: 'Announcements', icon: Mail },
               { key: 'settings', label: 'Event Settings', icon: LinkIcon },
             ] as const).map(({ key, label, icon: Icon }) => (
-              <button key={key} onClick={() => { setActiveSection(key); if (key === 'chat') setUnreadChatCount(0); }}
+              <button key={key} onClick={() => { setActiveSection(key);  }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all text-left border ${activeSection === key ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5 border-transparent'}`}>
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {label}
@@ -1789,7 +1802,7 @@ export const CoordinatorDashboard: React.FC = () => {
                               </p>
                               <div className="flex items-center gap-2 mt-2">
                                 <span className="text-sm font-medium text-gray-300">{reg.phone}</span>
-                                {reg.phone && whatsappLink && activeTab === 'approved' && (
+                                {reg.phone && whatsappLink && activeTab === 'approved' && reg.is_active === true && !reg.deleted_at && (
                                   <a href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
                                     target="_blank" rel="noopener noreferrer"
                                     className="inline-flex items-center text-green-400 bg-green-500/10 hover:bg-green-500/20 rounded-lg p-1.5 border border-green-500/20 transition-colors"
@@ -1904,7 +1917,7 @@ export const CoordinatorDashboard: React.FC = () => {
                                 <div className="font-medium">{reg.phone}</div>
                                 <div className="flex items-center gap-2 mt-1">
                                   <div className="text-xs text-gray-500 truncate max-w-[140px]">{reg.email}</div>
-                                  {reg.phone && whatsappLink && activeTab === 'approved' && (
+                                  {reg.phone && whatsappLink && activeTab === 'approved' && reg.is_active === true && !reg.deleted_at && (
                                     <a href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
                                       target="_blank" rel="noopener noreferrer"
                                       className="inline-flex items-center text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-green-500/25"
@@ -1993,7 +2006,7 @@ export const CoordinatorDashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/[0.08] overflow-hidden h-[600px]">
-                  <ChatPanel themeAccent="indigo" eventId={session?.eventId?.toString()} />
+                  <ChatPanel mode="coordinator" themeAccent="indigo" eventId={session?.eventId?.toString()} />
                 </div>
               </div>
             )}
@@ -2025,15 +2038,16 @@ export const CoordinatorDashboard: React.FC = () => {
                   <h3 className="text-sm font-black text-white mb-1 flex items-center gap-2 uppercase tracking-wider">
                     <MessageCircle size={15} className="text-cyan-500" />WhatsApp Group Link
                   </h3>
-                  <p className="text-xs text-gray-500 mb-4">This link is sent to approved participants when you invite them.</p>
+                  <p className="text-xs text-gray-500 mb-4">Only approved, active participants can open this group from their dashboard.</p>
+                  {groupLinkError && <p role="alert" className="text-sm text-red-400 mb-3">Could not load the protected group link. <button onClick={() => setGroupLinkRevision(value => value + 1)}>Retry</button></p>}
                   <div className="flex gap-2 items-center">
                     <div className="relative flex-1">
                       <LinkIcon size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
-                      <input type="url" value={whatsappLink} onChange={(e) => setWhatsappLink(e.target.value)}
+                      <input type="url" value={whatsappLink} disabled={!groupLinkReady || linkSaving} onChange={(e) => setWhatsappLink(e.target.value)}
                         className="block w-full pl-10 pr-3 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm"
                         placeholder="https://chat.whatsapp.com/..." />
                     </div>
-                    <button onClick={handleSaveLink} disabled={linkSaving} className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 text-sm font-black rounded-xl text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(6,182,212,0.25)]">
+                    <button onClick={handleSaveLink} disabled={linkSaving || !groupLinkReady} className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 text-sm font-black rounded-xl text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(6,182,212,0.25)]">
                       <Save size={15} />{linkSaving ? 'Saving...' : 'Save'}
                     </button>
                     {whatsappLink && (
@@ -2135,7 +2149,7 @@ export const CoordinatorDashboard: React.FC = () => {
                   <h3 className="text-sm font-black text-white mb-1 flex items-center gap-2 uppercase tracking-wider">
                     <CalendarClock size={15} className="text-violet-400" />Registration Window
                   </h3>
-                  <p className="text-xs text-gray-500 mb-4">Set when registration opens and closes. Outside this window, registration button is disabled for students.</p>
+                  <p className="text-xs text-gray-500 mb-4">Keep registration Open to allow entries during this window. Outside the window, students cannot register. Closing registration stops entries immediately.</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                     <div>
                       <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Opens At</label>
@@ -2415,7 +2429,7 @@ export const CoordinatorDashboard: React.FC = () => {
 
       {/* ══ BULK WHATSAPP INVITE MODAL ══ */}
       {showBulkInvite && session && whatsappLink && (() => {
-        const eligible = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved' && r.phone);
+        const eligible = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved' && r.is_active === true && !r.deleted_at && r.phone);
         const sentCount = eligible.filter((r: any) => invitedSet.has(r.reg_id)).length;
         const progress = eligible.length > 0 ? Math.round((sentCount / eligible.length) * 100) : 0;
         return (

@@ -156,20 +156,8 @@ body.theme-spiderman:not([data-festival-scope="staff"]) .spider-hero-title {
 body.theme-spiderman:not([data-festival-scope="staff"]) .spider-hero-primary { background: linear-gradient(130deg, #145328b3, #03140cdd); border-color: #c2db79; box-shadow: inset 0 0 18px #67ff4926, 0 0 18px #5bff4221, 0 3px 0 #8a743a; }
 body.theme-spiderman:not([data-festival-scope="staff"]) .spider-hero-secondary { background: linear-gradient(130deg, #3e35158c, #0d150bdd); box-shadow: inset 0 0 18px #dfb65b12, 0 3px 0 #8a743a; }
 body.theme-spiderman:not([data-festival-scope="staff"]) .spider-hero-actions a:hover { transform: translateY(-4px); background: #1d4427; box-shadow: 0 0 25px #88fd6140, inset 0 0 20px #89f86e12; }
-.festival-atmosphere { position: absolute; inset: 0; pointer-events: none; z-index: -1; overflow: hidden; }
-.festival-atmosphere i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #dbf8a4; box-shadow: 0 0 10px #8dff66; opacity: 0; animation: festival-ember 10s ease-in-out infinite; }
-.festival-atmosphere i:nth-child(1) { left: 16%; bottom: 13%; animation-delay: -3s; }
-.festival-atmosphere i:nth-child(2) { left: 32%; bottom: 8%; animation-delay: -7s; }
-.festival-atmosphere i:nth-child(3) { left: 58%; bottom: 19%; animation-delay: -2s; }
-.festival-atmosphere i:nth-child(4) { left: 77%; bottom: 12%; animation-delay: -5s; }
-.festival-atmosphere i:nth-child(5) { left: 86%; bottom: 25%; animation-delay: -9s; }
-.festival-atmosphere i:nth-child(6) { left: 46%; bottom: 7%; animation-delay: -1s; }
-.festival-lightning { position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at 14% 25%, #acff8722, transparent 50%); animation: festival-storm 13s ease infinite; }
-.festival-lightning-right { background: radial-gradient(ellipse at 90% 40%, #dbffae1a, transparent 45%); animation-delay: 6s; }
 @keyframes festival-title-reveal { from { opacity: 0; transform: translateY(20px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes festival-ember { 0% { opacity: 0; transform: translate3d(0, 20px, 0); } 25%, 65% { opacity: .65; } 100% { opacity: 0; transform: translate3d(30px, -220px, 0); } }
 @keyframes festival-breathe { 50% { opacity: .45; } }
-@keyframes festival-storm { 0%, 89%, 94%, 100% { opacity: 0; } 91%, 96% { opacity: .9; } }
 
 /* One transparent, bounded WebGL canvas, plus keyboard-accessible controls. */
 .site-spider-overlay { position: fixed; inset: 0; overflow: hidden; pointer-events: none !important; z-index: 45; opacity: 1; transition: opacity 180ms ease; }
@@ -186,7 +174,6 @@ body.theme-spiderman:not([data-festival-scope="staff"]) .spider-hero-actions a:h
 .site-spider-toggle svg { color: #a5ee88; }
 .site-spider-toggle:hover { background: #183620; border-color: #98e778; }
 .site-spider-toggle:disabled { cursor: default; opacity: .7; }
-.site-spider-controls .site-spider-scare { width: 44px; padding: 0; }
 .site-spider-fallback { position: absolute; width: clamp(120px, 16vw, 240px); right: 20px; top: 130px; }
 body:has([role="dialog"][aria-modal="true"]) :is(.site-spider-overlay, .site-spider-controls) { visibility: hidden; }
 .spider-web-highlight { position: fixed; top: 0; left: 0; z-index: 11000; pointer-events: none !important; overflow: hidden; color: #dbd6aa; border: 1px solid #a8d57f80; box-shadow: inset 0 0 12px #72ff5b13; opacity: 0; visibility: hidden; transition: opacity 150ms ease, visibility 150ms ease; }
@@ -276,7 +263,7 @@ body:has([data-spider-web-transition]) :is(.site-spider-overlay, .site-spider-co
 }
 @media (prefers-reduced-motion: reduce) {
   .spider-opening, .spider-web-highlight { transition: none !important; }
-  .spider-opening-mark svg, .spider-opening-track span, .spider-hero-title, .festival-atmosphere i, .festival-lightning { animation: none !important; }
+  .spider-opening-mark svg, .spider-opening-track span, .spider-hero-title { animation: none !important; }
   .spider-opening-track span { width: 70%; }
   body.theme-spiderman:not([data-festival-scope="staff"]) :is(.animate-pulse, .animate-rico-float, .animate-spin-slow) { animation: none !important; }
 }

@@ -49,7 +49,7 @@ function HomepagePreviewView({ form, activeSection, onSelectSection, faculty = [
   useEffect(() => setVideoFailed(false), [video]);
   const mergeLeads = (source: PreviewPerson[], facultyGroup: boolean): PreviewPerson[] => [...source.map(person => ({ ...person, ...leadOverrides.find(lead => lead.id === person.id && (lead.kind === 'faculty') === facultyGroup) })), ...leadOverrides.filter(lead => lead.id == null && (lead.kind === 'faculty') === facultyGroup)];
   const displayedPeople = [...(form.show_faculty_heads ? mergeLeads(faculty,true) : []), ...(form.show_committee_heads ? mergeLeads(heads,false) : [])].filter(person => person.enabled !== false).slice(0,3);
-  const partnerSelection = resolveHomepagePartners(sponsors,form.sponsor_logos,{featuredOnly:true});
+  const partnerSelection = resolveHomepagePartners(sponsors,form.sponsor_logos,{featuredOnly:true,currentYear:Number(form.brand_year) || undefined});
   const featured = partnerSelection.partners.slice(0,4);
   const visibleRoadmap=roadmapItems.length ? roadmapItems.filter(item=>item.enabled) : DEFAULT_ROADMAP;
   const logoOffsetX = mobile ? form.brand_logo_offset_x_sm_px : form.brand_logo_offset_x_lg_px;

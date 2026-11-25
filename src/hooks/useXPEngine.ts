@@ -17,17 +17,7 @@ export const useXPEngine = () => {
         p_meta: meta || {}
       });
 
-      if (error) {
-        // If RPC not found, fallback to manual insert
-        if (error.code === 'PGRST202') {
-           await supabase.from('student_activity_log').insert({
-            user_id: user.id,
-            action: action,
-            xp_earned: xp,
-            meta: meta || {}
-          });
-        }
-      }
+      if (error) console.error('XP could not sync:', error.message);
     } catch (err) {
       console.error('XP Engine Error:', err);
     }
@@ -50,21 +40,18 @@ export const useXPEngine = () => {
       if (error) {
         if (error.code === '23505') {
           // Already liked, so unlike it
-          await supabase
+          const { error: unlikeError } = await supabase
             .from('profile_likes')
             .delete()
             .eq('liker_id', user.id)
             .eq('profile_id', profileId);
+          if (unlikeError) throw unlikeError;
           toast.success('Love retracted');
           return 'unliked';
         }
         throw error;
       }
       
-      // Award XP in the background (non-blocking)
-      awardXP('profile_like_interaction', 2, { target_id: profileId });
-      
-      // Return status immediately
       return 'liked';
     } catch (err: any) {
       console.error('[useXPEngine] Like Profile Error:', err);
@@ -73,7 +60,7 @@ export const useXPEngine = () => {
       toast.error(isRlsError ? 'Permission denied (RLS)' : `Error ${err.code || 'Sync'}: ${details}`);
       return false;
     }
-  }, [user, awardXP]);
+  }, [user]);
 
   return { awardXP, likeProfile };
 };

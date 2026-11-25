@@ -1,3 +1,4 @@
+import { PrivateMediaImage, PrivateMediaLink } from '../PrivateMedia';
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useData } from '../../context/DataContext';
@@ -139,7 +140,7 @@ export const RegistrationPhotosPanel: React.FC = () => {
 							title="View large"
 						>
 							<div className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/10 group-hover/thumb:border-cyan-500/30 transition-all">
-								<img
+								<PrivateMediaImage
 									loading="lazy"
 									decoding="async"
 									src={`${it.publicUrl}?width=100&height=100`}
@@ -168,7 +169,7 @@ export const RegistrationPhotosPanel: React.FC = () => {
 
 						{/* Actions */}
 						<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-							<a
+							<PrivateMediaLink
 								href={it.publicUrl}
 								download={it.name || `photo-${Date.now()}`}
 								className="p-2 rounded-xl bg-white/[0.03] border border-white/5 hover:border-cyan-500/20 hover:bg-cyan-500/10 text-gray-500 hover:text-cyan-400 transition-all"
@@ -176,8 +177,8 @@ export const RegistrationPhotosPanel: React.FC = () => {
 								onClick={e => e.stopPropagation()}
 							>
 								<Download size={14} />
-							</a>
-							<a
+							</PrivateMediaLink>
+							<PrivateMediaLink
 								href={it.publicUrl}
 								target="_blank"
 								rel="noopener noreferrer"
@@ -185,7 +186,7 @@ export const RegistrationPhotosPanel: React.FC = () => {
 								title="Open in new tab"
 							>
 								<ExternalLink size={14} />
-							</a>
+							</PrivateMediaLink>
 							<button
 								onClick={() => onDelete(it.name)}
 								className="p-2 rounded-xl bg-white/[0.03] border border-white/5 hover:border-rose-500/20 hover:bg-rose-500/10 text-gray-500 hover:text-rose-400 transition-all"
@@ -233,7 +234,7 @@ export const RegistrationPhotosPanel: React.FC = () => {
 				<div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={closeViewer}>
 					{/* Sticky top-right controls */}
 					<div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-						<a
+						<PrivateMediaLink
 							className="px-4 py-2 rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/[0.12] text-white text-sm font-bold flex items-center gap-2 transition-all"
 							href={items[viewerIndex].publicUrl}
 							download={items[viewerIndex].name || `photo-${Date.now()}`}
@@ -241,7 +242,7 @@ export const RegistrationPhotosPanel: React.FC = () => {
 							title="Download photo"
 						>
 							<Download size={14} /> Download
-						</a>
+						</PrivateMediaLink>
 						<button
 							className="p-2.5 rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/[0.12] text-white transition-all"
 							onClick={(e)=>{ e.stopPropagation(); closeViewer(); }}
@@ -265,7 +266,7 @@ export const RegistrationPhotosPanel: React.FC = () => {
 
 					{/* Image */}
 					<div className="max-w-full max-h-full" onClick={(e)=>e.stopPropagation()}>
-						<img
+						<PrivateMediaImage
 							src={items[viewerIndex].publicUrl}
 							alt={items[viewerIndex].name}
 							className="object-contain max-w-[90vw] max-h-[85vh] rounded-2xl shadow-2xl"

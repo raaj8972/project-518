@@ -35,7 +35,7 @@ export const ADMIN_PAGES = [
   { id:'annual-registrations', label:'Annual sports registrations', group:'Sports', flag:'can_sports' },
   { id:'annual-registration-model', label:'Annual sports registration form', group:'Sports', flag:'can_sports' },
   { id:'announcements', label:'Announcements', group:'Communication', flag:'' },
-  { id:'support-chat', label:'Support chat', group:'Communication', flag:'' },
+  { id:'support-chat', label:'Technical support inbox', group:'Communication', flag:'' },
 ] as const;
 export const ADMIN_PAGE_IDS = new Set<string>(ADMIN_PAGES.map(page=>page.id));
 export function validateAdminPages(value: unknown): string[] {

@@ -150,7 +150,7 @@ const ParticipantCarousel: React.FC = () => {
       >
         {participants.map((star, idx) => {
           const rank = star.rank;
-          const isLegendary = rank <= 5;
+          const isLegendary = rank > 0 && rank <= 5;
           const customAura = star.aura_color;
           const customBg = star.background_url;
           
@@ -178,7 +178,7 @@ const ParticipantCarousel: React.FC = () => {
               onClick={() => setSelectedProfile(star)}
               tabIndex={0}
               role="button"
-              aria-label={`View ${star.full_name}'s profile, rank ${rank}`}
+              aria-label={`View ${star.full_name}'s profile, ${rank > 0 ? `rank ${rank}` : 'not ranked yet'}`}
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget) return;
                 if (event.key === 'Enter' || event.key === ' ') {
@@ -187,18 +187,18 @@ const ParticipantCarousel: React.FC = () => {
                 }
               }}
               className={`student-festival-star relative w-[230px] shrink-0 p-5 rounded-[2.5rem] border backdrop-blur-3xl group cursor-pointer transition-all duration-500 overflow-hidden snap-center ${
-                isLegendary ? rankGradients[idx] : 'border-white/10 bg-black/40 hover:bg-black/60 shadow-xl'
+                isLegendary ? rankGradients[(rank - 1) % 5] : 'border-white/10 bg-black/40 hover:bg-black/60 shadow-xl'
               }`}
               style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
             >
               {/* Crown Rank Badge */}
               <div className={`absolute top-4 left-4 flex items-center gap-1 px-2.5 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest z-30 ${
-                isLegendary ? (customAura ? '' : rankBorderText[idx]) : 'text-gray-400 border-white/10 bg-white/5'
+                isLegendary ? (customAura ? '' : rankBorderText[(rank - 1) % 5]) : 'text-gray-400 border-white/10 bg-white/5'
               }`}
                 style={isLegendary && customAura ? { borderColor: customAura, backgroundColor: `${customAura}15`, color: customAura } : {}}
               >
                 {isLegendary ? <Crown className="w-2.5 h-2.5 fill-current" /> : <Star className="w-2.5 h-2.5 text-gray-500 fill-current" />}
-                Rank #{rank}
+                {rank > 0 ? `Rank #${rank}` : 'Not ranked yet'}
               </div>
 
               {/* Like Button */}

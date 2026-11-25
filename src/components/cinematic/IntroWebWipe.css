@@ -1,0 +1,73 @@
+.intro-web-wipe {
+  --intro-web-play: running;
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: none;
+}
+.intro-web-wipe[data-paused='true'] { --intro-web-play: paused; }
+.intro-web-wipe *, .intro-web-wipe *::before, .intro-web-wipe *::after {
+  animation-duration: var(--intro-web-half) !important;
+  animation-timing-function: cubic-bezier(.18, .7, .28, 1) !important;
+  animation-fill-mode: both !important;
+  animation-play-state: var(--intro-web-play) !important;
+}
+.intro-web-wipe-cover {
+  position: absolute;
+  inset: 0;
+  background: #07110c;
+  animation-name: intro-web-close;
+}
+.intro-web-wipe-silk {
+  position: absolute;
+  inset: -12%;
+  background: url('/images/effects/real-silk-web.webp') center / cover no-repeat;
+  filter: sepia(.28) saturate(.35) brightness(.79);
+  will-change: transform, opacity;
+}
+.intro-web-wipe-silk-left {
+  clip-path: polygon(0 0, 64% 0, 53% 38%, 62% 69%, 48% 100%, 0 100%);
+  transform-origin: 0 0;
+  animation-name: intro-web-shoot-left;
+}
+.intro-web-wipe-silk-right {
+  clip-path: polygon(55% 0, 100% 0, 100% 100%, 43% 100%, 53% 64%, 46% 35%);
+  transform-origin: 100% 100%;
+  background-position: 57% 50%;
+  animation-name: intro-web-shoot-right;
+}
+.intro-web-wipe-strands {
+  position: absolute;
+  inset: -2%;
+  width: 104%;
+  height: 104%;
+  stroke: #e3edce;
+  stroke-width: .7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: .5;
+  transform-origin: 52% 46%;
+  animation-name: intro-web-knit;
+}
+.intro-web-wipe-strands path { vector-effect: non-scaling-stroke; }
+.intro-web-wipe[data-phase='clearing'] .intro-web-wipe-cover { animation-name: intro-web-open; }
+.intro-web-wipe[data-phase='clearing'] .intro-web-wipe-silk-left { animation-name: intro-web-peel-left; }
+.intro-web-wipe[data-phase='clearing'] .intro-web-wipe-silk-right { animation-name: intro-web-peel-right; }
+.intro-web-wipe[data-phase='clearing'] .intro-web-wipe-strands { animation-name: intro-web-unravel; }
+
+@keyframes intro-web-close { 0% { opacity: 0; } 45% { opacity: .12; } 88%, 100% { opacity: 1; } }
+@keyframes intro-web-open { 0%, 15% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes intro-web-shoot-left { 0% { opacity: 0; transform: translate3d(-76%, -35%, 0) scale(.65) rotate(-12deg); } 35% { opacity: .68; } 100% { opacity: .88; transform: translate3d(0, 0, 0) scale(1) rotate(0); } }
+@keyframes intro-web-shoot-right { 0% { opacity: 0; transform: translate3d(72%, 32%, 0) scale(.7) rotate(10deg); } 35% { opacity: .63; } 100% { opacity: .83; transform: translate3d(0, 0, 0) scale(1) rotate(0); } }
+@keyframes intro-web-knit { 0% { opacity: 0; transform: scale(.18); } 100% { opacity: .5; transform: scale(1); } }
+@keyframes intro-web-peel-left { 0%, 8% { opacity: .88; transform: translate3d(0, 0, 0) scale(1) rotate(0); } 100% { opacity: 0; transform: translate3d(-46%, -32%, 0) scale(1.24) rotate(-8deg); } }
+@keyframes intro-web-peel-right { 0%, 8% { opacity: .83; transform: translate3d(0, 0, 0) scale(1) rotate(0); } 100% { opacity: 0; transform: translate3d(48%, 34%, 0) scale(1.2) rotate(7deg); } }
+@keyframes intro-web-unravel { 0% { opacity: .5; transform: scale(1); } 100% { opacity: 0; transform: scale(1.8); } }
+
+@media (max-width: 767px) {
+  .intro-web-wipe-silk { background-size: 130% 100%; }
+  .intro-web-wipe-silk-right { background-size: 125% 105%; }
+  .intro-web-wipe-strands { stroke-width: .8; }
+}

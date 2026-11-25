@@ -21,9 +21,9 @@ export default defineConfig(({ mode }) => {
     nodePolyfills({
       include: ['buffer', 'crypto', 'stream', 'util', 'vm', 'process'],
       globals: {
-        Buffer: true,
-        global: true,
-        process: true,
+        Buffer: false,
+        global: false,
+        process: false,
       },
     }),
   ],
@@ -38,7 +38,7 @@ export default defineConfig(({ mode }) => {
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'lucide-react', 'three', '@supabase/supabase-js', 'buffer', 'process'],
+    include: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'lucide-react', 'three', '@supabase/supabase-js', 'buffer', 'process', 'vite-plugin-node-polyfills/shims/buffer', 'vite-plugin-node-polyfills/shims/global', 'vite-plugin-node-polyfills/shims/process'],
   },
   server: {
     host: 'localhost',

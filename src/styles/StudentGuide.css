@@ -1,0 +1,92 @@
+.sd-guide-page > section,.sd-rewards-guide > section { margin-bottom: 22px; }
+.sd-guide-page :is(h2,h3) { font-weight: 500; }
+.sd-guide-page :is(h1,h2,h3),.sd-tour h2 { text-wrap: balance; }
+.sd-guide-page p,.sd-tour p { text-wrap: pretty; }
+.sd-guide-page h2 { font-size: 21px; }
+.sd-guide-page h3 { font-size: 17px; }
+.sd-guide-intro { color: var(--sd-muted); font-size: 12px; line-height: 1.8; margin-block: 12px 22px !important; }
+.sd-guide-progress p { color: var(--sd-muted); font-size: 12px; line-height: 1.8; margin-top: 12px; font-variant-numeric: tabular-nums; }
+.sd-guide-progress strong { color: var(--sd-accent); }
+.sd-guide-start ol { padding-left: 20px; color: var(--sd-muted); font-size: 12px; line-height: 1.8; }
+.sd-guide-start li { padding: 7px 0; }
+.sd-guide-page a:not(.sd-button) { color: #c1dba6; }
+.sd-guide-map > div { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin-top: 20px; }
+.sd-guide-map a { display: flex; align-items: flex-start; gap: 18px; }
+.sd-guide-map a > span { flex: 1; min-width: 0; }
+.sd-guide-map strong { display: block; font-size: 14px; color: var(--sd-text); }
+.sd-guide-map small { font-size: 10px; display: block; color: var(--sd-accent); margin-top: 9px; }
+.sd-guide-map p { font-size: 11px; color: var(--sd-muted); line-height: 1.8; margin-top: 10px; }
+.sd-guide-table-wrap { overflow-x: auto; margin-top: 18px; }
+.sd-guide-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.sd-guide-table-wrap :is(th,td) { padding: 14px 12px; border-bottom: 1px solid var(--sd-line); vertical-align: top; }
+.sd-guide-table-wrap thead th { color: var(--sd-muted); font-size: 10px; font-weight: 500; }
+.sd-guide-table-wrap tbody th { width: 29%; font-weight: 500; }
+.sd-guide-table-wrap td:nth-child(2) { color: var(--sd-accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sd-guide-table-wrap td:last-child { color: var(--sd-muted); font-size: 12px; line-height: 1.8; }
+.sd-guide-note { font-size: 11px; color: var(--sd-muted); line-height: 1.8; margin-top: 18px !important; }
+.sd-guide-tiers { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); list-style: none; gap: 12px; padding: 0; margin: 20px 0; }
+.sd-guide-tiers li { border-top: 2px solid; background: #182a1c; padding: 15px 12px; border-radius: 0 0 8px 8px; }
+.sd-guide-tiers strong { display: block; font-size: 13px; font-weight: 500; }
+.sd-guide-tiers span { display: block; font-size: 10px; color: var(--sd-muted); margin-top: 6px; }
+.sd-guide-example { font-size: 12px; line-height: 1.8; padding: 18px; border-left: 2px solid #a8c68a; background: #253b23; margin-top: 20px !important; }
+.sd-guide-rules { font-size: 12px; color: var(--sd-muted); line-height: 1.8; padding-left: 20px; margin: 20px 0; }
+.sd-guide-rules li { margin: 9px 0; }
+.sd-guide-tip { padding: 20px 24px; border: 1px solid #65744c; border-radius: 12px; }
+.sd-guide-tip strong { font-size: 13px; }
+.sd-guide-tip p { font-size: 12px; color: var(--sd-muted); line-height: 1.8; margin-top: 7px; }
+.sd-guide-home { display: flex; align-items: center; justify-content: space-between; gap: 20px; border: 1px solid var(--sd-line); border-radius: 10px; padding: 17px 20px; margin-bottom: 22px; background: #14231a; }
+.sd-guide-home strong { font-size: 12px; font-weight: 500; display: block; }
+.sd-guide-home small { font-size: 10px; color: var(--sd-muted); display: block; margin-top: 5px; }
+.sd-guide-home > div { display: flex; gap: 20px; flex-shrink: 0; }
+.sd-guide-home a { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--sd-accent); min-height: 32px; }
+.sd-tour { width: min(580px,calc(100% - 28px)); max-height: calc(100dvh - 28px); border: 1px solid #65764e; border-radius: 20px; margin: auto; padding: 0; background: #122017; color: #edf1e6; overflow-y: auto; font: 14px/1.6 'Geist Variable',system-ui,sans-serif; }
+.sd-tour::backdrop { background: #041008d9; backdrop-filter: blur(8px); }
+.sd-tour > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 22px 26px 12px; }
+.sd-tour .sd-eyebrow { font-size: 8px; color: #becdaa; }
+.sd-tour .sd-icon-button { width: 32px; height: 32px; }
+.sd-tour-progress { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 6px; padding: 0 26px; }
+.sd-tour-progress > span { height: 3px; border-radius: 3px; background: #344a31; }
+.sd-tour-progress > .is-done { background: #bfd99e; }
+.sd-tour-body { padding: 25px 30px; }
+.sd-tour-step { color: #a8b995; font-size: 11px; font-variant-numeric: tabular-nums; }
+.sd-tour-body h2 { font-family: inherit; font-size: 28px; font-weight: 500; line-height: 1.2; margin: 10px 0 15px; }
+.sd-tour-body > p { font-size: 13px; color: #b1c0a7; margin: 0; line-height: 1.8; }
+.sd-tour-location { display: flex; gap: 12px; align-items: flex-start; padding: 16px; background: #233723; border: 1px solid #425b37; border-radius: 10px; margin-top: 20px; font-size: 11px; color: #c6d5b5; }
+.sd-tour-location svg { margin-top: 3px; }
+.sd-tour-location strong { display: block; font-size: 10px; color: #dce7cd; font-weight: 500; margin-bottom: 4px; }
+.sd-tour-body ul { list-style: none; padding: 0; margin: 22px 0; }
+.sd-tour-body li { display: flex; gap: 11px; align-items: flex-start; font-size: 12px; margin: 14px 0; color: #cbd7be; }
+.sd-tour-body li > svg { flex-shrink: 0; color: #a8ca88; margin-top: 3px; }
+.sd-tour-open-section { display: inline-flex; align-items: center; gap: 9px; background: none; border: none; color: #c0dda1; padding: 8px 0; font-size: 11px; cursor: pointer; }
+.sd-tour > footer { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 26px max(18px,env(safe-area-inset-bottom)); border-top: 1px solid #354d30; background: #142319; }
+.sd-tour footer > div { display: flex; gap: 9px; }
+.sd-tour-skip { background: none; border: none; padding: 10px 0; color: #b8c8aa; font-size: 11px; cursor: pointer; }
+.sd-tour :is(button,a):focus-visible { outline: 2px solid #c0dda1; outline-offset: 4px; }
+.sd-score-controls { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; margin: 22px 0; }
+.sd-score-controls > label { font-size: 10px; color: var(--sd-muted); display: flex; gap: 10px; align-items: center; }
+body .student-dashboard .sd-score-controls select { background: #14251a; color: var(--sd-text); border: 1px solid var(--sd-line); border-radius: 7px; padding: 9px; }
+.sd-score-controls > a { font-size: 11px; color: var(--sd-accent); }
+.participation-verification { padding: 20px; border: 1px solid #536444; border-radius: 12px; background: #16241a; color: #e1ebd7; margin-block: 18px; font: 12px/1.7 system-ui,sans-serif; }
+.participation-verification summary { cursor: pointer; font-size: 14px; font-weight: 500; }
+.participation-verification p { font-size: 11px; color: #a8b89c; padding-block: 10px; }
+.participation-verification label { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; }
+.participation-verification :is(input,select) { padding: 10px; border: 1px solid #516344; border-radius: 7px; background: #0d1c12; color: #dfebd4; }
+.participation-verification ul { list-style: none; padding: 0; max-height: 340px; overflow: auto; }
+.participation-verification li { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #33492d; padding: 10px 0; }
+.participation-verification button { font-size: 11px; border: 1px solid #6a8154; color: #d2e6bb; background: #2b4328; padding: 7px 11px; border-radius: 7px; }
+.participation-verification button:disabled { opacity: .6; }
+@media(max-width:639px) {
+ .sd-guide-page .sd-page-heading,.sd-guide-home { flex-direction: column; align-items: flex-start; }
+ .sd-guide-map > div { grid-template-columns: minmax(0,1fr); }
+ .sd-guide-tiers { grid-template-columns: repeat(2,minmax(0,1fr)); }
+ .sd-guide-table-wrap :is(th,td) { padding: 12px 8px; font-size: 12px; }
+ .sd-guide-table-wrap table { min-width: 430px; }
+ .sd-guide-home > div { flex-wrap: wrap; gap: 18px; }
+ .sd-tour-body { padding: 22px; }
+ .sd-tour-body h2 { font-size: 25px; }
+ .sd-tour > header { padding: 18px 20px 12px; }
+ .sd-tour-progress { padding-inline: 20px; }
+ .sd-tour > footer { padding: 15px 20px; }
+ .sd-tour .sd-button { padding-inline: 11px; font-size: 10px; gap: 7px; }
+}
+@media(prefers-reduced-motion:reduce) { .sd-tour::backdrop { backdrop-filter: none; } }

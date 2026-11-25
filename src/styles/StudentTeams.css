@@ -1,0 +1,49 @@
+.st-page { display: grid; gap: 24px; }
+.st-page .sd-page-heading { margin-bottom: 0; }
+.st-identity { border: 1px solid #62774e; padding: 22px; border-radius: 12px; background: #18291c; color: #e1ebd9; margin-bottom: 20px; }
+.st-identity h2,.st-page h2 { font-size: 18px; font-weight: 500; text-wrap: balance; }
+.st-identity p,.st-form p,.st-page .sd-panel > p,.st-help p { font-size: 13px; color: #acbfa6; line-height: 1.8; margin: 10px 0 16px; text-wrap: pretty; }
+.st-page label,.st-identity label,.st-admin label { display: grid; gap: 8px; font-size: 12px; margin: 16px 0; }
+.st-page :is(input,select),.st-identity input,.st-admin :is(input:not([type=checkbox]),select) { width: 100%; border: 1px solid #3f573b; border-radius: 8px; background: #101e15; color: #e6eedd; padding: 12px; font-size: 14px; line-height: 1.5; font-family: inherit; }
+.st-page input:focus-visible,.st-identity input:focus-visible,.st-admin :is(input,select,button):focus-visible { outline: 2px solid #b5dd95; outline-offset: 3px; }
+.st-status,.st-message { color: #c7dfa9; font-size: 13px; padding: 10px 0; }
+.st-actions { display: flex; justify-content: flex-end; }
+.st-two-columns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.st-form .sd-button { margin-top: 12px; margin-right: 10px; }
+.st-result { margin-top: 18px; padding: 18px; border: 1px solid #536b3d; border-radius: 10px; background: #1c2e1d; }
+.st-result strong,.st-result small { display: block; }
+.st-result small { font-size: 12px; color: #b5c7a8; margin-top: 7px; }
+.st-team-list,.st-request-list { display: grid; gap: 20px; }
+.st-team-list header,.st-request-list article { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.st-team-list header p,.st-request-list p { color: #aabc9f; font-size: 12px; margin-top: 7px; }
+.st-team-list header button { font-variant-numeric: tabular-nums; }
+.st-roster { list-style: none; padding: 0; margin: 22px 0; }
+.st-roster li { display: flex; gap: 12px; align-items: center; border-bottom: 1px solid #2c402d; padding: 12px 0; }
+.st-roster li > span:nth-child(2) { flex: 1; min-width: 0; }
+.st-roster strong { display: block; font-size: 13px; font-weight: 500; }
+.st-roster small,.st-request-list small { color: #a8bc9d; display: block; font-size: 11px; line-height: 1.7; margin-top: 5px; }
+.st-roster button,.st-danger { border: 1px solid #805c4e; color: #e8b6a3; background: #2e211a; border-radius: 7px; padding: 8px 12px; font-size: 12px; }
+.st-request-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.st-help summary { display: flex; gap: 10px; align-items: center; cursor: pointer; font-size: 14px; }
+.st-help > section { margin-top: 24px; }
+.st-tour { width: min(540px,calc(100% - 28px)); max-height: calc(100dvh - 28px); overflow-y: auto; margin: auto; background: #142319; color: #e9efde; border: 1px solid #7f965d; border-radius: 16px; padding: 26px; font: 14px/1.7 'Geist Variable',system-ui,sans-serif; }
+.st-tour::backdrop { background: #030d08d9; }
+.st-tour h2 { font-weight: 500; font-size: 26px; line-height: 1.3; margin: 24px 0 14px; text-wrap: balance; }
+.st-tour p { color: #bccdb0; font-size: 14px; line-height: 1.9; text-wrap: pretty; }
+.st-tour button { border: 1px solid #6b8654; border-radius: 7px; padding: 10px 14px; background: #b5dd95; color: #1b2b16; font: inherit; cursor: pointer; }
+.st-tour button:disabled { opacity: .4; }
+.st-tour button:focus-visible { outline: 2px solid #ddedbf; outline-offset: 3px; }
+.st-tour-top,.st-tour footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.st-tour-top { font-size: 10px; color: #b7c8a7; }
+.st-tour footer { margin-top: 28px; padding-bottom: env(safe-area-inset-bottom); }
+.st-tour footer > div { display: flex; gap: 10px; }
+.st-admin { border: 1px solid #3c5337; border-radius: 12px; padding: 24px; background: #142018; color: #e4edde; }
+.st-admin h2 { font-size: 21px; font-weight: 600; }
+.st-admin p { color: #aabc9e; font-size: 13px; line-height: 1.8; margin-block: 14px; }
+.st-admin button { border: 1px solid #6e8b53; border-radius: 8px; background: #b5dd95; color: #1a2815; padding: 12px 16px; font-size: 13px; }
+.st-admin button:disabled { opacity: .4; }
+.st-table-wrap { overflow-x: auto; margin-block: 20px; }
+.st-admin table { width: 100%; min-width: 650px; border-collapse: collapse; text-align: left; font-size: 12px; }
+.st-admin :is(th,td) { padding: 12px; border-bottom: 1px solid #34492d; vertical-align: top; }
+.st-correction { display: block; color: #e3bd82; font-size: 11px; font-weight: 500; margin-top: 7px; }
+@media(max-width:767px) { .st-two-columns { grid-template-columns: minmax(0,1fr); } .st-team-list header,.st-request-list article { flex-direction: column; } .st-tour { padding: 22px; } .st-tour h2 { font-size: 23px; } .st-tour footer { gap: 10px; } .st-tour button { font-size: 12px; padding: 9px 11px; } }

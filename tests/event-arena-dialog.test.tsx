@@ -7,6 +7,7 @@ import { EventCard } from '../src/components/Events/EventCard';
 import { RulesModal } from '../src/components/Events/RulesModal';
 import { presentRules } from '../src/utils/eventPresentation';
 
+vi.mock('../src/context/StudentAuthContext',()=>({useStudentAuth:()=>({user:null,isAuthenticated:false})}));
 const register = vi.fn();
 const sample = { id: 31, title: 'Battle of Bands', category: 'Cultural', description: 'Let the music dominate.', date: '2026-11-23', time: '18:30', venue: 'Main Stage', rules: ['Bring your college ID.', 'Keep the set under 10 minutes.'], image: '/poster.png', registration_open: true };
 let host: HTMLDivElement; let root: Root;

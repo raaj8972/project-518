@@ -7,6 +7,7 @@ import { BRAND_YEAR } from '../../constants/brand';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { FestivalEnvironment } from './festival/FestivalEnvironment';
+import { FestivalAtmosphere } from './festival/FestivalAtmosphere';
 import { FestivalLiquidFlow } from './festival/FestivalLiquidFlow';
 import { useFestivalSceneReadiness } from './festival/FestivalSceneReadiness';
 
@@ -30,9 +31,7 @@ export function SpiderHeroContent({ media, mobile = false }: { media?: HeroMedia
         onError={() => setFailed(true)} onCanPlay={event => { void event.currentTarget.play().catch(() => {}); }} />)}
       <div className="spider-hero-video-shade" aria-hidden="true" style={media?.overlay_color ? { background: media.overlay_color, opacity: media.overlay_opacity } : undefined} />
       {usesFestivalScene && <FestivalEnvironment logoUrl={homepageSettings?.brand_logo_url || '/favicon.svg'} onSettled={setSettled} />}
-      <div className="festival-atmosphere" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
-      <div className="festival-lightning festival-lightning-left" aria-hidden="true" />
-      <div className="festival-lightning festival-lightning-right" aria-hidden="true" />
+      {media?.enabled !== false && <FestivalAtmosphere />}
       <div className="spider-hero-layout">
         <div className="spider-hero-copy">
           <p className="spider-hero-eyebrow">Annual festival <span aria-hidden="true">/</span> IQ City</p>

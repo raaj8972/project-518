@@ -228,5 +228,5 @@ export function SportsProvider({ children, enabled = true }: { children: ReactNo
     }
   };
 
-  return <SportsContext.Provider value={value}>{children}</SportsContext.Provider>;
+  return <PrimarySportsContext.Provider value={value}>{children}</PrimarySportsContext.Provider>;
 }

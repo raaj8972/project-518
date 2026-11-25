@@ -270,5 +270,5 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
     indexGalleryImageFaces
   };
 
-  return <GalleryContext.Provider value={value}>{children}</GalleryContext.Provider>;
+  return <PrimaryGalleryContext.Provider value={value}>{children}</PrimaryGalleryContext.Provider>;
 }

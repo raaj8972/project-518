@@ -409,5 +409,5 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
     deleteScheduleEvent
   };
 
-  return <EventsContext.Provider value={value}>{children}</EventsContext.Provider>;
+  return <PrimaryEventsContext.Provider value={value}>{children}</PrimaryEventsContext.Provider>;
 }

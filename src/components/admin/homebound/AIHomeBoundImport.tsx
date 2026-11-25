@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AIChatScanner } from '../AIChatScanner';
 import { CheckCircle2, Loader2, UserPlus, Trash2, Instagram, Youtube, Plus, Edit2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useData } from '../../../context/DataContext';
 
-const categoryOptions = ["Vocals", "Guitar", "Bass", "Drums", "Keyboard", "Other"];
+import type { BandMember } from '../../../types/data';
+import { getHomeboundCategoryOptions, getHomeboundMemberCategory, readHomeboundContent } from '../../../utils/homeboundContent';
+import { getHomeboundSocialLinks } from '../../../utils/homebound';
 
 interface ExtractedMember {
   name: string;
@@ -25,12 +27,13 @@ interface ExtractedMember {
 interface AIHomeBoundImportProps {
   onCancel: () => void;
   onSaved: () => void;
+  onCreateMember?: (member: Partial<BandMember>) => Promise<void>;
 }
 
 const SYSTEM_INSTRUCTION = `You are a rigorous AI conversational assistant for Homebound Artist roster extraction.
 Your goal is to extract artist/band details from text or images provided by the user.
 
-- "image_index": Provide 'image_index' (0-based) ONLY if a photo corresponds to a member. If no photo is found, DO NOT ASK; instead, use 'image hosdel event poster' as a placeholder.
+- "image_index": Provide 'image_index' (0-based) ONLY if a supplied photo corresponds to a member. If no photo is found, omit it. Never invent a portrait or use an unrelated event poster.
 - "instagram": Full Instagram profile URL (e.g., "https://instagram.com/username"). If the user provides just an ID or handle (like @username), convert it to a full link.
 - "youtube": Full YouTube channel/video URL.
 - "spotify": Full Spotify artist/track URL.
@@ -70,24 +73,28 @@ STRICT PROTOCOL:
 9. If a category is missing and user doesn't provide it, use "Other".`;
 
 
-export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, onSaved }) => {
-  const { addBandMember } = useData();
+export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, onSaved, onCreateMember }) => {
+  const { addBandMember, homeboundSettings, bandMembers } = useData();
+  const content = readHomeboundContent(homeboundSettings?.page_content);
   const [extractedMembers, setExtractedMembers] = useState<ExtractedMember[]>([]);
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
+  const categoryOptions = getHomeboundCategoryOptions(content.categories, [...(bandMembers || []), ...extractedMembers]);
+  const systemInstruction = `${SYSTEM_INSTRUCTION}\nConfigured categories (use their stable ID for category): ${JSON.stringify(content.categories.map(({ id, label }) => ({ id, label })))}. Preserve custom categories such as Beatboxing rather than converting them to Other.`;
 
   const handleScanComplete = (data: unknown, images: string[]) => {
-    console.log('[AIImport] Scan complete. Data:', data);
-    console.log('[AIImport] Images received:', images.length);
-    if (images.length > 0) {
-      console.log('[AIImport] First image preview (100 chars):', images[0].substring(0, 100));
-    }
-    
-    // Keep images around for the matching UI
+    if (!Array.isArray(data)) { toast.error('The import must contain a list of members.'); return; }
     setCapturedImages(images);
-    setExtractedMembers((data as ExtractedMember[]).map(m => ({
-      ...m,
-      is_featured: m.is_featured ?? false
+    setExtractedMembers(data.filter(member => member && typeof member === 'object').map((member: Partial<ExtractedMember>) => ({
+      name: typeof member.name === 'string' ? member.name : '',
+      role: typeof member.role === 'string' ? member.role : '',
+      description: typeof member.description === 'string' ? member.description : '',
+      specialty: typeof member.specialty === 'string' ? member.specialty : '',
+      category: typeof member.category === 'string' ? member.category : '',
+      is_featured: member.is_featured === true,
+      social_links: { instagram: member.social_links?.instagram || '', youtube: member.social_links?.youtube || '', spotify: member.social_links?.spotify || '' },
+      ...(Number.isInteger(member.image_index) ? { image_index: member.image_index } : {}),
     })));
   };
 
@@ -125,7 +132,9 @@ export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, 
   };
 
   const handleBulkSave = async () => {
-    if (extractedMembers.length === 0) return;
+    if (savingRef.current || extractedMembers.length === 0) return;
+    if (extractedMembers.some(member => !member.name.trim() || !member.role.trim() || !member.category.trim())) { toast.error('Each member needs a name, role and category.'); return; }
+    savingRef.current = true;
     setIsSaving(true);
     const total = extractedMembers.length;
     let saved = 0;
@@ -135,8 +144,7 @@ export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, 
       const { supabase } = await import('../../../lib/supabase');
       
       for (const member of extractedMembers) {
-        saved++;
-        toast.loading(`Importing: ${saved}/${total} (${member.name})...`, { id: toastId });
+        toast.loading(`Importing: ${saved + 1}/${total} (${member.name})...`, { id: toastId });
         
         let imageUrl = '';
         
@@ -147,7 +155,6 @@ export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, 
             const file = await base64ToFile(imgBase64, `artist_${Date.now()}_${member.name.replace(/[^a-z0-9]/gi, '_')}.jpg`);
             const fileName = `hb/${file.name}`;
             
-            console.log(`[AIImport] Uploading image for ${member.name}: ${fileName}`);
             const { error: uploadError } = await supabase.storage
               .from('band-images')
               .upload(fileName, file, {
@@ -155,35 +162,32 @@ export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, 
                 upsert: true
               });
               
-            if (uploadError) {
-              console.error('[AIImport] Upload error:', uploadError);
-              // Don't throw here, just log and continue without image
-            } else {
-              console.log(`[AIImport] Upload success for ${member.name}`);
-              const { data: { publicUrl } } = supabase.storage
-                .from('band-images')
-                .getPublicUrl(fileName);
-              imageUrl = publicUrl;
-            }
-          } catch (e) {
-            console.error('[AIImport] Image processing error:', e);
+            if (uploadError) throw new Error(uploadError.message);
+            const { data: { publicUrl } } = supabase.storage.from('band-images').getPublicUrl(fileName);
+            imageUrl = publicUrl;
+          } catch (error) {
+            throw new Error(`Could not upload ${member.name}'s photo. ${error instanceof Error ? error.message : 'Please try again.'}`);
           }
         }
 
-        await addBandMember({
-           ...member,
-           image: imageUrl || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=1000',
-           achievements: [],
-           enabled: true,
-           order_position: 100 + saved // Spread order positions
+        const social = getHomeboundSocialLinks({ social_links: member.social_links });
+        await (onCreateMember || addBandMember)({
+          name: member.name.trim(), role: member.role.trim(), description: member.description,
+          specialty: member.specialty, category: getHomeboundMemberCategory(member, content.categories),
+          is_featured: member.is_featured, social_links: { instagram: social.instagram || '', youtube: social.youtube || '', spotify: social.spotify || '' },
+          image: imageUrl, achievements: [], enabled: true,
+          order_position: Math.max(0, ...(bandMembers || []).map(row => row.order_position || 0)) + saved + 1,
         });
+        saved++;
       }
-      toast.success('All members saved successfully!', { id: toastId });
+      toast.success('Roster import completed.', { id: toastId });
       onSaved();
     } catch (error) {
+      if (saved > 0) setExtractedMembers(previous => previous.slice(saved));
       const err = error as Error;
-      toast.error(err.message || 'Failed to save members', { id: toastId });
+      toast.error(`${saved ? `${saved} completed. Remaining members are kept for retry. ` : ''}${err.message || 'Failed to save members'}`, { id: toastId });
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   };
@@ -193,7 +197,7 @@ export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, 
       <AIChatScanner
         title="HomeBound Roster Importer"
         description="Extract artist names, roles, bios, and links using Gemini."
-        systemInstruction={SYSTEM_INSTRUCTION}
+        systemInstruction={systemInstruction}
         onDataComplete={handleScanComplete}
         onCancel={onCancel}
         placeholder="Paste artist bios or drop photos..."
@@ -215,12 +219,12 @@ export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, 
             <p className="text-xs text-gray-400">{extractedMembers.length} members extracted</p>
           </div>
         </div>
-        <button onClick={() => setExtractedMembers([])} className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/10">
+        <button disabled={isSaving} onClick={() => setExtractedMembers([])} className="text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/10">
           <Edit2 size={14} /> Start Over
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-gradient-to-b from-[#0c0c14] to-black">
+      <fieldset disabled={isSaving} className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-gradient-to-b from-[#0c0c14] to-black">
         <div className="grid xl:grid-cols-2 gap-4">
           {extractedMembers.map((member, i) => (
             <div key={i} className="bg-white/[0.02] border border-white/10 rounded-2xl p-5 space-y-4 hover:border-amber-500/20 transition-all group relative">
@@ -233,7 +237,7 @@ export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, 
                 <div className="w-24 min-w-[96px] h-24 bg-black/40 rounded-xl overflow-hidden border border-white/5 relative group shrink-0 shadow-inner">
                   {member.image_index !== undefined && member.image_index >= 0 && capturedImages[member.image_index] ? (
                     <img 
-                      src={`data:image/jpeg;base64,${capturedImages[member.image_index]}`}
+                      src={capturedImages[member.image_index].startsWith('data:') ? capturedImages[member.image_index] : `data:image/jpeg;base64,${capturedImages[member.image_index]}`}
                       className="w-full h-full object-cover"
                       alt="Match"
                     />
@@ -247,7 +251,7 @@ export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, 
                   {capturedImages.length > 0 && (
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 backdrop-blur-sm">
                       <button 
-                         onClick={() => handleMemberChange(i, 'image_index', ((member.image_index ?? -1) - 1 + (capturedImages.length + 1)) % (capturedImages.length + 1) - 1)}
+                         aria-label={`Previous photo for ${member.name}`} onClick={() => handleMemberChange(i, 'image_index', ((member.image_index ?? -1) + capturedImages.length + 1) % (capturedImages.length + 1) - 1)}
                         className="p-1.5 hover:bg-white/10 rounded-md hover:text-amber-400 transition-colors"
                       >
                          <Plus size={14} className="rotate-45" />
@@ -256,7 +260,7 @@ export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, 
                         {member.image_index !== undefined && member.image_index >= 0 ? `#${member.image_index + 1}` : '-'}
                       </span>
                       <button 
-                         onClick={() => handleMemberChange(i, 'image_index', ((member.image_index ?? -1) + 1 + 1) % (capturedImages.length + 1) - 1)}
+                         aria-label={`Next photo for ${member.name}`} onClick={() => handleMemberChange(i, 'image_index', ((member.image_index ?? -1) + 1 + 1) % (capturedImages.length + 1) - 1)}
                         className="p-1.5 hover:bg-white/10 rounded-md hover:text-amber-400 transition-colors"
                       >
                          <Plus size={14} />
@@ -300,11 +304,11 @@ export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, 
                 <div className="space-y-1">
                   <label className="text-[9px] font-bold text-gray-500 uppercase tracking-widest pl-1">Category</label>
                   <select
-                    value={member.category}
+                    value={content.categories.some(category => category.id === getHomeboundMemberCategory(member, content.categories)) ? getHomeboundMemberCategory(member, content.categories) : member.category}
                     onChange={(e) => handleMemberChange(i, 'category', e.target.value)}
                     className="w-full bg-black/30 border border-white/10 rounded-lg py-2 px-3 text-sm text-gray-200 focus:outline-none focus:border-amber-500/50 appearance-none"
                   >
-                    {categoryOptions.map(opt => <option key={opt} value={opt} className="bg-[#181824]">{opt}</option>)}
+                    <option value="">Select a category</option>{categoryOptions.map(opt => <option key={opt.value} value={opt.value} className="bg-[#181824]">{opt.label}{opt.legacy ? ' (unlisted)' : opt.enabled ? '' : ' (hidden)'}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1 flex flex-col justify-end pb-2">
@@ -359,11 +363,12 @@ export const AIHomeBoundImport: React.FC<AIHomeBoundImportProps> = ({ onCancel, 
             </div>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       <div className="p-6 bg-black/60 border-t border-white/10 flex items-center justify-between backdrop-blur-md">
         <button
           onClick={onCancel}
+          disabled={isSaving}
           className="px-6 py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all"
         >
           Cancel

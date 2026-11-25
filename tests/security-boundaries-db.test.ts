@@ -24,6 +24,8 @@ beforeAll(async()=>{
  CREATE TABLE events(id text,title text);
  CREATE TABLE registrations(id text,user_id uuid,event_id text,event_title text,full_name text,team_name text,is_team_registration boolean,team_members jsonb,status text,is_active boolean,deleted_at timestamptz,email text);
  CREATE TABLE registration_rounds(registration_id text,prize_rank int);
+ CREATE TABLE sports_registrations(id text,user_id uuid,status text,email text);
+ CREATE TABLE annual_sports_registrations(id text,user_id uuid,status text,email text);
  CREATE TABLE entry_passes(id text,user_id uuid,pass_token text);
  CREATE TABLE security_settings(id int,venue text,council_password_hash text,councils_enabled boolean);
  CREATE TABLE passkeys(id text,user_id uuid,public_key text); CREATE TABLE passkey_challenges(id text,challenge text);
@@ -46,9 +48,16 @@ beforeAll(async()=>{
  // No session/admin/coordinator/security helper functions are preinstalled.
  // This reproduces a live schema missing the older functionality repair migration.
  // Deliberately unsafe legacy policies and column grants must not defeat the migration.
- for(const table of ['profiles','registrations','entry_passes','security_settings','passkeys','passkey_challenges','admin_users','admin_permissions']) await db.exec(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY; CREATE POLICY legacy_public_access ON ${table} FOR ALL USING(true) WITH CHECK(true);`);
+ for(const table of ['sports_registrations','annual_sports_registrations','profiles','registrations','entry_passes','security_settings','passkeys','passkey_challenges','admin_users','admin_permissions']) await db.exec(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY; CREATE POLICY legacy_public_access ON ${table} FOR ALL USING(true) WITH CHECK(true);`);
  await db.exec('GRANT SELECT(email) ON profiles TO anon;');
  await db.exec(await readFile(new URL('../supabase/migrations/20261119000000_security_boundaries.sql',import.meta.url),'utf8'));
+ // Reproduce the later migration overwriting the session helper, then apply the repair.
+ const portals = await readFile(new URL('../supabase/migrations/20261121173000_harden_all_portals_security.sql',import.meta.url),'utf8');
+ const session = portals.match(/CREATE OR REPLACE FUNCTION public.session_is_current\(\)[\s\S]*?\$\$;/);
+ if (!session) throw new Error('Missing current portal session helper');
+ await db.exec(session[0]);
+ await db.exec(await readFile(new URL('../supabase/migrations/20261122000000_restore_portal_session_guards.sql',import.meta.url),'utf8'));
+
 },20000);
 afterAll(()=>db.close());
 async function as(role:string,id?:string,extra:object={}) {
@@ -130,7 +139,48 @@ it('honors configured admin pages and legacy flags while denying unrelated staff
 it('can be rerun without dropping records or duplicating policies',async()=>{
  await db.exec('RESET ROLE');
  await db.exec(await readFile(new URL('../supabase/migrations/20261119000000_security_boundaries.sql',import.meta.url),'utf8'));
+ // Reproduce the later migration overwriting the session helper, then apply the repair.
+ const portals = await readFile(new URL('../supabase/migrations/20261121173000_harden_all_portals_security.sql',import.meta.url),'utf8');
+ const session = portals.match(/CREATE OR REPLACE FUNCTION public.session_is_current\(\)[\s\S]*?\$\$;/);
+ if (!session) throw new Error('Missing current portal session helper');
+ await db.exec(session[0]);
+ await db.exec(await readFile(new URL('../supabase/migrations/20261122000000_restore_portal_session_guards.sql',import.meta.url),'utf8'));
+
  expect((await db.query('SELECT count(*)::integer total FROM profiles')).rows[0].total).toBe(2);
  expect((await db.query('SELECT count(*)::integer total FROM registrations')).rows[0].total).toBe(2);
  await as('anon');await expect(db.query('SELECT * FROM registrations')).rejects.toThrow(/permission denied/);
+});
+
+it('blocks student cross-account writes, forged staff metadata, and approved-profile insertion', async () => {
+ await as('authenticated',other,{user_metadata:{role:'owner',is_super_admin:true,master_bypass:true}});
+ expect((await db.query("UPDATE profiles SET full_name='tampered' WHERE id=$1 RETURNING id",[student])).rows).toEqual([]);
+ expect((await db.query("UPDATE registrations SET status='approved' WHERE id='registration-a' RETURNING id")).rows).toEqual([]);
+ expect((await db.query('DELETE FROM profiles WHERE id=$1 RETURNING id',[student])).rows).toEqual([]);
+ await expect(db.query('INSERT INTO profiles(id,full_name,is_approved) VALUES($1,$2,true)',[other,'Self approved'])).rejects.toThrow(/row-level security/);
+ await expect(db.query('INSERT INTO profiles(id,full_name,is_approved) VALUES($1,$2,false)',[student,'Impersonated'])).rejects.toThrow(/row-level security/);
+ expect((await db.query('SELECT current_admin_access() AS admin')).rows[0]).toEqual({admin:false});
+});
+it('rejects revoked administrator accounts even when the signed token still exists', async () => {
+ await as('service_role');await db.query("INSERT INTO revoked_admin_accounts(user_id,email) VALUES($1,'revoked@example.test')",[owner]);
+ await as('authenticated',owner);
+ expect((await db.query('SELECT current_admin_access() AS admin')).rows[0]).toEqual({admin:false});
+ expect((await db.query('SELECT * FROM profiles')).rows).toEqual([]);
+ await as('service_role');await db.query('DELETE FROM revoked_admin_accounts WHERE user_id=$1',[owner]);
+});
+
+it('isolates sports records and blocks registrations forged for another student', async () => {
+ await as('service_role');
+ for (const table of ['sports_registrations','annual_sports_registrations']) {
+  await db.query(`INSERT INTO ${table} VALUES('sports-own',$1,'pending','own@example.test'),('sports-other',$2,'approved','other@example.test')`,[other,student]);
+ }
+ await as('authenticated',other);
+ for (const table of ['sports_registrations','annual_sports_registrations']) {
+  expect((await db.query(`SELECT id FROM ${table}`)).rows).toEqual([{id:'sports-own'}]);
+  await expect(db.query(`INSERT INTO ${table} VALUES('forged',$1,'pending','forged@example.test')`,[student])).rejects.toThrow(/row-level security/);
+  await expect(db.query(`INSERT INTO ${table} VALUES('self-approved',$1,'approved','forged@example.test')`,[other])).rejects.toThrow(/row-level security/);
+  expect((await db.query(`UPDATE ${table} SET status='approved' RETURNING id`)).rows).toEqual([]);
+  expect((await db.query(`DELETE FROM ${table} RETURNING id`)).rows).toEqual([]);
+ }
+ await as('anon');
+ for (const table of ['sports_registrations','annual_sports_registrations']) await expect(db.query(`SELECT * FROM ${table}`)).rejects.toThrow(/permission denied/);
 });

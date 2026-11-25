@@ -1795,6 +1795,7 @@ export type Database = {
           id: number
           instagram_enabled: boolean
           instagram_url: string | null
+          page_content: Json
           updated_at: string
         }
         Insert: {
@@ -1802,6 +1803,7 @@ export type Database = {
           id?: number
           instagram_enabled?: boolean
           instagram_url?: string | null
+          page_content?: Json
           updated_at?: string
         }
         Update: {
@@ -1809,6 +1811,7 @@ export type Database = {
           id?: number
           instagram_enabled?: boolean
           instagram_url?: string | null
+          page_content?: Json
           updated_at?: string
         }
         Relationships: []

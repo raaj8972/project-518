@@ -1,191 +1,204 @@
+import { useStudentEventTools } from '../../context/StudentEventToolsContext';
+import { Link, useOutletContext } from 'react-router-dom';
+import {
+  ArrowRightIcon, ArrowTopRightIcon, BackpackIcon, CalendarIcon, CheckCircledIcon,
+  ChevronRightIcon, ClockIcon, ReaderIcon, StarIcon, ViewGridIcon,
+} from '@radix-ui/react-icons';
+import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 import { SITE_FEATURES } from '../../constants/siteFeatures';
-import React from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { 
-  Calendar, 
-  Trophy, 
-  ChevronRight,
-  Zap,
-  Award,
-} from 'lucide-react';
-import NextUpTimeline from '../../components/dashboard/NextUpTimeline';
-import ParticipantCarousel from '../../components/dashboard/ParticipantCarousel';
-import VibePreview from '../../components/dashboard/VibePreview';
-import BatchWar from '../../components/dashboard/BatchWar';
-import AdmirersList from '../../components/dashboard/AdmirersList';
+import StudentNoticePreview from '../../components/dashboard/StudentNoticePreview';
+import StudentStarsPreview from '../../components/dashboard/StudentStarsPreview';
+import { preferredStudentPass, studentPassStatus, registrationStatus, registrationTitle, registrationWhen, upcomingRegistrations, type StudentRegistration } from '../../utils/studentDashboard';
 
-interface DashboardContextType {
-  user: any;
-  profile: any;
-  registrations: any[];
-  sportsRegistrations: any[];
-  entryPasses: any[];
-  xpData: any;
+interface DashboardContext {
+  profile: { full_name: string | null; batch: string | null; iqmg_status?: string | null } | null;
+  registrations: StudentRegistration[];
+  sportsRegistrations: StudentRegistration[];
+  entryPasses: Array<{ id: string; day_number?: number; valid_date?: string; is_used?: boolean; scanned_at?: string }>;
+  xpData: { total_xp: number; tier: string } | null;
   dataLoading: boolean;
-  rankInfo: any;
-  isNightMode: boolean;
-  tierColor: string;
-  firstName: string;
-  setSelectedPass: (pass: any) => void;
+  pendingInvitesCount: number;
+  setSelectedPass: (pass: unknown) => void;
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.05 },
-  },
-};
-const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
-  show:  { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
-};
-
-interface StatCard {
-  label: string;
-  value: string | number;
-  sub?: string;
-  icon: React.ElementType;
-  accent: string;
-  glowClass: string;
-  bgIcon: string;
-}
-
-const Overview: React.FC = () => {
-  const { 
-    registrations, 
-    sportsRegistrations, 
-    xpData, 
-    dataLoading, 
-    rankInfo,
-    tierColor,
-  } = useOutletContext<DashboardContextType>();
-  const navigate = useNavigate();
-
-  const totalXP = xpData?.total_xp ?? 0;
-  const tier    = xpData?.tier ?? 'Rookie';
-
-  const stats: StatCard[] = [
-    {
-      label: 'Cultural Events',
-      value: registrations.length,
-      sub: registrations.length === 1 ? '1 event registered' : `${registrations.length} events registered`,
-      icon: Calendar,
-      accent: '#6366f1',
-      glowClass: 'neu-accent-indigo',
-      bgIcon: 'bg-indigo-500/10',
-    },
-    ...(SITE_FEATURES.sports ? [{
-      label: 'Sports Events',
-      value: sportsRegistrations.length,
-      sub: sportsRegistrations.length === 1 ? '1 sport registered' : `${sportsRegistrations.length} sports registered`,
-      icon: Trophy,
-      accent: '#22d3ee',
-      glowClass: 'neu-accent-cyan',
-      bgIcon: 'bg-cyan-500/10',
-    }] : []),
-    {
-      label: 'My Points',
-      value: totalXP,
-      sub: 'higher points = better rank',
-      icon: Zap,
-      accent: '#f59e0b',
-      glowClass: 'neu-accent-amber',
-      bgIcon: 'bg-amber-500/10',
-    },
-    {
-      label: 'My Rank',
-      value: tier,
-      sub: rankInfo ? `Community Rank: #${rankInfo.rank}` : 'earn points to rank up',
-      icon: Award,
-      accent: tierColor,
-      glowClass: 'neu-accent-violet',
-      bgIcon: 'bg-violet-500/10',
-    },
-  ];
-
-
-  return (
-    <motion.div
-      key="overview"
-      initial="hidden"
-      animate="show"
-      variants={containerVariants}
-      className="student-festival-overview space-y-6"
-    >
-      {/* ── Stat Cards Grid ────────────────────────────────────────────────── */}
-      <div className="student-festival-stats grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {dataLoading
-          ? stats.map((_, i) => (
-              <div key={i} className="neu-stat-card p-6 animate-pulse">
-                <div className="w-10 h-10 rounded-xl bg-white/5 mb-4" />
-                <div className="h-7 w-16 bg-white/5 rounded-lg mb-2" />
-                <div className="h-3 w-24 bg-white/5 rounded" />
-              </div>
-            ))
-          : stats.map((s) => (
-              <motion.div key={s.label} variants={itemVariants} className={`neu-stat-card student-festival-stat ${s.glowClass} p-5`}>
-                <div className={`w-10 h-10 ${s.bgIcon} rounded-xl flex items-center justify-center mb-4`}>
-                  <s.icon className="w-5 h-5" style={{ color: s.accent }} />
-                </div>
-                <p className="student-festival-stat-value text-2xl font-black text-white leading-none mb-1">{s.value}</p>
-                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{s.label}</p>
-                {s.sub && <p className="text-[11px] text-gray-400 mt-1 font-medium">{s.sub}</p>}
-              </motion.div>
-            ))}
+export default function Overview() {
+  const tools = useStudentEventTools();
+  const { profile, registrations, sportsRegistrations, entryPasses, xpData, dataLoading, pendingInvitesCount, setSelectedPass } = useOutletContext<DashboardContext>();
+  const pass = preferredStudentPass(entryPasses);
+  const passStatus = pass ? studentPassStatus(pass) : null;
+  const firstName = profile?.full_name?.trim().split(/\s+/)[0] || 'Ricoian';
+  const allRegistrations = [...registrations, ...(SITE_FEATURES.sports ? sportsRegistrations : [])].filter(reg => !reg.deleted_at);
+  const upcoming = upcomingRegistrations(allRegistrations).slice(0, 3);
+  const approved = allRegistrations.filter(reg => reg.status === 'approved').length;
+  const pending = allRegistrations.filter(reg => registrationStatus(reg.status).tone === 'pending').length;
+  return <div className="sd-overview">
+    <div className="sd-page-heading">
+      <div>
+        <p className="sd-eyebrow">YOUR FESTIVAL STARTS HERE</p>
+        <h1>Hey, {firstName}<span className="sd-heading-dot">.</span>
+        </h1>
+        <p>Good to have you here. Make this one memorable.</p>
       </div>
-
-      {/* ── Two-Column Layout (Balanced height structure, no empty gaps) ──── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column (2/3 width) — Timeline + Celebrity Carousel */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          <motion.div variants={itemVariants}>
-            <NextUpTimeline onBrowseEvents={() => navigate('/events')} />
-          </motion.div>
-          
-          <motion.section variants={itemVariants} className="space-y-4">
-            <div className="student-festival-stars-heading flex flex-wrap gap-3 items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-white tracking-tight">RICO STARS</h2>
-                <span className="px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-black uppercase tracking-widest text-indigo-400">
-                  Top Performers
+      <Link to="/dashboard/settings" className="sd-student-badge">
+        <CheckCircledIcon /> {profile?.iqmg_status === 'verified' ? 'IQMG verified' : 'Approved student account'}{profile?.batch && <span>
+          {profile.batch}
+        </span>}
+      </Link>
+    </div>
+    <div className="sd-guide-home"><span><strong>New here, or need a refresher?</strong><small>Find your way around and see how to earn XP, Elite status, and Rico Stars points.</small></span><div><Link to="/dashboard?tour=1">Quick tour <ArrowRightIcon /></Link><Link to="/dashboard/guide#points">How to earn points <StarIcon /></Link></div></div>
+    <div className="sd-home-top">
+      <section className="sd-festival-banner">
+        <div className="sd-banner-copy">
+          <span className="sd-edition">
+            <span /> THE {BRAND_YEAR} EDITION</span>
+          <h2>Your people.<br />Your moment.</h2>
+          <p>Find your stage at {BRAND_NAME}.</p>
+          <Link to="/dashboard/events" className="sd-button sd-button-light">Explore events <ArrowTopRightIcon />
+          </Link>
+        </div>
+        <span className="sd-banner-caption">IQ CITY MEDICAL COLLEGE · DURGAPUR</span>
+      </section>
+      <section className="sd-pass-card">
+        <div className="sd-pass-card-top">
+          <span className="sd-eyebrow">FESTIVAL ACCESS</span>
+          <ViewGridIcon />
+        </div>
+        <h2>Your entry pass</h2>
+        <p>
+          {dataLoading ? 'Checking your passes…' : passStatus?.tone === 'success' ? 'One less thing to think about. Your pass is ready.' : pass ? 'Check the date and status before you head to the gate.' : 'Your approved festival passes will live right here.'}
+        </p>
+        <div className="sd-pass-rule">
+          <span />
+          <span />
+        </div>
+        <div className="sd-pass-card-bottom">
+          <span className={`sd-status ${passStatus ? `sd-status-${passStatus.tone}` : 'sd-status-neutral'}`}>
+            <span />
+            {dataLoading ? 'Loading' : passStatus ? passStatus.label : 'No active pass yet'}
+          </span>
+          {entryPasses.length ? <button className="sd-pass-action" disabled={dataLoading} onClick={() => setSelectedPass(pass)}>Open pass <ArrowRightIcon />
+          </button> : <Link className="sd-pass-action" to="/dashboard/passes">Pass details <ArrowRightIcon />
+          </Link>}
+        </div>
+      </section>
+    </div>
+    <div className="sd-stats-strip" aria-label="Your festival activity">
+      {[{ value: allRegistrations.length, label: 'Registrations', icon: CalendarIcon }, { value: approved, label: 'Approved entries', icon: CheckCircledIcon }, { value: pending, label: 'Pending review', icon: ClockIcon }, { value: xpData?.total_xp ?? 0, label: 'Experience points', icon: StarIcon }].map(stat => <div key={stat.label}>
+        <stat.icon />
+        <span>
+          <strong>
+            {dataLoading ? <span className="sd-skeleton sd-skeleton-number" /> : stat.value.toLocaleString('en-IN')}
+          </strong>
+          <small>
+            {stat.label}
+          </small>
+        </span>
+      </div>)}
+    </div>
+    {pendingInvitesCount > 0 && <Link className="sd-invite-banner" to="/dashboard/teams?tab=requests">
+      <BackpackIcon />
+      <span>
+        <strong>Your team needs a response.</strong> {pendingInvitesCount} team {pendingInvitesCount === 1 ? 'request needs' : 'requests need'} your response.</span>
+      <ArrowRightIcon />
+    </Link>}
+    <div className="sd-home-columns">
+      <div className="sd-home-primary">
+        <section className="sd-panel">
+          <div className="sd-section-heading">
+            <h2>
+              <CalendarIcon /> My registrations</h2>
+            <Link to="/dashboard/events?view=registrations">View all <ArrowRightIcon />
+            </Link>
+          </div>
+          {dataLoading ? <div className="sd-skeleton sd-skeleton-block" aria-label="Loading registrations" /> : allRegistrations.length ? <div className="sd-registration-list">
+            {allRegistrations.slice(0, 3).map(reg => {
+              const status = registrationStatus(reg.status); return <Link key={reg.id} to={sportsRegistrations.includes(reg) ? '/dashboard/sports' : '/dashboard/events?view=registrations'} className="sd-registration-row">
+                <span className="sd-event-thumb">
+                  {reg.event?.image || reg.event?.image_url ? <img src={reg.event.image || reg.event.image_url} alt="" loading="lazy" /> : <CalendarIcon />}
                 </span>
-              </div>
-              <button 
-                onClick={() => navigate('/dashboard/community')}
-                className="neu-nav-item px-3 py-1.5 text-gray-500 hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"
-              >
-                All Students <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+                <span className="sd-registration-name">
+                  <strong>
+                    {registrationTitle(reg)}
+                  </strong>
+                  <small>
+                    {reg.teams?.name || reg.team_name ? `Team: ${reg.teams?.name || reg.team_name}` : 'Individual entry'}
+                  </small>
+                </span>
+                <span className={`sd-status sd-status-${status.tone}`}>
+                  {status.label}
+                </span>
+                <ChevronRightIcon />
+              </Link>;
+            })}
+          </div> : <div className="sd-empty">
+            <span className="sd-empty-icon">
+              <CalendarIcon />
+            </span>
+            <h3>Your next great story starts here.</h3>
+            <p>Pick an event, bring your talent, and make it official.</p>
+            <Link to="/dashboard/events" className="sd-button">Find your event <ArrowRightIcon />
+            </Link>
+          </div>}
+        </section>
+        <section className="sd-panel">
+          <div className="sd-section-heading">
+            <h2>
+              <ClockIcon /> Coming up for you</h2>
+            <Link to="/dashboard/active-events">Results & rounds <ArrowRightIcon />
+            </Link>
+          </div>
+          {dataLoading ? <div className="sd-skeleton sd-skeleton-row" aria-label="Loading schedule" /> : upcoming.length ? <div className="sd-schedule">
+            {upcoming.map(reg => <Link key={reg.id} to={sportsRegistrations.includes(reg) ? '/dashboard/sports' : `/events?event=${encodeURIComponent(String(reg.event_id))}`}>
+              <span className="sd-schedule-mark">
+                <CalendarIcon />
+              </span>
+              <span>
+                <strong>
+                  {registrationTitle(reg)}
+                </strong>
+                <small>
+                  {registrationWhen(reg)}
+                </small>
+                <small>
+                  {reg.event?.venue || 'Venue to be announced'}
+                </small>
+              </span>
+              <ArrowTopRightIcon />
+            </Link>)}
+          </div> : <div className="sd-inline-empty">
+            <ClockIcon />
+            <div>
+              <strong>A little breathing room.</strong>
+              <p>Your approved events with confirmed dates will appear here.</p>
             </div>
-            <ParticipantCarousel />
-          </motion.section>
-
-        </div>
-
-        {/* Right Column (1/3 width) — Likes + Stories + Batch Race */}
-        <div className="space-y-6">
-          
-          <motion.div variants={itemVariants}>
-            <AdmirersList />
-          </motion.div>
-          
-          <motion.div variants={itemVariants}>
-            <VibePreview />
-          </motion.div>
-          
-          <motion.div variants={itemVariants}>
-            <BatchWar />
-          </motion.div>
-
-        </div>
-
+          </div>}
+        </section>
+        <StudentNoticePreview eventIds={registrations.map(reg => String(reg.event_id))} />
       </div>
-    </motion.div>
-  );
-};
-
-export default Overview;
+      <div className="sd-home-secondary">
+        <section className="sd-panel sd-shortcuts">
+          <p className="sd-eyebrow">MAKE YOURSELF AT HOME</p>
+          {[{ title: 'Saved events', sub: tools?.ready ? `${tools.saved.size} events on your shortlist` : 'Keep a shortlist of your favourites', path: '/dashboard/events?view=saved', icon: StarIcon }, { title: 'Notifications', sub: tools?.unread ? `${tools.unread} updates waiting for you` : 'Invites, reminders, and entry updates', path: '/dashboard/notifications', icon: ReaderIcon }, { title: 'My teams', sub: 'Your crew, all in one place', path: '/dashboard/teams', icon: BackpackIcon }, { title: 'Shoutouts', sub: 'Send some love to your festival crew', path: '/dashboard/vibes', icon: StarIcon }, { title: 'Help & support', sub: 'A question? We’re here.', path: '/dashboard/messages', icon: ReaderIcon }].map(item => <Link key={item.path} to={item.path}>
+            <span className="sd-shortcut-icon">
+              <item.icon />
+            </span>
+            <span>
+              <strong>
+                {item.title}
+              </strong>
+              <small>
+                {item.sub}
+              </small>
+            </span>
+            <ChevronRightIcon />
+          </Link>)}
+        </section>
+        <StudentStarsPreview />
+        <div className="sd-little-note">
+          <span>Show up. Join in. Belong.</span>
+          <p>This is your space to make the most of {BRAND_NAME} {BRAND_YEAR}.</p>
+        </div>
+      </div>
+    </div>
+  </div>;
+}

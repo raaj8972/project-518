@@ -1,131 +1,39 @@
 import '../styles/StudentFestival.css';
-import {registrationBatches} from '../utils/registrationBatches';
+import { studentReturnPath } from '../utils/studentProfile';
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Phone, GraduationCap, Loader2, Sparkles, LogOut, CheckCircle2, AtSign } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { Loader2, CheckCircle2, Sparkles } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
-import { useCoreData } from '../context/CoreDataContext';
-
-const InputField = ({ icon: Icon, ...props }: any) => (
-  <label className="student-festival-field relative group mb-6 block">
-    <span>{props['aria-label'] || props.placeholder}</span>
-    <input
-      {...props}
-      className={`w-full bg-transparent border-b-2 border-white/10 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 transition-all pr-8 peer ${props.className || ''}`}
-    />
-    <Icon aria-hidden="true" className="absolute right-0 bottom-4 w-5 h-4 text-gray-500 peer-focus:text-purple-500 transition-colors" />
-  </label>
-);
 
 const StudentLogin: React.FC = () => {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode');
-  const redirectPath = searchParams.get('redirect');
+  const redirectPath = studentReturnPath(searchParams.get('redirect'));
   const [isLogin, setIsLogin] = useState(mode !== 'signup');
   const [loading, setLoading] = useState(false);
   
-  // Profile Completion States
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [college, setCollege] = useState('');
-  const [batch, setBatch] = useState('');
-  const [username, setUsername] = useState('');
-
-  const { 
-    isAuthenticated, 
-    isProfileComplete, 
-    profile, 
-    signInWithGoogle, 
-    updateProfile, 
-    signOut,
-    loading: authLoading 
-  } = useStudentAuth();
-  
-  const { siteSettings } = useCoreData();
+  const { isAuthenticated, isProfileComplete, isApproved, signInWithGoogle, loading: authLoading } = useStudentAuth();
   const navigate = useNavigate();
-
-  const batchOptions = registrationBatches(siteSettings);
-
-  const showCollege = false;
-
-  // Sync profile data when authenticated but incomplete
-  useEffect(() => {
-    if (isAuthenticated && profile) {
-      setFullName(profile.full_name || '');
-      setPhone(profile.phone || '');
-      setCollege(profile.college || '');
-      setBatch(profile.batch || '');
-      setUsername(profile.username || '');
-    }
-  }, [isAuthenticated, profile]);
 
   // Handle Redirection
   useEffect(() => {
     if (isAuthenticated && isProfileComplete && !authLoading) {
       const timer = setTimeout(() => {
-        navigate(redirectPath || '/dashboard');
+        navigate(isApproved ? redirectPath : redirectPath === '/dashboard' ? '/dashboard' : `/dashboard?returnTo=${encodeURIComponent(redirectPath)}`);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, isProfileComplete, authLoading, navigate, redirectPath]);
+  }, [isAuthenticated, isProfileComplete, isApproved, authLoading, navigate, redirectPath]);
 
   const handleGoogleAction = async () => {
     try {
       setLoading(true);
-      await signInWithGoogle();
+      await signInWithGoogle(redirectPath);
     } catch (error: any) {
       toast.error(error.message || 'Google authentication failed');
-      setLoading(false);
-    }
-  };
-
-  const handleCompleteProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
-    if (!fullName || !phone || !batch || !cleanUsername || (showCollege && !college)) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-    if (cleanUsername.length < 3) {
-      toast.error('Username must be at least 3 characters long');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Validate uniqueness
-      const { data: existingUser, error: checkErr } = await supabase
-        .from('public_profiles')
-        .select('id')
-        .eq('username', cleanUsername)
-        .neq('id', profile?.id)
-        .maybeSingle();
-
-      if (checkErr) throw checkErr;
-      if (existingUser) {
-        toast.error('This username is already taken!');
-        setLoading(false);
-        return;
-      }
-
-      const { error } = await updateProfile({
-        full_name: fullName,
-        phone,
-        college: showCollege ? college : 'N/A',
-        batch,
-        participant_type: batch,
-        username: cleanUsername
-      });
-
-      if (error) throw error;
-      toast.success('Profile completed successfully!');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update profile');
-    } finally {
       setLoading(false);
     }
   };
@@ -136,7 +44,7 @@ const StudentLogin: React.FC = () => {
   };
 
   // 1. Loading State
-  if (authLoading && !isAuthenticated) {
+  if (authLoading) {
     return (
       <div className="student-festival-auth student-auth-page min-h-[100dvh] flex flex-col items-center justify-center bg-zinc-950 text-white">
         <Loader2 className="w-12 h-12 animate-spin text-purple-500 mb-4" />
@@ -145,88 +53,10 @@ const StudentLogin: React.FC = () => {
     );
   }
 
-  // 2. Profile Completion Form (Authenticated but Incomplete)
+  // Profile setup has one shared destination, including the Google callback.
   if (isAuthenticated && !isProfileComplete) {
-    return (
-      <div className="student-festival-auth student-auth-page min-h-[100dvh] flex items-center justify-center bg-zinc-950 p-4 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-2xl bg-[#0d0d12]/90 backdrop-blur-2xl border border-purple-500/30 rounded-[2.5rem] p-8 md:p-12 shadow-[0_0_50px_rgba(168,85,247,0.15)] relative z-10"
-        >
-          <div className="flex justify-between items-start mb-8">
-            <div>
-              <h2 className="text-4xl font-extrabold text-white mb-2 flex items-center gap-3">
-                Complete Profile <Sparkles className="text-yellow-400 w-8 h-8" />
-              </h2>
-              <p className="text-gray-400">Just a few more details to get you started with {BRAND_NAME} {BRAND_YEAR}.</p>
-            </div>
-            <button onClick={() => signOut()} className="p-3 bg-white/5 hover:bg-red-500/10 text-gray-400 hover:text-red-400 rounded-2xl transition-all group" title="Logout">
-              <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
-            </button>
-          </div>
-
-          <form onSubmit={handleCompleteProfile} className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-            <div className="md:col-span-2">
-              <InputField icon={User} type="text" placeholder="Full Name" required value={fullName} onChange={(e:any) => setFullName(e.target.value)} />
-            </div>
-
-            <div className="md:col-span-2">
-              <InputField 
-                icon={AtSign} 
-                type="text" 
-                placeholder="Unique Username Handle (e.g. raja_22)" 
-                required 
-                value={username} 
-                onChange={(e:any) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} 
-              />
-            </div>
-            
-            <InputField icon={Phone} type="tel" placeholder="Phone Number" required value={phone} onChange={(e:any) => setPhone(e.target.value)} />
-            
-            <div className="relative mb-6">
-              <select 
-                aria-label="Batch or type"
-                required 
-                value={batch} 
-                onChange={(e) => setBatch(e.target.value)} 
-                className="w-full bg-transparent border-b-2 border-white/10 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 transition-all appearance-none cursor-pointer"
-              >
-                <option value="" disabled className="bg-[#05050A]">Select Batch/Type</option>
-                {batchOptions.map((opt: string) => <option key={opt} value={opt} className="bg-[#05050A]">{opt}</option>)}
-              </select>
-              <GraduationCap className="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-4 text-gray-500" />
-            </div>
-
-            {showCollege && (
-              <div className="md:col-span-2">
-                <InputField icon={GraduationCap} type="text" placeholder="College / Institution" required value={college} onChange={(e:any) => setCollege(e.target.value)} />
-              </div>
-            )}
-
-            <div className="md:col-span-2 mt-4">
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white font-bold py-4 rounded-2xl shadow-[0_10px_30px_rgba(168,85,247,0.3)] transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
-                  <>
-                    Create Student ID
-                    <CheckCircle2 className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-              <p className="text-center text-xs text-gray-600 mt-6">
-                By continuing, you agree to our terms and conditions for {BRAND_NAME} registration.
-              </p>
-            </div>
-          </form>
-        </motion.div>
-      </div>
-    );
+    const target = redirectPath === '/dashboard' ? '/dashboard' : `/dashboard?returnTo=${encodeURIComponent(redirectPath)}`;
+    return <Navigate to={target} replace />;
   }
 
   // 3. Authenticated and Complete (Redirecting)

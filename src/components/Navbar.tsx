@@ -11,6 +11,9 @@ import { BRAND_YEAR } from '../constants/brand';
 import { CartButton } from './CartDrawer';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { DoomNavigationDrawer } from './navigation/DoomNavigationDrawer';
+import { PortalBrand } from './PortalBrand';
+import { isFestivalRoute } from '../utils/portalRoutes';
+import '../styles/Homebound.css';
 
 
 interface NavItem {
@@ -32,7 +35,9 @@ export const Navbar = React.memo(function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const isArenaRoute = location.pathname === '/events';
-  const isCinematicMenu = theme === 'spiderman' || isArenaRoute;
+  const isHomeboundRoute = location.pathname === '/home-bound' || location.pathname.startsWith('/home-bound/');
+  const isAccessRoute = !isFestivalRoute(location.pathname);
+  const isCinematicMenu = theme === 'spiderman' || isArenaRoute || isHomeboundRoute;
   const reduceMotion = useReducedMotion();
   const menuToggleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { setIsOpen(false); }, [location.pathname]);
@@ -199,6 +204,19 @@ export const Navbar = React.memo(function Navbar() {
   const isDashboardRoute = location.pathname.startsWith('/dashboard');
   if (isAdminRoute || isSecurityRoute || isCoordinatorRoute || isDashboardRoute) return null;
 
+  if (isHomeboundRoute) return (
+    <header className={`hb-site-header${scrolled ? ' is-scrolled' : ''}`}>
+      <div className="hb-site-header__inner">
+        <button ref={menuToggleRef} type="button" className="hb-menu-toggle" onClick={() => setIsOpen(!isOpen)} aria-label="Toggle menu" aria-expanded={isOpen} aria-controls="festival-mobile-menu"><span /><span /><span /></button>
+        <Link to="/" onClick={handleNavClick} className="hb-header-brand" aria-label="Ricorrenza home"><span>RICORRENZA</span><small>IQ CITY MEDICAL COLLEGE</small></Link>
+        <Link to={studentUser ? '/dashboard/passes' : '/student/login'} onClick={handleNavClick} className="hb-ticket-link" aria-label={studentUser ? 'View your festival pass' : 'Sign in for your festival pass'}>
+          <svg viewBox="0 0 68 46" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M8 3h52a5 5 0 0 1 5 5v9a7 7 0 0 0 0 12v9a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5v-9a7 7 0 0 0 0-12V8a5 5 0 0 1 5-5Z" /><path d="M23 13h8v8h-8zm14 0h8v8h-8zM23 27h8v8h-8zm14 0h4v4h4v4h-8zm8 0v4" /></svg>
+        </Link>
+      </div>
+      <DoomNavigationDrawer open={isOpen} items={navItems} onClose={() => { setIsOpen(false); menuToggleRef.current?.focus(); }} onNavigate={handleNavClick} socialMediaSettings={socialMediaSettings} />
+    </header>
+  );
+
   return (
     <div className={`cyberpunk-navbar ${isArenaRoute ? 'arena-navbar' : ''} ${isCinematicMenu ? 'doom-navigation' : ''} fixed inset-x-0 z-[100] transition-all duration-500 ease-in-out flex justify-center w-full pointer-events-none p-2 sm:p-4 pt-[calc(env(safe-area-inset-top,8px)+4px)] ${
       isVisible || isOpen ? 'top-0' : '-top-32 opacity-0'
@@ -208,7 +226,7 @@ export const Navbar = React.memo(function Navbar() {
       }`}>
 
         {/* Left: Brand Pill */}
-        <div className={`glass-pill pointer-events-auto transition-all duration-300 flex items-center h-10 md:h-14 px-3 md:px-4 ${
+        {isAccessRoute ? <PortalBrand logo={logoSrc} year={homepageSettings?.brand_year ?? BRAND_YEAR} onNavigate={handleNavClick} /> : <div className={`glass-pill pointer-events-auto transition-all duration-300 flex items-center h-10 md:h-14 px-3 md:px-4 ${
           scrolled ? 'bg-black/90' : 'bg-black/60'
         } shadow-xl border border-white/10`}>
           <Link to="/" onClick={handleNavClick} className="site-brand-link flex items-center space-x-2 md:space-x-3 group">
@@ -225,7 +243,7 @@ export const Navbar = React.memo(function Navbar() {
             {isArenaRoute && <span>IQ CITY MEDICAL COLLEGE, DURGAPUR</span>}
             </span>
           </Link>
-        </div>
+        </div>}
 
         {/* Center: Nav Pill */}
         <nav className={`hidden lg:flex glass-pill pointer-events-auto items-center h-12 md:h-14 px-2 gap-0.5 xl:gap-1 overflow-visible ${

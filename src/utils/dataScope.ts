@@ -5,7 +5,7 @@ export function getDataScope(pathname: string, privateAdmin: boolean) {
   const dashboard = pathname.startsWith('/dashboard');
   return {
     events: admin || home || dashboard || ['/events', '/schedule', '/coordinator'].some(p => pathname.startsWith(p)),
-    personnel: admin || home || ['/rico-family', '/home-bound'].some(p => pathname.startsWith(p)),
+    personnel: admin || home || ['/rico-family', '/home-bound', '/sponsors'].some(p => pathname.startsWith(p)),
     management: admin || home || pathname.startsWith('/sponsors'),
     privateManagement: admin,
     sports: SITE_FEATURES.sports && admin,

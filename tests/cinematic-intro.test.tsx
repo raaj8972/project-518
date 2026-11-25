@@ -12,6 +12,11 @@ type Options = { onUpdate: (state: State) => void; onRefresh: (state: State) => 
 const mocks = vi.hoisted(() => ({ options: null as Options | null, state: { progress: 0, start: 0, end: 4800 }, create: vi.fn(), kill: vi.fn(), disconnect: vi.fn(), seek: vi.fn(), dispose: vi.fn(), controller: vi.fn(), support: vi.fn(), videoReady: true, sceneReady: true, fail: () => {} }));
 const branding = vi.hoisted(() => ({ homepageSettings: { brand_logo_url: '/uploaded-logo.png', updated_at: '2026-11-15' } }));
 const documentVisit = vi.hoisted(() => ({ eligible: true, played: false }));
+const preludeState = vi.hoisted(() => ({ autoComplete: true }));
+vi.mock('../src/components/cinematic/RicorrenzaPrelude', () => ({ default: ({ onComplete }: { onComplete: () => void }) => {
+  useEffect(() => { if (preludeState.autoComplete) onComplete(); }, [onComplete]);
+  return <button data-prelude-complete onClick={onComplete}>Finish title animation</button>;
+} }));
 vi.mock('../src/components/cinematic/documentIntro', () => ({
   canPlayDocumentIntro: () => documentVisit.eligible && !documentVisit.played,
   markDocumentIntroPlayed: () => { documentVisit.played = true; },
@@ -36,6 +41,7 @@ function ExistingHome() {
 beforeEach(() => {
   vi.useFakeTimers(); vi.clearAllMocks();
   documentVisit.eligible = true; documentVisit.played = false;
+  preludeState.autoComplete = true;
   (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
   y = 0; mounts = 0; unmounts = 0; mocks.options = null; mocks.state = { progress: 0, start: 0, end: 4800 };
   sessionStorage.clear(); delete document.documentElement.dataset.staticExperience;
@@ -63,6 +69,40 @@ async function mount() { await act(async () => root.render(<CinematicHome portal
 async function cloudLoaded() { await act(async () => host.querySelector('[data-video-clouds]')!.dispatchEvent(new MouseEvent('click', {bubbles:true}))); }
 async function progressTo(progress: number) { y = 4800 * progress; mocks.state.progress = progress; await act(async () => mocks.options!.onUpdate(mocks.state)); }
 async function tick(ms: number) { await act(async () => vi.advanceTimersByTime(ms)); }
+
+it('preloads the existing film while keeping its scroll progress at zero during the title animation', async () => {
+  preludeState.autoComplete = false;
+  await act(async () => root.render(<CinematicHome><ExistingHome /></CinematicHome>));
+  const film = host.querySelector<HTMLVideoElement>('video')!;
+  const title = host.querySelector('h1');
+  expect(film.getAttribute('src')).toContain('ricorrenza-desktop-v2.mp4');
+  expect(film.preload).toBe('auto');
+  expect(host.querySelector('[data-cinematic-overlay]')?.getAttribute('data-logo-prelude-active')).toBe('true');
+  await progressTo(.8);
+  expect(mocks.seek).toHaveBeenLastCalledWith(0);
+  expect(host.querySelector('.cinematic-video-meter > span')?.textContent).toBe('0%');
+  expect(host.querySelector<HTMLElement>('[data-cinematic-homepage]')!.inert).toBe(true);
+  await act(async () => host.querySelector<HTMLButtonElement>('[data-prelude-complete]')!.click());
+  expect(host.querySelector('[data-cinematic-overlay]')?.getAttribute('data-logo-prelude-active')).toBe('false');
+  expect(host.querySelector('[data-prelude-complete]')).toBeNull();
+  expect(window.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: 'instant' });
+  expect(mocks.seek).toHaveBeenLastCalledWith(0);
+  expect(host.querySelector('video')).toBe(film);
+  expect(host.querySelector('h1')).toBe(title);
+  expect(mounts).toBe(1); expect(unmounts).toBe(0);
+  await progressTo(.3);
+  expect(mocks.seek).toHaveBeenLastCalledWith(.3 * .65);
+});
+
+it('does not mount the title animation when returning to Home in the same document', async () => {
+  preludeState.autoComplete = false;
+  await mount();
+  expect(host.querySelector('[data-prelude-complete]')).not.toBeNull();
+  await act(async () => root.render(<div>Events page</div>));
+  await mount();
+  expect(host.querySelector('[data-prelude-complete]')).toBeNull();
+  expect(host.querySelector('[data-intro-bypass]')?.getAttribute('data-intro-bypass')).toBe('navigation');
+});
 
 it('starts a fresh intro at frame zero even when the browser restores a previous scroll position', async () => {
   y = 4200;

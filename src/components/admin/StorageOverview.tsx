@@ -1,3 +1,4 @@
+import { PrivateMediaImage, PrivateMediaLink } from '../PrivateMedia';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Trash2, HardDrive, RefreshCw, Layers, Clipboard, ChevronDown, ChevronUp, FileText, Database, Activity, Box, ExternalLink, ShieldCheck, Zap, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
@@ -219,7 +220,7 @@ export const StorageOverview: React.FC = () => {
     try {
       let urlToCopy = publicUrl;
       try {
-        const { data, error } = await supabase.storage.from(forBucket ?? bucket).createSignedUrl(name, 60 * 60 * 24 * 7);
+        const { data, error } = await supabase.storage.from(forBucket ?? bucket).createSignedUrl(name, ['registration-photos','chat-attachments'].includes(forBucket ?? bucket) ? 600 : 60 * 60 * 24 * 7);
         if (!error && data?.signedUrl) urlToCopy = data.signedUrl;
       } catch {
         urlToCopy = publicUrl;
@@ -258,7 +259,7 @@ export const StorageOverview: React.FC = () => {
   return (
     <div className="rico-glass-card rounded-[2.5rem] p-8 sm:p-10 border-white/10 shadow-2xl relative overflow-hidden group">
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-blue-500/5 opacity-50 pointer-events-none" />
-      
+
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8 mb-12 relative z-10">
         <div className="flex items-center gap-5">
           <div className="p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5 group-hover:scale-110 transition-all duration-500">
@@ -275,8 +276,8 @@ export const StorageOverview: React.FC = () => {
             </div>
           </div>
         </div>
-        <button 
-          onClick={refresh} 
+        <button
+          onClick={refresh}
           disabled={refreshing}
           className="group relative inline-flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest border border-white/10 transition-all active:scale-95"
         >
@@ -311,7 +312,7 @@ export const StorageOverview: React.FC = () => {
             )}
           </div>
           <div className="h-2 bg-black/40 rounded-full border border-white/10 overflow-hidden mb-3">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-indigo-600 to-blue-500 transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(99,102,241,0.3)]"
               style={{ width: storageQuotaBytes ? `${Math.min(100, (totalUsage.totalBytes / storageQuotaBytes) * 100)}%` : '100%' }}
             />
@@ -369,7 +370,7 @@ export const StorageOverview: React.FC = () => {
                {topOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                <span className="text-[10px] font-black uppercase tracking-widest italic">Anomaly Detection: Top 10 High-Mass Files</span>
              </button>
-             
+
              <button
                onClick={() => setBreakdownOpen(v => !v)}
                className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${breakdownOpen ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'bg-white/5 border-white/10 text-gray-500 hover:text-white'}`}
@@ -378,7 +379,7 @@ export const StorageOverview: React.FC = () => {
                <span className="text-[10px] font-black uppercase tracking-widest italic">Grid Partition Breakdown</span>
              </button>
           </div>
-          
+
           <div className="flex items-center gap-2">
              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Page Intensity:</span>
              <select
@@ -422,9 +423,9 @@ export const StorageOverview: React.FC = () => {
                          <tr key={`${it.bucket}/${it.name}`} className="hover:bg-indigo-500/[0.03] transition-colors group/row">
                             <td className="px-6 py-4">
                                <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-white/10 group-hover/row:scale-110 transition-transform shadow-lg shadow-black/50">
-                                  <img 
-                                    src={sanitizeUrl(it.publicUrl, { width: 100 })} 
-                                    alt={it.name} 
+                                  <PrivateMediaImage
+                                    src={sanitizeUrl(it.publicUrl, { width: 100 })}
+                                    alt={it.name}
                                     className="w-full h-full object-cover"
                                     onError={(e) => (e.currentTarget.src = it.publicUrl)}
                                   />
@@ -474,7 +475,7 @@ export const StorageOverview: React.FC = () => {
                   const pct = b.totalBytes / totalBytes;
                   const intensity = Math.min(100, pct * 100);
                   const colorClass = intensity > 50 ? 'from-rose-600 to-rose-400' : intensity > 20 ? 'from-amber-600 to-amber-400' : 'from-purple-600 to-indigo-400';
-                  
+
                   return (
                     <div key={b.id} className="rico-glass-card p-5 border-white/5 bg-white/[0.02] rounded-2xl group/bar hover:bg-white/[0.04] transition-all">
                        <div className="flex items-center justify-between mb-3 text-[10px] font-black uppercase tracking-widest">
@@ -482,9 +483,9 @@ export const StorageOverview: React.FC = () => {
                           <span className="text-white italic tracking-tighter tabular-nums">{intensity.toFixed(1)}%</span>
                        </div>
                        <div className="h-1.5 bg-black/40 rounded-full border border-white/5 overflow-hidden mb-3">
-                          <div 
-                            className={`h-full bg-gradient-to-r ${colorClass} shadow-[0_0_10px_rgba(168,85,247,0.3)] transition-all duration-1000`} 
-                            style={{ width: `${intensity}%` }} 
+                          <div
+                            className={`h-full bg-gradient-to-r ${colorClass} shadow-[0_0_10px_rgba(168,85,247,0.3)] transition-all duration-1000`}
+                            style={{ width: `${intensity}%` }}
                           />
                        </div>
                        <div className="flex items-center justify-between text-[8px] font-black text-gray-600 uppercase tracking-widest">
@@ -515,16 +516,16 @@ export const StorageOverview: React.FC = () => {
                   <tr key={it.name} className="hover:bg-white/[0.02] transition-colors group/asset">
                     <td className="px-8 py-8">
                       <div className="relative w-16 h-16 rounded-2xl overflow-hidden border border-white/10 group-hover/asset:scale-105 transition-all duration-500 shadow-2xl before:absolute before:inset-0 before:bg-gradient-to-t before:from-black/40 before:to-transparent before:z-10">
-                        <img 
-                          src={sanitizeUrl(it.publicUrl, { width: 150 })} 
-                          alt={it.name} 
+                        <PrivateMediaImage
+                          src={sanitizeUrl(it.publicUrl, { width: 150 })}
+                          alt={it.name}
                           className="w-full h-full object-cover transform scale-110 group-hover/asset:scale-100 transition-transform duration-700"
                           onError={(e) => (e.currentTarget.src = it.publicUrl)}
                         />
                         <div className="absolute bottom-1 right-1 z-20 opacity-0 group-hover/asset:opacity-100 transition-opacity">
-                           <button onClick={(e) => { e.stopPropagation(); window.open(it.publicUrl, '_blank'); }} className="p-1 bg-black/60 rounded-lg text-white hover:bg-indigo-600 transition-colors shadow-lg shadow-black/20">
+                           <PrivateMediaLink href={it.publicUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="p-1 bg-black/60 rounded-lg text-white hover:bg-indigo-600 transition-colors shadow-lg shadow-black/20">
                               <ExternalLink size={10} />
-                           </button>
+                           </PrivateMediaLink>
                         </div>
                       </div>
                     </td>
@@ -588,15 +589,15 @@ export const StorageOverview: React.FC = () => {
                  <p className="text-xs font-bold text-gray-400 mt-1 italic uppercase tracking-tighter">Segment <span className="text-indigo-400 tabular-nums">{page}</span> of <span className="text-indigo-400 tabular-nums">{totalPages}</span></p>
               </div>
               <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => setPage(p => Math.max(1, p - 1))} 
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
                   className="group relative flex items-center justify-center p-4 rounded-2xl bg-white/5 border border-white/10 text-gray-500 hover:text-white hover:border-indigo-500/50 transition-all disabled:opacity-20 disabled:pointer-events-none"
                 >
                   <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
                 </button>
-                <button 
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                   className="group relative flex items-center justify-center p-4 rounded-2xl bg-white/5 border border-white/10 text-gray-500 hover:text-white hover:border-indigo-500/50 transition-all disabled:opacity-20 disabled:pointer-events-none"
                 >

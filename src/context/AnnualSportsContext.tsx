@@ -144,5 +144,5 @@ export function AnnualSportsProvider({ children, enabled = true }: { children: R
     refreshData: fetchAnnualSportsData
   };
 
-  return <AnnualSportsContext.Provider value={value}>{children}</AnnualSportsContext.Provider>;
+  return <PrimaryAnnualSportsContext.Provider value={value}>{children}</PrimaryAnnualSportsContext.Provider>;
 }

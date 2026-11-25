@@ -1,3 +1,5 @@
+import { PrivateMediaLink } from '../PrivateMedia';
+import { resolvePrivateMediaUrl } from '../../services/privateMedia';
 import React, { useState } from 'react';
 import { Download, Check, X, Filter, Search, Shield, Info, Eye, Trash2, FileText, Pencil, Loader2, BookOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -435,7 +437,7 @@ export const SportsRegistrationAdmin: React.FC = () => {
                         {(reg.photo_url || reg.metadata?.photo_url) && (
                           <div className="flex items-center gap-1.5 ml-auto">
                             {(reg.photo_url || reg.metadata?.photo_url).toLowerCase().endsWith('.pdf') ? (
-                              <a 
+                              <PrivateMediaLink
                                 href={reg.photo_url || reg.metadata?.photo_url} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
@@ -443,15 +445,15 @@ export const SportsRegistrationAdmin: React.FC = () => {
                                 className="p-1 hover:bg-emerald-500/20 text-emerald-400/50 hover:text-emerald-400 rounded transition-colors"
                               >
                                 <FileText size={14} />
-                              </a>
+                              </PrivateMediaLink>
                             ) : (
                               <button 
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                   e.preventDefault();
-                                  setViewPhotoModal({ 
-                                    url: reg.photo_url || reg.metadata?.photo_url, 
-                                    name: reg.name 
-                                  });
+                                  try {
+                                    const url = await resolvePrivateMediaUrl(reg.photo_url || reg.metadata?.photo_url);
+                                    setViewPhotoModal({ url, name: reg.name });
+                                  } catch { toast.error('Photo access unavailable.'); }
                                 }}
                                 title="View Photo"
                                 className="p-1 hover:bg-emerald-500/20 text-emerald-400/50 hover:text-emerald-400 rounded transition-colors"

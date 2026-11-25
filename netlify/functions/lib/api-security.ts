@@ -16,11 +16,12 @@ const policies: Record<string, Policy> = {
   'notify-event-update': ['events', 'registrations'],
   'send-confirmation': ['registrations'], 'send-rejection': ['registrations'], 'send-custom-email': ['registrations'],
   'update-form-settings': ['auditions', 'memberships', 'homebound'],
+  'ai-extract-iqmg-roster': ['student-system'],
   'ai-extract-events': ['events'], 'ai-generate-event': ['events'], 'ai-extract-schedule': ['schedule'],
   'ai-extract-sponsors': ['sponsors'], 'ai-extract-tiers': ['sponsors'],
   'ai-extract-core-team': ['rico-family'], 'ai-extract-homebound': ['homebound'],
   'ai-extract-passwords': 'owner', 'ai-chat': 'admin', 'ai-check-models': 'admin', 'ai-generate-content': 'admin',
-  'get-event-candidates': ['events', 'registrations'], 'delete-r2-file': 'admin', 'get-r2-upload-url': 'user',
+  'get-event-candidates': ['events', 'registrations'], 'delete-r2-file': 'admin', 'get-r2-upload-url': 'admin',
 };
 const publicReads = new Set(['health', 'public-security-settings', 'image-proxy', 'drive-proxy']);
 const readRoutes = new Set([...publicReads, 'list-admin-users', 'broadcast-schedule']);
@@ -59,7 +60,14 @@ async function authorize(name: string, event: any) {
   if (name === 'broadcast-schedule' && method === 'GET' && process.env.CRON_SECRET
     && (headers.authorization || headers.Authorization) === `Bearer ${process.env.CRON_SECRET}`) return null;
   const policy = policies[name];
-  if (!policy) return metered.has(name) ? rateLimit(name, event, getSupabaseClient(true)) : null;
+  // Native WebAuthn handlers validate their challenge/session themselves. Public
+  // reads are explicit; an unclassified new endpoint must never silently open.
+  if (!policy) {
+    if (publicReads.has(name) || ['passkey-challenge', 'passkey-register', 'passkey-login', 'master-login', 'coordinator-toggle-registration'].includes(name)) {
+      return metered.has(name) ? rateLimit(name, event, getSupabaseClient(true)) : null;
+    }
+    return json(403, 'Endpoint access policy is not configured');
+  }
   const token = headers.authorization || headers.Authorization;
   if (!token) return json(401, 'Sign in required');
   const client = getSupabaseClient(true);

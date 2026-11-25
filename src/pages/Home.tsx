@@ -268,7 +268,7 @@ export const Home: React.FC = () => {
 
   // Filter for featured content
   const featuredEvents = useHomepageEvents(events);
-  const partnerSelection = resolveHomepagePartners(sponsors, homepageSettings?.sponsor_logos, {featuredOnly:true});
+  const partnerSelection = resolveHomepagePartners(sponsors, homepageSettings?.sponsor_logos, {featuredOnly:true,currentYear:Number(homepageSettings?.brand_year) || Number(BRAND_YEAR)});
   const featuredSponsors = partnerSelection.partners;
   const featuredGuestArtists = selectHomepageArtists(guestArtists);
   const hasManyEvents = events.length > 6;

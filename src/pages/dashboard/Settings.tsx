@@ -1,4 +1,6 @@
+import { studentProfileProblem } from '../../utils/studentProfile';
 import React, { useState, useEffect } from 'react';
+import CollegeIdentityCard from '../../components/dashboard/CollegeIdentityCard';
 import { motion } from 'framer-motion';
 import { useOutletContext } from 'react-router-dom';
 import { 
@@ -8,11 +10,9 @@ import {
   ChevronDown,
   Camera,
   Upload,
-  AtSign,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ImageCropper } from '../../components/ImageCropper';
-import { supabase } from '../../lib/supabase';
 
 interface DashboardContextType {
   user: any;
@@ -46,7 +46,6 @@ const Settings: React.FC = () => {
   const [phone, setPhone] = useState(profile?.phone || '');
   const [college, setCollege] = useState(profile?.college || '');
   const [batch, setBatch] = useState(profile?.batch || '');
-  const [username, setUsername] = useState(profile?.username || '');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -55,39 +54,21 @@ const Settings: React.FC = () => {
       setPhone(profile.phone || '');
       setCollege(profile.college || '');
       setBatch(profile.batch || '');
-      setUsername(profile.username || '');
     }
   }, [profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const problem = studentProfileProblem({full_name: fullName.trim(), phone, batch, iqmg_number: profile.iqmg_number});
+    if (problem) { toast.error(problem); return; }
     setSaving(true);
     try {
-      const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
-      if (cleanUsername) {
-        // Validate uniqueness
-        const { data: existingUser, error: checkErr } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('username', cleanUsername)
-          .neq('id', profile?.id)
-          .maybeSingle();
-
-        if (checkErr) throw checkErr;
-        if (existingUser) {
-          toast.error('This username is already taken!');
-          setSaving(false);
-          return;
-        }
-      }
-
       const { error } = await updateProfile({
-        full_name: fullName,
-        phone: phone,
+        full_name: fullName.trim(),
+        phone: phone.trim(),
         college: showCollege ? college : 'N/A',
         batch,
-        participant_type: batch,
-        username: cleanUsername || null
+        participant_type: batch
       });
       if (error) throw error;
       toast.success('Profile updated successfully!');
@@ -112,26 +93,7 @@ const Settings: React.FC = () => {
       </div>
 
       <div className="rico-glass-card p-8 rounded-3xl border border-white/10 bg-white/5 space-y-10">
-        {/* Prominent Username Field at the Absolute Top */}
-        <div className="p-5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 space-y-3">
-          <div className="flex items-center gap-2">
-            <AtSign className="w-4.5 h-4.5 text-indigo-400" />
-            <h3 className="text-xs font-black text-white uppercase tracking-widest">Set Your Username Handle</h3>
-          </div>
-          <p className="text-xs text-gray-400 leading-relaxed">
-            Teammates will use this unique handle to search and invite you to their group registrations. Make sure to choose a handle and click save at the bottom of the page!
-          </p>
-          <div className="relative">
-            <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-              className="w-full bg-[#121620]/80 border border-white/10 rounded-xl px-10 py-3 text-xs text-white focus:border-indigo-500 outline-none transition-all placeholder-white/20"
-              placeholder="choose_a_username (letters, numbers, underscore)"
-            />
-          </div>
-        </div>
+        <CollegeIdentityCard userId={profile.id} />
 
         {/* Photo Section */}
         <div className="flex flex-col items-center border-t border-white/[0.04] pt-8">
@@ -183,10 +145,12 @@ const Settings: React.FC = () => {
                 type="text"
                 required
                 value={fullName}
+                disabled={profile?.iqmg_status === 'verified'}
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-10 py-3 text-white focus:border-red-500/50 outline-none transition-all"
                 placeholder="Enter your full name"
               />
+              {profile?.iqmg_status === 'verified' && <p className="text-xs text-gray-400 mt-2">Your name is linked to the verified college roster. Contact Technical Help for a correction.</p>}
             </div>
           </div>
 

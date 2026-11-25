@@ -1,0 +1,21 @@
+# College IQMG and team membership
+
+Profile completion requires the student's own college IQMG number. A private identity table reserves normalized numbers across all accounts, including pending claims. Separators and case cannot bypass uniqueness; leading zeroes are retained. Verified numbers and names cannot be changed by the student. A duplicate claim gives a clear error and access to technical support remains available during profile completion.
+
+Admin → Student management → IQMG roster accepts an official PDF up to 4 MB. The authenticated server endpoint sends it to Google Gemini and stores only the extracted private draft, source filename and SHA-256. The PDF is not retained by this app. Admin reviews the extracted rows before applying them; there is no manual number entry or client-side import endpoint. AI output cannot directly verify an identity. Duplicate numbers, duplicate matches and unreadable rows are blocked. Matching uses exact normalized names and the printed batch when available. No account is selected by fuzzy matching. Account approval remains separate in Student accounts.
+
+Applying selected matched rows fixes an incorrect existing claimant, verifies the correct student's IQMG, records an audit and notifies the affected accounts. Student auth/profile and the Teams workspace subscribe to identity changes. Rows without accounts can be saved and rechecked from the same import after students add their details. If a match is ambiguous, correct the profile through the established admin process or provide an unambiguous source PDF, then review again.
+
+Captains invite using an exact verified IQMG lookup, which reveals only name, batch, avatar and the entered identifier. The invitee must accept. Each team has a unique `TEAM-XXXXXXXXXX` ID; students can look up that code and request to join, with captain approval required. Requests expire after 72 hours, declines impose a 24-hour cooldown, lookup is limited to 30 per 10 minutes, and outgoing requests to 20 per day. Direct student membership writes and legacy manual registration invitations are disabled. Existing accepted memberships and event registrations are retained.
+
+My teams contains a four-step first-use guide with Skip, Back/Next and replay, plus persistent inline instructions. It waits for the main first-login dashboard tour to finish. Team registration uses accepted members through the existing cart, rechecks current team size and keeps the cart when opening My teams. Team acceptance does not approve an event registration: only coordinator approval unlocks its protected WhatsApp CTA.
+
+## Server configuration and validation
+
+Set `GEMINI_API_KEY` on the server to a Gemini-enabled key; `GOOGLE_API_KEY` is the compatibility fallback. `IQMG_AI_MODEL` defaults to `gemini-2.5-flash`. The key must allow the Generative Language API. No key is bundled into the client. PDF support and structured extraction follow the [Google document processing documentation](https://aistudio.google.com/docs/document-processing).
+
+On 2026-11-23 the configured Google key returned `403 PERMISSION_DENIED / ACCESS_DENIED` for the Generative Language API when tested with a generated synthetic PDF. No real student PDF was sent and no test identities were written to the live database. The app reports a specific configuration error for this response. A Gemini-enabled server key is required before real PDF extraction can run.
+
+Migrations: `20261123060000_iqmg_identity_roster.sql` and `20261123070000_iqmg_team_requests.sql`. Database tests apply each migration twice and cover uniqueness, unauthorized writes, wrong claimant correction, ambiguous matching, preserved account approval, private roster access, acceptance, expiry, cooldown and rate limits. UI/API tests cover reviewed application, leading zeroes, invalid AI output, duplicate claims, realtime corrections, team consent and tour Skip/replay.
+
+Both migrations were applied to the connected database on 2026-11-23. Live checks confirmed no anonymous identity/roster access, no authenticated direct identity/team/member/import writes, no public IQMG profile fields, unique IDs on all existing teams and all four realtime tables published. Anonymous REST returned 401 for the private identity, import and official-roster tables. No test student records were created.

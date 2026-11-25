@@ -12,6 +12,7 @@ export type ScheduleDay = Database['public']['Tables']['schedule_days']['Row'] &
 export type ScheduleEvent = Database['public']['Tables']['schedule_events']['Row'];
 export type Registration = Database['public']['Tables']['registrations']['Row'] & { 
   deleted_at?: string | null;
+  is_active?: boolean | null;
   user_id?: string | null;
   registration_date?: string | null;
 };
@@ -164,6 +165,7 @@ export type HomepageSettings = Database['public']['Tables']['homepage_settings']
 };
 export type HomeboundSettings = Database['public']['Tables']['homebound_settings']['Row'];
 export type SiteSettings = Database['public']['Tables']['site_settings']['Row'] & {
+  chat_locked?: boolean;
   sports_registration_config?: {
     registration_open: boolean;
     participant_types: string[];
@@ -289,6 +291,7 @@ export interface DataContextType {
   roadmapMilestones: RoadmapMilestone[];
   heroMedia: Partial<Record<PageKey, HeroMedia | null>>;
   loading: boolean;
+  isLoaded: boolean;
   connectionStatus: 'ok' | 'degraded' | 'offline';
   lastError: string | null;
   latencyMs?: number | null;

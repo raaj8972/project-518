@@ -5,13 +5,13 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Events } from '../src/pages/Events';
 
-const mocks = vi.hoisted(() => ({ signedIn: false, count: 7, uuid: false, winners: [] as any[], registration: vi.fn(), refresh: vi.fn() }));
+const mocks = vi.hoisted(() => ({ signedIn: false, ready: true, count: 7, uuid: false, winners: [] as any[], registration: vi.fn(), refresh: vi.fn() }));
 vi.mock('../src/context/DataContext', () => ({ useData: () => ({
   events: Array.from({ length: mocks.count }, (_, index) => ({ id: mocks.uuid && index === 0 ? 'cfe572fa-1000-4000-8000-92f7fa417ada' : index + 1, title: index === 24 ? 'Inter-College Medical Research and Clinical Case Presentation Championship' : `Arena event ${index + 1}`, category: index === 1 ? 'Fashion' : index % 2 ? 'Cultural' : 'Academic', image: '/poster.jpg', description: 'Event description.', registration_open: true, visible: index < mocks.count - 1, rules: ['Bring college ID.'] })),
   eventCoordinators: [], eventWinners: mocks.winners, adminUsers: [], connectionStatus: 'connected', refreshAll: mocks.refresh, updateEvent: vi.fn(), loading: false,
 }) }));
 vi.mock('../src/context/AuthContext', () => ({ useAuth: () => ({ user: null, isAuthenticated: false }) }));
-vi.mock('../src/context/StudentAuthContext', () => ({ useStudentAuth: () => ({ isAuthenticated: mocks.signedIn }) }));
+vi.mock('../src/context/StudentAuthContext', () => ({ useStudentAuth: () => ({ isAuthenticated: mocks.signedIn, isProfileComplete: mocks.ready, isApproved: mocks.ready }) }));
 vi.mock('../src/context/EventCartContext', () => ({ useEventCart: () => ({ isInCart: () => false }) }));
 vi.mock('../src/components/ToastProvider', () => ({ useToast: () => ({ push: vi.fn() }) }));
 vi.mock('../src/services/roundWinners', () => ({ getRoundWinners: async () => [] }));
@@ -28,7 +28,7 @@ vi.mock('../src/lib/supabase', () => ({ supabase: {
 let host: HTMLDivElement; let root: Root;
 beforeEach(() => {
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  mocks.signedIn = false; mocks.count = 7; mocks.uuid = false; mocks.winners = []; mocks.registration.mockClear();
+  mocks.signedIn = false; mocks.ready = true; mocks.count = 7; mocks.uuid = false; mocks.winners = []; mocks.registration.mockClear();
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callback(0); return 1; });
   vi.stubGlobal('cancelAnimationFrame', vi.fn());
   vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
@@ -101,3 +101,5 @@ it('preserves a UUID winner event link all the way to the named honour card and 
   await click(host.querySelector('.honours-event-link'));
   expect(document.querySelector('.arena-details h2')?.textContent).toBe('Arena event 1');
 });
+
+it('routes a signed-in student with an incomplete profile to IQMG setup before opening registration',async()=>{mocks.signedIn=true;mocks.ready=false;await render();await click(host.querySelector('.arena-event-trigger'));await click(document.querySelector('.arena-details-footer button'));expect(mocks.registration).not.toHaveBeenCalled();const url=host.querySelector('output')!.textContent!;expect(url).toContain('/dashboard?returnTo=');expect(new URL('https://example.test'+url).searchParams.get('returnTo')).toBe('/events?event=6');});

@@ -1,3 +1,5 @@
+-- Require the versioned security migration before any legacy bucket setup.
+DO $$ BEGIN IF to_regprocedure('public.can_write_storage_object(text,text)') IS NULL THEN RAISE EXCEPTION 'Apply the versioned security migrations first'; END IF; END $$;
 
 -- 1. Create buckets (Safe approach)
 -- This tries to insert and ignores if already exists
@@ -26,7 +28,7 @@ BEGIN
 
     -- Create registration-photos
     INSERT INTO storage.buckets (id, name, public)
-    VALUES ('registration-photos', 'registration-photos', true)
+    VALUES ('registration-photos', 'registration-photos', false)
     ON CONFLICT (id) DO NOTHING;
 
     -- Create sponsor-logos
@@ -40,30 +42,5 @@ BEGIN
     ON CONFLICT (id) DO NOTHING;
 END $$;
 
--- 2. Try to set policies individually
--- If you still get "must be owner of table objects", 
--- please use the Supabase Dashboard UI to create these policies.
 
--- SELECT: Public Read Access
-DROP POLICY IF EXISTS "Public Read Access All" ON storage.objects;
-CREATE POLICY "Public Read Access All" ON storage.objects
-FOR SELECT TO public USING (true);
-
--- INSERT: Authenticated Uploads
-DROP POLICY IF EXISTS "Authenticated Uploads All" ON storage.objects;
-CREATE POLICY "Authenticated Uploads All" ON storage.objects
-FOR INSERT TO authenticated WITH CHECK (true);
-
--- INSERT/UPDATE: Allow anon for public-facing AI scanners
--- This is needed for the frontend AI Scanner to work without auth
-DROP POLICY IF EXISTS "Anon Uploads All" ON storage.objects;
-CREATE POLICY "Anon Uploads All" ON storage.objects
-FOR INSERT TO anon WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Anon Update All" ON storage.objects;
-CREATE POLICY "Anon Update All" ON storage.objects
-FOR UPDATE TO anon USING (true);
-
--- Note: The policies above are broad (allow any bucket). 
--- This is often easier to apply and less likely to hit ownership issues
--- than multiple per-bucket policies in a DO block.
+-- Access policies and upload limits are managed exclusively by versioned migrations.

@@ -34,9 +34,13 @@ export default function CouncilLogin() {
         throw new Error('Authentication failed');
       }
 
-      // Valid passcode, now set the session variable to the passcode directly
-      // Since CouncilDashboard still reads the exact plaintext password to make DB calls
-      sessionStorage.setItem('council_auth', password.trim());
+      // Remove any legacy plaintext password
+      sessionStorage.removeItem('council_auth');
+
+      // Retain only the opaque encrypted session token for environments where cookies are blocked
+      if (data.token) {
+        sessionStorage.setItem('council_token', data.token);
+      }
       
       React.startTransition(() => {
         navigate('/council-dashboard');

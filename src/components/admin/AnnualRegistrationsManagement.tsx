@@ -1,3 +1,4 @@
+import { PrivateMediaImage } from '../PrivateMedia';
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, CheckCircle, XCircle, Trash2, Mail, Phone, User, Calendar, Tag, ShieldCheck, Pencil, Check, X, Loader2, BookOpen } from 'lucide-react';
 import { useAnnualSports } from '../../context/AnnualSportsContext';
@@ -211,7 +212,7 @@ export const AnnualRegistrationsManagement: React.FC = () => {
               <div className="flex items-start gap-5">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold-500/20 to-purple-500/20 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
                   {reg.photo_url ? (
-                    <img src={reg.photo_url} alt="" className="w-full h-full object-cover" />
+                    <PrivateMediaImage src={reg.photo_url} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <User className="w-8 h-8 text-gold-500/50" />
                   )}
@@ -306,7 +307,7 @@ export const AnnualRegistrationsManagement: React.FC = () => {
                              <div key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5">
                                 <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
                                    {member.photo_url ? (
-                                      <img src={member.photo_url} alt="" className="w-full h-full object-cover" />
+                                      <PrivateMediaImage src={member.photo_url} alt="" className="w-full h-full object-cover" />
                                    ) : (
                                       <User size={16} className="text-white/20" />
                                    )}

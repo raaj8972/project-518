@@ -1,3 +1,8 @@
+import { Buffer } from 'buffer';
+
+globalThis.Buffer = globalThis.Buffer || Buffer;
+(globalThis as any).global = globalThis;
+
 // Defensive runtime shims for environments that misbehave during feature-detection
 // Keep this file minimal and safe; it is imported as the very first module in
 // the app entry so it runs before any libraries that may synchronously call

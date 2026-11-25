@@ -6,7 +6,7 @@ import { FamilySpotlight } from './FamilySpotlight';
 
 export function FamilyMembersCarousel({ members, label }: { members: FamilyPerson[]; label: string }) {
   const track = useRef<HTMLDivElement>(null);
-  const lightRef = useRef<HTMLDivElement>(null);
+  const lightRefs = useRef<(HTMLDivElement | null)[]>([]);
   const id = useId();
   const [paused, setPaused] = useState(false);
   const [interacting, setInteracting] = useState(false);
@@ -32,10 +32,10 @@ export function FamilyMembersCarousel({ members, label }: { members: FamilyPerso
     return () => query.removeEventListener('change', update);
   }, []);
 
-  // Keep a compact beam aimed at the nearest fully visible portrait.
+  // Give each visible member column its own compact beam at every viewport width.
   useEffect(() => {
-    const element = track.current, lamp = lightRef.current;
-    if (!element || !lamp) return;
+    const element = track.current;
+    if (!element) return;
     let frame = 0;
     const updateLight = () => {
       frame = 0;
@@ -43,14 +43,20 @@ export function FamilyMembersCarousel({ members, label }: { members: FamilyPerso
       const carousel = element.parentElement!.getBoundingClientRect();
       const portraits = [...element.querySelectorAll<HTMLElement>('.family-person-portrait')].map(portrait => portrait.getBoundingClientRect());
       const readable = portraits.filter(rect => rect.width > 0 && Math.min(rect.right, viewport.right) - Math.max(rect.left, viewport.left) >= rect.width * .65);
-      const center = viewport.left + viewport.width / 2;
-      const target = readable.reduce<DOMRect | null>((best, rect) => !best || Math.abs(rect.left + rect.width / 2 - center) < Math.abs(best.left + best.width / 2 - center) ? rect : best, null);
-      if (!target) { lamp.style.visibility = 'hidden'; return; }
-      lamp.style.visibility = 'visible';
-      lamp.style.left = `${target.left + target.width / 2 - carousel.left}px`;
-      const emitterTop = carousel.top + 46;
-      lamp.style.setProperty('--member-beam-width', `${target.width * 1.3}px`);
-      lamp.style.setProperty('--member-beam-length', `${Math.max(80, target.top - emitterTop + target.height * .85)}px`);
+      const count = Math.min(columns, readable.length);
+      lightRefs.current.forEach((lamp, index) => {
+        if (!lamp) return;
+        if (index >= count) { lamp.style.visibility = 'hidden'; return; }
+        const center = viewport.left + viewport.width * (index + .5) / count;
+        const target = readable.reduce<DOMRect | null>((best, rect) => !best || Math.abs(rect.left + rect.width / 2 - center) < Math.abs(best.left + best.width / 2 - center) ? rect : best, null);
+        if (!target) { lamp.style.visibility = 'hidden'; return; }
+        readable.splice(readable.indexOf(target), 1);
+        lamp.style.visibility = 'visible';
+        lamp.style.left = `${target.left + target.width / 2 - carousel.left}px`;
+        const emitterTop = carousel.top + lamp.offsetTop + 20;
+        lamp.style.setProperty('--member-beam-width', `${target.width * 1.3}px`);
+        lamp.style.setProperty('--member-beam-length', `${Math.max(80, target.top - emitterTop + target.height * .85)}px`);
+      });
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(updateLight); };
     updateLight();
@@ -86,7 +92,7 @@ export function FamilyMembersCarousel({ members, label }: { members: FamilyPerso
     <div className="family-carousel-toolbar">
       <h4 className="family-group-label">Team members <span>{members.length}</span></h4>
     </div>
-    <div ref={lightRef} className="family-members-light"><FamilySpotlight soft /></div>
+    {members.slice(0, columns).map((_, index) => <div key={index} ref={element => { lightRefs.current[index] = element; }} className="family-members-light" style={{ visibility: 'hidden' }} aria-hidden="true"><FamilySpotlight soft /></div>)}
     <div ref={track} id={id} className="family-carousel-track" style={{ '--family-member-columns': columns } as CSSProperties} tabIndex={0} aria-label={`${label}, swipe or use arrow keys`}
       onTouchStart={() => setPaused(true)} onPointerDown={() => setPaused(true)}
       onKeyDown={event => { if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { event.preventDefault(); advance(event.key === 'ArrowRight' ? 1 : -1); } }}>

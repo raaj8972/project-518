@@ -1,8 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { BarChart3, Users, QrCode, LogOut, Loader2, LayoutDashboard, ChevronRight, ChevronDown, Clock, CheckCircle2, Plus, Trash, Eye, X, ShieldAlert, Sunrise, Sun, Sunset, Moon, Shield } from 'lucide-react';
+import {
+  BarChart3, Users, QrCode, LogOut, Loader2, LayoutDashboard,
+  ChevronRight, ChevronDown, Clock, CheckCircle2, Plus, Trash,
+  Eye, X, ShieldAlert, Sunrise, Sun, Sunset, Moon, Shield,
+  CheckSquare, Megaphone, Wallet, RefreshCw
+} from 'lucide-react';
 import { QRCodeGenerator } from '../components/admin/QRCodeGenerator';
+import { CouncilTasksTab, CouncilTask } from '../components/council/CouncilTasksTab';
+import { CouncilAnnouncementsTab, CouncilAnnouncement } from '../components/council/CouncilAnnouncementsTab';
+import { CouncilBudgetTab, CouncilBudget, CouncilExpense } from '../components/council/CouncilBudgetTab';
 import toast from 'react-hot-toast';
 
 interface VipPass {
@@ -21,8 +29,8 @@ interface VipPass {
 interface DashboardStats {
   total_registrations: number;
   batch_stats: { batch: string; count: number }[];
-  event_stats: { 
-    event_name: string; 
+  event_stats: {
+    event_name: string;
     count: number;
     batch_breakdown: { batch: string; count: number }[];
   }[];
@@ -53,29 +61,87 @@ export default function CouncilDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const navigate = useNavigate();
 
-  const loadStats = async () => {
-    const password = sessionStorage.getItem('council_auth');
-    if (!password) {
+  type CouncilTab = 'analytics' | 'tasks' | 'announcements' | 'budget';
+  const [activeTab, setActiveTab] = useState<CouncilTab>('analytics');
+  const [suiteLoading, setSuiteLoading] = useState(false);
+  const [councilSuiteData, setCouncilSuiteData] = useState<{
+    tasks: CouncilTask[];
+    announcements: CouncilAnnouncement[];
+    budgets: CouncilBudget[];
+    expenses: CouncilExpense[];
+    committees: { id: number; name: string; color?: string; enabled?: boolean }[];
+    teamMembers: { id: string; name: string; role?: string; committee_id?: number | null }[];
+  }>({
+    tasks: [],
+    announcements: [],
+    budgets: [],
+    expenses: [],
+    committees: [],
+    teamMembers: []
+  });
+
+  const councilSessionToken = (typeof window !== 'undefined' ? sessionStorage.getItem('council_token') : null) || '';
+
+  const councilRequest = async (action: string, payload?: any) => {
+    const token = sessionStorage.getItem('council_token');
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch('/api/council-manage', {
+      method: 'POST',
+      headers,
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        action,
+        payload,
+        ...(token ? { councilToken: token } : {})
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) {
+      sessionStorage.removeItem('council_token');
+      sessionStorage.removeItem('council_auth');
       React.startTransition(() => {
         navigate('/council');
       });
-      return;
+      throw new Error('Council session expired. Please sign in again.');
     }
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Request failed');
+    }
+    return data;
+  };
 
+  const loadCouncilSuiteData = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_council_dashboard_stats_v3', { p_password: password });
-      if (error) throw error;
-      setStats(data);
+      setSuiteLoading(true);
+      const data = await councilRequest('get-all');
+      setCouncilSuiteData({
+        tasks: data.tasks || [],
+        announcements: data.announcements || [],
+        budgets: data.budgets || [],
+        expenses: data.expenses || [],
+        committees: data.committees || [],
+        teamMembers: data.teamMembers || []
+      });
     } catch (err: any) {
-      console.error(err);
-      if (err.message?.includes('password') || err.message?.includes('configure') || err.message?.includes('Invalid password')) {
-         toast.error(err.message);
-         sessionStorage.removeItem('council_auth');
-         React.startTransition(() => {
-           navigate('/council');
-         });
-      } else {
-         toast.error('Failed to update stats');
+      if (!err.message?.includes('session expired')) {
+        console.error('Failed to load council suite data', err);
+      }
+    } finally {
+      setSuiteLoading(false);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const data = await councilRequest('get-stats');
+      setStats(data.stats);
+    } catch (err: any) {
+      if (!err.message?.includes('session expired')) {
+        console.error(err);
+        toast.error('Failed to update stats');
       }
     } finally {
       setLoading(false);
@@ -84,19 +150,13 @@ export default function CouncilDashboard() {
 
   const loadVipPasses = async () => {
     try {
-      const password = sessionStorage.getItem('council_auth');
-      if (!password) return;
-
-      const { data, error } = await supabase.rpc('get_council_vip_passes_v3', { 
-        p_password: password 
-      });
-      
-      if (error) throw error;
-      setVipPasses(data || []);
+      const data = await councilRequest('get-vip-passes');
+      setVipPasses(data.passes || []);
     } catch (err: any) {
-      console.error('Error loading VIP passes:', err);
-      console.error('Error details:', { message: err.message, code: err.code, details: err.details, hint: err.hint });
-      toast.error(err.message || 'Failed to load VIP passes');
+      if (!err.message?.includes('session expired')) {
+        console.error('Error loading VIP passes:', err);
+        toast.error(err.message || 'Failed to load VIP passes');
+      }
     }
   };
 
@@ -104,17 +164,11 @@ export default function CouncilDashboard() {
     e.preventDefault();
     setVipLoading(true);
     try {
-      const password = sessionStorage.getItem('council_auth');
-      if (!password) throw new Error('Not authenticated');
-
-      const { error } = await supabase.rpc('create_vip_pass_v3', {
-        p_council_password: password,
-        p_name: newVip.name || null,
-        p_notes: newVip.notes || null,
-        p_valid_date: newVip.validDate || null
+      await councilRequest('create-vip', {
+        name: newVip.name || null,
+        notes: newVip.notes || null,
+        validDate: newVip.validDate || null
       });
-
-      if (error) throw error;
 
       toast.success('VIP pass created successfully');
       setNewVip({ name: '', notes: '', validDate: '' });
@@ -131,14 +185,7 @@ export default function CouncilDashboard() {
     const displayName = name || 'Unnamed VIP';
     if (!window.confirm(`Are you sure you want to delete the VIP pass for "${displayName}"?`)) return;
     try {
-      const password = sessionStorage.getItem('council_auth');
-      if (!password) throw new Error('Not authenticated');
-
-      const { error } = await supabase.rpc('delete_entry_pass_v3', { 
-        p_council_password: password,
-        p_pass_id: id
-      });
-      if (error) throw error;
+      await councilRequest('delete-vip', { id });
       toast.success('VIP pass deleted');
       await loadVipPasses();
     } catch (err: any) {
@@ -150,43 +197,81 @@ export default function CouncilDashboard() {
   useEffect(() => {
     loadStats();
     loadVipPasses();
+    loadCouncilSuiteData();
 
     // Real-time synchronization for deletes/updates
     const channel = supabase
       .channel('council_dashboard_sync')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'pass_scans' 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'pass_scans'
       }, () => {
         loadStats();
         loadVipPasses();
       })
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'entry_passes' 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'entry_passes'
       }, () => {
         loadStats();
         loadVipPasses();
       })
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'registrations' 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'registrations'
       }, () => {
         loadStats();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'council_tasks'
+      }, () => {
+        loadCouncilSuiteData();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'council_announcements'
+      }, () => {
+        loadCouncilSuiteData();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'council_budgets'
+      }, () => {
+        loadCouncilSuiteData();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'council_expenses'
+      }, () => {
+        loadCouncilSuiteData();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'core_committees'
+      }, () => {
+        loadCouncilSuiteData();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'core_team_members'
+      }, () => {
+        loadCouncilSuiteData();
       })
       .subscribe();
 
     const interval = setInterval(() => {
-        const password = sessionStorage.getItem('council_auth');
-        if(password) {
-            supabase.rpc('get_council_dashboard_stats_v3', { p_password: password })
-            .then(({ data, error }) => {
-                if(!error && data) setStats(data);
-            });
-        }
+      loadStats();
+      loadCouncilSuiteData();
     }, 30000);
 
     return () => {
@@ -195,7 +280,16 @@ export default function CouncilDashboard() {
     };
   }, []);
 
-   const handleLogout = () => {
+   const handleLogout = async () => {
+    try {
+      await fetch('/api/council-manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ action: 'logout' })
+      });
+    } catch {}
+    sessionStorage.removeItem('council_token');
     sessionStorage.removeItem('council_auth');
     window.location.href = '/council';
   };
@@ -224,7 +318,7 @@ export default function CouncilDashboard() {
   const WelcomeSplash = () => {
     const greeting = getGreeting();
     const hour = currentTime.getHours();
-    
+
     const GreetingIcon = (() => {
       if (hour >= 5 && hour < 10) return Sunrise;
       if (hour >= 10 && hour < 16) return Sun;
@@ -246,7 +340,7 @@ export default function CouncilDashboard() {
                <GreetingIcon className="w-12 h-12 sm:w-16 sm:h-16 text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]" />
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <h2 className="text-4xl sm:text-6xl font-black text-white tracking-tighter drop-shadow-lg">
               {greeting}, <span className="text-white/80">Council Member</span>
@@ -261,7 +355,7 @@ export default function CouncilDashboard() {
               <Shield className="w-4 h-4 text-indigo-400" />
               Council Access Secured
             </div>
-            
+
             <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
               <div className="h-full bg-white animate-progress-indefinite rounded-full"></div>
             </div>
@@ -299,18 +393,32 @@ export default function CouncilDashboard() {
            <p className="text-gray-400 text-xs md:text-sm ps-13 md:ps-15">Real-time Event Analytics & Registration Monitoring</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 md:gap-3">
+          <button
+            onClick={() => {
+              loadStats();
+              loadVipPasses();
+              loadCouncilSuiteData();
+              toast.success('Dashboard refreshed');
+            }}
+            disabled={suiteLoading}
+            className="bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-400 hover:text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg flex items-center gap-1.5 text-xs transition-all"
+            title="Refresh All Data"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${suiteLoading ? 'animate-spin text-cyan-400' : ''}`} />
+            Sync
+          </button>
           <div className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 md:px-4 md:py-2 flex items-center text-[10px] md:text-xs text-gray-400">
             <span className="w-2 h-2 bg-cyan-400 rounded-full mr-2 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]"></span>
             LIVE
           </div>
-          <button 
+          <button
             onClick={() => setShowVipModal(true)}
             className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-3 py-1.5 md:px-4 md:py-2 rounded-lg flex items-center gap-2 text-xs md:text-sm transition-all hover:scale-105"
           >
             <ShieldAlert className="w-4 h-4" />
             VIP Passes
           </button>
-          <button 
+          <button
             onClick={handleLogout}
             className="bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/20 px-3 py-1.5 md:px-4 md:py-2 rounded-lg flex items-center gap-2 text-xs md:text-sm transition-all hover:scale-105 active:scale-95"
           >
@@ -320,6 +428,80 @@ export default function CouncilDashboard() {
         </div>
       </div>
 
+      {/* Modern Council Suite Tabs Navigation */}
+      <div className="max-w-7xl mx-auto mb-8 border-b border-gray-800/80">
+        <div className="flex items-center gap-2 overflow-x-auto pb-3 custom-scrollbar">
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+              activeTab === 'analytics'
+                ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-lg shadow-indigo-600/20'
+                : 'bg-gray-900/60 text-gray-400 hover:text-white hover:bg-gray-800/80 border border-gray-800/80'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Analytics & Scans
+          </button>
+
+          <button
+            onClick={() => setActiveTab('tasks')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+              activeTab === 'tasks'
+                ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-lg shadow-indigo-600/20'
+                : 'bg-gray-900/60 text-gray-400 hover:text-white hover:bg-gray-800/80 border border-gray-800/80'
+            }`}
+          >
+            <CheckSquare className="w-4 h-4" />
+            Council Tasks
+            {councilSuiteData.tasks.filter(t => t.status === 'pending').length > 0 && (
+              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                activeTab === 'tasks' ? 'bg-black/40 text-amber-300' : 'bg-amber-500/20 text-amber-300'
+              }`}>
+                {councilSuiteData.tasks.filter(t => t.status === 'pending').length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('announcements')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+              activeTab === 'announcements'
+                ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-lg shadow-indigo-600/20'
+                : 'bg-gray-900/60 text-gray-400 hover:text-white hover:bg-gray-800/80 border border-gray-800/80'
+            }`}
+          >
+            <Megaphone className="w-4 h-4" />
+            Bulletins & Notices
+            {councilSuiteData.announcements.filter(a => a.is_urgent && a.is_published).length > 0 && (
+              <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-rose-500 text-white animate-pulse">
+                {councilSuiteData.announcements.filter(a => a.is_urgent && a.is_published).length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('budget')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
+              activeTab === 'budget'
+                ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-lg shadow-indigo-600/20'
+                : 'bg-gray-900/60 text-gray-400 hover:text-white hover:bg-gray-800/80 border border-gray-800/80'
+            }`}
+          >
+            <Wallet className="w-4 h-4" />
+            Budget & Expenses
+            {councilSuiteData.expenses.filter(e => e.status === 'pending').length > 0 && (
+              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                activeTab === 'budget' ? 'bg-black/40 text-cyan-300' : 'bg-cyan-500/20 text-cyan-300'
+              }`}>
+                {councilSuiteData.expenses.filter(e => e.status === 'pending').length}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Views */}
+      {activeTab === 'analytics' && (
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Summaries & Event Drill-down */}
         <div className="lg:col-span-2 space-y-8">
@@ -365,11 +547,11 @@ export default function CouncilDashboard() {
               </h2>
               <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Registration Counts</span>
             </div>
-            
+
             <div className="space-y-4 max-h-[1200px] overflow-y-auto pr-2 custom-scrollbar">
                {eventStats.map((item, idx) => (
-                  <div 
-                    key={idx} 
+                  <div
+                    key={idx}
                     onClick={() => setExpandedEvent(expandedEvent === item.event_name ? null : item.event_name)}
                     className={`bg-black/40 border rounded-2xl p-5 cursor-pointer group transition-all duration-500 ${expandedEvent === item.event_name ? 'border-indigo-500/50 bg-black/80 shadow-2xl shadow-indigo-500/10 ring-1 ring-indigo-500/20' : 'border-gray-800 hover:bg-black/60 hover:border-gray-700'}`}
                   >
@@ -386,11 +568,11 @@ export default function CouncilDashboard() {
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="h-1.5 w-full bg-gray-900 rounded-full overflow-hidden mb-1">
-                       <div 
-                         className={`h-full rounded-full transition-all duration-1000 ${expandedEvent === item.event_name ? 'bg-gradient-to-r from-indigo-500 to-cyan-400 shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-gray-700'}`} 
-                         style={{ width: `${Math.min((item.count / (stats?.total_registrations || 1)) * 100, 100)}%` }} 
+                       <div
+                         className={`h-full rounded-full transition-all duration-1000 ${expandedEvent === item.event_name ? 'bg-gradient-to-r from-indigo-500 to-cyan-400 shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-gray-700'}`}
+                         style={{ width: `${Math.min((item.count / (stats?.total_registrations || 1)) * 100, 100)}%` }}
                        ></div>
                     </div>
 
@@ -409,7 +591,7 @@ export default function CouncilDashboard() {
                                 <span className="text-white font-black bg-white/5 px-2 py-0.5 rounded min-w-[30px] text-center">{batch.count}</span>
                               </div>
                               <div className="h-1 w-full bg-gray-900 rounded-full overflow-hidden">
-                                <div 
+                                <div
                                   className="bg-gradient-to-r from-indigo-600/60 to-cyan-500/60 h-full rounded-full transition-all duration-1000 delay-300"
                                   style={{ width: `${Math.min((batch.count / (item.count || 1)) * 100, 100)}%` }}
                                 ></div>
@@ -439,7 +621,7 @@ export default function CouncilDashboard() {
               <Users className="w-6 h-6 text-indigo-400" />
               Global Batches
             </h2>
-            
+
             <div className="space-y-6 text-sm">
                {batchStats.map((item, idx) => (
                   <div key={idx} className="group">
@@ -448,9 +630,9 @@ export default function CouncilDashboard() {
                       <span className="text-lg font-bold text-white">{item.count}</span>
                     </div>
                     <div className="h-2 w-full bg-gray-900 rounded-full overflow-hidden">
-                       <div 
-                         className="bg-gradient-to-r from-indigo-600 to-violet-600 h-full rounded-full transition-all duration-1000" 
-                         style={{ width: `${Math.min((item.count / (stats?.total_registrations || 1)) * 100, 100)}%` }} 
+                       <div
+                         className="bg-gradient-to-r from-indigo-600 to-violet-600 h-full rounded-full transition-all duration-1000"
+                         style={{ width: `${Math.min((item.count / (stats?.total_registrations || 1)) * 100, 100)}%` }}
                        ></div>
                     </div>
                   </div>
@@ -464,7 +646,7 @@ export default function CouncilDashboard() {
               <Clock className="w-6 h-6 text-cyan-400" />
               Recent Valid Entries
             </h2>
-            
+
             <div className="space-y-4">
                {(stats?.recent_scans || []).map((scan, idx) => (
                   <div key={idx} className="flex items-center justify-between p-4 bg-black/40 border border-gray-800 rounded-2xl group hover:border-cyan-500/30 transition-all">
@@ -491,6 +673,44 @@ export default function CouncilDashboard() {
           </div>
         </div>
       </div>
+      )}
+
+      {/* Tab 2: Council Tasks */}
+      {activeTab === 'tasks' && (
+        <div className="max-w-7xl mx-auto">
+          <CouncilTasksTab
+            tasks={councilSuiteData.tasks}
+            onRefresh={loadCouncilSuiteData}
+            councilToken={councilSessionToken}
+            committees={councilSuiteData.committees}
+            teamMembers={councilSuiteData.teamMembers}
+          />
+        </div>
+      )}
+
+      {/* Tab 3: Announcements */}
+      {activeTab === 'announcements' && (
+        <div className="max-w-7xl mx-auto">
+          <CouncilAnnouncementsTab
+            announcements={councilSuiteData.announcements}
+            onRefresh={loadCouncilSuiteData}
+            councilToken={councilSessionToken}
+          />
+        </div>
+      )}
+
+      {/* Tab 4: Budget & Expenses */}
+      {activeTab === 'budget' && (
+        <div className="max-w-7xl mx-auto">
+          <CouncilBudgetTab
+            budgets={councilSuiteData.budgets}
+            expenses={councilSuiteData.expenses}
+            onRefresh={loadCouncilSuiteData}
+            councilToken={councilSessionToken}
+            committees={councilSuiteData.committees}
+          />
+        </div>
+      )}
 
       {/* VIP Management Modal */}
       {showVipModal && (
@@ -502,7 +722,7 @@ export default function CouncilDashboard() {
                 <ShieldAlert className="w-5 h-5 md:w-6 md:h-6 text-indigo-400" />
                 VIP Management
               </h2>
-              <button 
+              <button
                 onClick={() => setShowVipModal(false)}
                 className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition-colors"
                 aria-label="Close modal"
@@ -542,22 +762,22 @@ export default function CouncilDashboard() {
                         type="button"
                         onClick={() => setNewVip({ ...newVip, validDate: '' })}
                         className={`px-3 py-2 rounded-lg text-sm font-bold border transition-all ${
-                          newVip.validDate === '' 
-                            ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20' 
+                          newVip.validDate === ''
+                            ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20'
                             : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'
                         }`}
                       >
                         All Days
                       </button>
-                      
+
                       {(stats?.event_dates || []).map((date, idx) => (
                         <button
                           key={date}
                           type="button"
                           onClick={() => setNewVip({ ...newVip, validDate: date })}
                           className={`px-3 py-2 rounded-lg text-sm font-bold border transition-all ${
-                            newVip.validDate === date 
-                              ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' 
+                            newVip.validDate === date
+                              ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20'
                               : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'
                           }`}
                         >
@@ -614,18 +834,18 @@ export default function CouncilDashboard() {
                     // Calculate which days this pass was used
                     const usedDays: number[] = [];
                     const eventDates = stats?.event_dates || [];
-                    
+
                     if (pass.usage_logs && pass.usage_logs.length > 0 && eventDates.length > 0) {
                       pass.usage_logs.forEach((scanTimestamp) => {
                         const scanDate = new Date(scanTimestamp);
                         const istDate = scanDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
                         const utcDate = scanDate.toISOString().split('T')[0];
-                        
+
                         let dayIdx = eventDates.indexOf(istDate);
                         if (dayIdx === -1) {
                           dayIdx = eventDates.indexOf(utcDate);
                         }
-                        
+
                         if (dayIdx !== -1 && !usedDays.includes(dayIdx + 1)) {
                           usedDays.push(dayIdx + 1);
                         }
@@ -638,8 +858,8 @@ export default function CouncilDashboard() {
                           <div className="flex flex-wrap items-center gap-2 mb-1">
                             <p className="font-bold text-gray-200 truncate">{pass.participant_name || 'Unnamed VIP'}</p>
                             <span className={`text-[9px] md:text-[10px] px-2 py-0.5 rounded-full font-black tracking-widest ${
-                              (currentDayNum && usedDays.includes(currentDayNum)) 
-                                ? 'bg-violet-500/10 text-violet-500 border border-violet-500/20' 
+                              (currentDayNum && usedDays.includes(currentDayNum))
+                                ? 'bg-violet-500/10 text-violet-500 border border-violet-500/20'
                                 : 'bg-cyan-400/10 text-cyan-400 border border-cyan-500/20'
                             }`}>
                               {(currentDayNum && usedDays.includes(currentDayNum)) ? 'CHECKED IN' : 'VALID'}
@@ -698,13 +918,13 @@ export default function CouncilDashboard() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setSelectedPass(null)} />
           <div className="relative bg-gray-900 border border-gray-800 rounded-3xl p-8 w-full max-w-sm flex flex-col items-center">
-            <button 
+            <button
               onClick={() => setSelectedPass(null)}
               className="absolute top-4 right-4 p-2 hover:bg-gray-800 rounded-lg text-gray-400"
             >
               <X className="w-6 h-6" />
             </button>
-            <QRCodeGenerator 
+            <QRCodeGenerator
               passToken={selectedPass.pass_token}
               participantName={selectedPass.participant_name}
               passType="VIP Entry Pass"

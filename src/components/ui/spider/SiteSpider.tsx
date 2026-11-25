@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
-import { Loader2, Pause, Play, Zap } from 'lucide-react';
+import { Loader2, Pause, Play } from 'lucide-react';
 import { useTheme } from '../../../context/ThemeContext';
 import { useSystemStatus } from '../../../context/CombinedDataProvider';
 import type { SpiderSceneProps } from './SpiderScene3D';
-import { SPIDER_SCARE_EVENT } from './spiderMotion';
 import { MechanicalSpiderIllustration } from './SpiderEmblem';
 
 function SpiderExperience() {
@@ -40,7 +39,6 @@ function SpiderExperience() {
       {!ready && !unavailable ? <Loader2 size={15} className="animate-spin" /> : paused ? <Play size={15} /> : <Pause size={15} />}
       <span>{unavailable ? 'Static spider' : !ready ? 'Loading spider' : paused ? 'Play spider' : 'Pause spider'}</span>
     </button>
-    <button type="button" className="site-spider-toggle site-spider-scare" disabled={unavailable || !ready || paused} aria-label="Make spider run" title="Make spider run. You can also click or tap the spider." onClick={() => window.dispatchEvent(new Event(SPIDER_SCARE_EVENT))}><Zap size={16} /></button>
     </div>
   </>;
 }

@@ -1,3 +1,4 @@
+import { useScheduleClashCheck } from '../hooks/useScheduleClashCheck';
 import React, { useState, useEffect, useId } from 'react';
 import { CalendarIcon, CheckCircledIcon } from '@radix-ui/react-icons';
 import { useFestivalDialog } from '../hooks/useFestivalDialog';
@@ -5,7 +6,8 @@ import { eventDate } from '../utils/eventPresentation';
 import { canRegisterNow } from '../utils/eventUtils';
 import '../styles/EventArena.css';
 import { createPortal } from 'react-dom';
-import { X, User, Users, Mail, Phone, BookOpen, ChevronRight, Check, Loader2, AlertCircle, Building2, Sparkles, PartyPopper, Search, IndianRupee } from 'lucide-react';
+import { X, User, Users, Mail, Phone, BookOpen, ChevronRight, Check, Loader2, AlertCircle, Building2, Sparkles, PartyPopper, IndianRupee } from 'lucide-react';
+import {useEventCart} from '../context/EventCartContext';
 import { useData } from '../context/DataContext';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -29,6 +31,9 @@ const labelCls = 'block text-[10px] font-black text-white/30 uppercase tracking-
 const iconCls = 'absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-indigo-400 transition-colors duration-300';
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose, eventId, eventTitle, previewOverrides }) => {
+  const cart=useEventCart();
+  const [selectedSavedTeam,setSelectedSavedTeam]=useState('');
+  const clashCheck = useScheduleClashCheck();
   const dialogRef = useFestivalDialog(isOpen, onClose);
   const dialogTitleId = useId();
   const { events, siteSettings, addRegistration } = useData() as any;
@@ -51,9 +56,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     team_members: [] as { id: string; name: string; username: string; batch?: string; avatar_url?: string; status: string }[]
   });
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searchingMembers, setSearchingMembers] = useState(false);
 
   // My Groups for 1-click registration
   const [myGroups, setMyGroups] = useState<any[]>([]);
@@ -76,17 +78,19 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
   useEffect(() => {
     if (isOpen) {
+      clashCheck.reset();
       setStep('form');
       setLoading(false);
       setError(null);
       setPendingRegistrationId('');
+      setSelectedSavedTeam('');
       if (event?.registration_default_mode) {
            setMode(event.registration_default_mode === 'team' ? 'team' : 'individual');
       }
       // Fetch student's groups for 1-click registration
       if (user && isAuthenticated) fetchMyGroups();
     }
-  }, [isOpen, user, isAuthenticated]); 
+  }, [isOpen, eventId, user, isAuthenticated]);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -110,35 +114,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       return () => clearTimeout(timer);
     }
   }, [step, onClose]);
-
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    const delayDebounce = setTimeout(async () => {
-      setSearchingMembers(true);
-      try {
-        const { data, error } = await supabase
-          .from('public_profiles')
-          .select('id, full_name, username, avatar_url, batch')
-          .or(`username.ilike.%${searchQuery}%,full_name.ilike.%${searchQuery}%`)
-          .not('id', 'eq', user?.id)
-          .limit(5);
-
-        if (!error && data) {
-          const addedIds = formData.team_members.map((m: any) => m.id);
-          setSearchResults(data.filter((u: any) => u.username && !addedIds.includes(u.id)));
-        }
-      } catch (err) {
-        console.error('Error searching members:', err);
-      } finally {
-        setSearchingMembers(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(delayDebounce);
-  }, [searchQuery, formData.team_members, user?.id]);
 
   // Fetch my groups
   const fetchMyGroups = async () => {
@@ -180,10 +155,21 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     }
   };
 
+  const openCheckout = (isTeam: boolean) => {
+    cart.addToCart({ id: String(eventId), title: eventTitle, category: event.category, isTeam,
+      min_team: minTeamSize, max_team: maxTeamSize, team_id: isTeam ? selectedSavedTeam || undefined : undefined,
+      payment_enabled: event.payment_enabled, payment_amount: event.payment_amount,
+      coordinator_upi_id: event.coordinator_upi_id, coordinator_upi_name: event.coordinator_upi_name, date: event.date });
+    onClose();
+    cart.openDrawer();
+  };
+
   // 1-click individual registration (no form needed)
   const handleOneClickIndividual = async () => {
     if (!user || !profile || !isProfileComplete) return;
     if (!canRegisterNow(event)) return setError('Registration is currently closed for this event.');
+    if (!previewOverrides) { openCheckout(false); return; }
+    if (!await clashCheck.check([{ ...event, id: eventId, title: eventTitle }])) return;
     setOneClickLoading(true);
     setError(null);
     try {
@@ -246,7 +232,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     }
   };
 
-  // Load a saved team into the same reviewed entry and payment flow as a manual team.
+  // Load accepted teammates before reviewing the entry in the event cart.
   const handleOneClickGroup = (group: any) => {
     if (!canRegisterNow(event)) return setError('Registration is currently closed for this event.');
     if (!user || !profile) return;
@@ -259,7 +245,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     });
     const total = acceptedMembers.length + 1;
     if (total < minTeamSize || total > maxTeamSize) return setError(`This event needs ${minTeamSize}–${maxTeamSize} team members. Your group has ${total}.`);
-    if (acceptedMembers.some((member: any) => !member.profile?.username || !member.profile?.full_name)) return setError('Each teammate needs a complete profile with a username before you can use this group.');
+    if (acceptedMembers.some((member: any) => !member.profile?.full_name)) return setError('Each teammate needs a complete student profile.');
+    setSelectedSavedTeam(group.id);
     setError(null);
     setFormData(previous => ({
       ...previous,
@@ -267,38 +254,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       team_members: acceptedMembers.map((member: any) => ({
         id: member.user_id,
         name: member.profile.full_name,
-        username: member.profile.username,
+        username: member.profile.username || '',
         batch: member.profile.batch || '',
         avatar_url: member.profile.avatar_url || '',
-        status: 'pending',
+        status: 'accepted',
       })),
-    }));
-  };
-
-  const addInvitedMember = (userProfile: any) => {
-    if (formData.team_members.length >= maxTeamSize - 1) {
-      setError(`Max team size is ${maxTeamSize}.`);
-      return;
-    }
-    setFormData(prev => ({
-      ...prev,
-      team_members: [...prev.team_members, {
-        id: userProfile.id,
-        name: userProfile.full_name,
-        username: userProfile.username,
-        batch: userProfile.batch,
-        avatar_url: userProfile.avatar_url,
-        status: 'pending'
-      }]
-    }));
-    setSearchQuery('');
-    setSearchResults([]);
-  };
-
-  const removeTeamMember = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      team_members: prev.team_members.filter((_, i) => i !== index)
     }));
   };
 
@@ -306,6 +266,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     e.preventDefault();
     setError(null);
     if (!canRegisterNow(event)) return setError('Registration is currently closed for this event.');
+    if (!previewOverrides) {
+      if (!user || !isProfileComplete) return setError('Complete your student profile and college IQMG number before registering.');
+      if (!profile?.is_approved) return setError('Your student profile is waiting for admin approval.');
+      if (mode === 'team' && !selectedSavedTeam) return setError('Choose an accepted team above, or create one in My teams first.');
+      openCheckout(mode === 'team');
+      return;
+    }
 
     if (!formData.name.trim()) return setError('Name is required.');
     if (!formData.email.trim()) return setError('Email is required.');
@@ -320,6 +287,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       if (formData.team_members.some(m => !m.name || !m.name.trim())) return setError('All team member names are required.');
     }
 
+      if (!await clashCheck.check([{ ...event, id: eventId, title: eventTitle }])) return;
       setLoading(true);
       
       let newId = 'RICO1';
@@ -373,20 +341,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       } else {
         await addRegistration(payload);
         
-        // Create invitations for invited teammates
-        if (mode === 'team' && formData.team_members.length > 0) {
-          const invites = formData.team_members.map(m => ({
-            event_id: eventId.toString(),
-            registration_id: newId,
-            sender_id: user?.id,
-            receiver_username: m.username,
-            receiver_id: m.id,
-            status: 'pending'
-          }));
-          const { error: inviteErr } = await supabase.from('group_invitations').insert(invites);
-          if (inviteErr) console.error('[RegistrationModal] Failed to insert group invitations:', inviteErr);
-        }
       }
+
       
       setSuccessId(newId);
       // Successfully registered — clean up local storage
@@ -534,7 +490,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                     <span className="text-[10px] font-black text-indigo-400/60 uppercase tracking-[0.2em]">Event Registration</span>
                  </div>
                  <h2 className="text-2xl font-black text-white tracking-tight pr-10 leading-tight">{eventTitle}</h2>
-                 <p className="text-white/30 text-sm mt-1.5 font-medium">Complete the form below to secure your spot.</p>
+                 <p className="text-white/30 text-sm mt-1.5 font-medium">Review your student details, then continue to checkout. Your coordinator approves the event entry.</p>
               </div>
 
               {/* Scrollable form body */}
@@ -542,6 +498,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                  data-lenis-prevent
                  className="flex-1 overflow-y-auto px-7 pb-32 custom-scrollbar space-y-6"
               >
+                  {!previewOverrides && (!isProfileComplete || !profile?.is_approved) && <div role="alert" className="text-sm text-amber-200"><p>{!isProfileComplete ? 'Complete your profile and college IQMG number first.' : 'Your profile is waiting for admin approval.'}</p><a className="arena-inline-link" href="/dashboard">Open student profile setup</a></div>}
                   {/* ─── 1-Click Quick Register (Individual) ─── */}
                   {mode === 'individual' && isProfileComplete && (
                     <div className="p-4 rounded-2xl border border-green-500/20 bg-green-500/[0.03] space-y-3">
@@ -663,7 +620,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                           <User className={iconCls} size={16} />
                           <input 
                             type="text" 
-                            value={formData.name}
+                            readOnly={!previewOverrides} value={formData.name}
                             onChange={e => setFormData(p => ({...p, name: e.target.value}))}
                             placeholder="Enter your full name"
                             className={inputCls}
@@ -679,7 +636,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                               <Mail className={iconCls} size={16} />
                               <input 
                                 type="email" 
-                                value={formData.email}
+                                readOnly={!previewOverrides} value={formData.email}
                                 onChange={e => setFormData(p => ({...p, email: e.target.value}))}
                                 placeholder="you@example.com"
                                 className={inputCls}
@@ -692,7 +649,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                               <Phone className={iconCls} size={16} />
                               <input 
                                 type="tel" 
-                                value={formData.phone}
+                                readOnly={!previewOverrides} value={formData.phone}
                                 onChange={e => {
                                   const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                                   setFormData(p => ({...p, phone: val}));
@@ -716,7 +673,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                             <Building2 className={iconCls} size={16} />
                             <input 
                               type="text" 
-                              value={formData.institution}
+                              readOnly={!previewOverrides} value={formData.institution}
                               onChange={e => setFormData(p => ({...p, institution: e.target.value}))}
                               placeholder="Your university or college"
                               className={inputCls}
@@ -731,7 +688,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                        <div className="relative">
                           <BookOpen className={iconCls} size={16} />
                           <select 
-                            value={formData.participant_type}
+                            disabled={!previewOverrides} value={formData.participant_type}
                             onChange={e => setFormData(p => ({...p, participant_type: e.target.value}))}
                             className={`${inputCls} appearance-none cursor-pointer [&>option]:bg-[#0a0a12] [&>option]:text-white`}
                           >
@@ -745,126 +702,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                     </div>
                  </div>
 
-                 {/* Team Section */}
-                 {mode === 'team' && (
-                    <div className="space-y-5 pt-5 border-t border-white/[0.04] animate-in slide-in-from-top-4 duration-500">
-                       <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg bg-purple-500/15 border border-purple-500/20 flex items-center justify-center">
-                             <Users className="text-purple-400" size={13} />
-                          </div>
-                          <h3 className="text-sm font-black text-white tracking-tight">Team Details</h3>
-                       </div>
-                       
-                       <div className="group">
-                          <label className={labelCls}>Team Name <span className="text-rose-400">*</span></label>
-                          <input 
-                            type="text" 
-                            value={formData.team_name}
-                            onChange={e => setFormData(p => ({...p, team_name: e.target.value}))}
-                            placeholder="Enter your team name"
-                            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl py-3.5 px-4 text-[15px] text-white placeholder-white/20 focus:outline-none focus:bg-white/[0.07] focus:border-purple-500/40 focus:ring-1 focus:ring-purple-500/30 transition-all duration-300"
-                          />
-                       </div>
-
-                       <div className="space-y-3">
-                          <div className="flex justify-between items-center">
-                             <label className={labelCls + ' mb-0'}>Teammates Invited <span className="text-rose-400">*</span></label>
-                             <span className="text-[10px] font-bold text-white/20 uppercase tracking-wider bg-white/[0.03] px-2.5 py-1 rounded-lg">
-                               {formData.team_members.length + 1} / {maxTeamSize}
-                             </span>
-                          </div>
-                          
-                          {/* Invited members list */}
-                          {formData.team_members.map((member, idx) => (
-                             <div key={member.id || idx} className="flex items-center gap-3 p-2.5 rounded-xl border border-white/[0.04] bg-white/[0.02] animate-in fade-in slide-in-from-left-3 duration-300">
-                                <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                                   {member.avatar_url ? (
-                                      <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
-                                   ) : (
-                                      <User size={14} className="text-gray-400" />
-                                   )}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                   <p className="text-xs font-black text-white truncate leading-none">{member.name}</p>
-                                   <p className="text-[10px] text-indigo-400 font-bold truncate mt-0.5">@{member.username}</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                   <span className="text-[8px] font-black uppercase tracking-widest text-yellow-500/80 bg-yellow-500/10 border border-yellow-500/25 px-2 py-0.5 rounded-lg shrink-0">
-                                      Pending
-                                   </span>
-                                   <button 
-                                     type="button"
-                                     onClick={() => removeTeamMember(idx)}
-                                     className="w-8 h-8 rounded-lg flex items-center justify-center border border-white/[0.05] bg-white/[0.02] hover:bg-rose-500/10 hover:border-rose-500/20 text-white/20 hover:text-rose-400 transition-all duration-300"
-                                   >
-                                     <X size={13} />
-                                   </button>
-                                </div>
-                             </div>
-                          ))}
-
-                          {/* Member search bar */}
-                          {formData.team_members.length < maxTeamSize - 1 ? (
-                             <div className="relative z-30">
-                                <div className="relative">
-                                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20" size={14} />
-                                   <input 
-                                      type="text"
-                                      value={searchQuery}
-                                      onChange={e => setSearchQuery(e.target.value)}
-                                      placeholder="Search teammate by @username or name..."
-                                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl py-3 pl-11 pr-4 text-xs text-white placeholder-white/20 focus:outline-none focus:bg-white/[0.07] focus:border-purple-500/40 focus:ring-1 focus:ring-purple-500/30 transition-all duration-300"
-                                   />
-                                   {searchingMembers && (
-                                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-                                         <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
-                                      </div>
-                                   )}
-                                </div>
-
-                                {/* Search results dropdown */}
-                                {searchResults.length > 0 && (
-                                   <div className="absolute left-0 right-0 mt-2 bg-[#121620] border border-white/10 rounded-2xl shadow-[0_12px_30px_rgba(0,0,0,0.5)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                      {searchResults.map((u) => (
-                                         <button
-                                            key={u.id}
-                                            type="button"
-                                            onClick={() => addInvitedMember(u)}
-                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] text-left transition-colors border-b border-white/[0.03] last:border-b-0"
-                                         >
-                                            <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                                               {u.avatar_url ? (
-                                                  <img src={u.avatar_url} alt={u.full_name} className="w-full h-full object-cover" />
-                                               ) : (
-                                                  <User size={13} className="text-gray-400" />
-                                               )}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                               <p className="text-xs font-black text-white truncate leading-none">{u.full_name}</p>
-                                               <p className="text-[10px] text-gray-500 font-bold truncate mt-0.5">@{u.username} • {u.batch || 'Student'}</p>
-                                            </div>
-                                            <div className="text-[9px] font-black uppercase tracking-wider text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-lg">
-                                               Add
-                                            </div>
-                                         </button>
-                                      ))}
-                                   </div>
-                                )}
-
-                                {searchQuery.trim() && searchResults.length === 0 && !searchingMembers && (
-                                   <div className="absolute left-0 right-0 mt-2 bg-[#121620] border border-white/10 rounded-2xl p-4 text-center text-xs text-gray-500 font-medium">
-                                      No student found with username or name "{searchQuery}"
-                                   </div>
-                                )}
-                             </div>
-                          ) : (
-                             <p className="text-[10px] text-green-400 font-black uppercase tracking-widest text-center mt-2 bg-green-500/5 border border-green-500/10 p-2.5 rounded-xl">
-                                Maximum team size reached
-                             </p>
-                          )}
-                       </div>
-                    </div>
-                 )}
+                 {mode === 'team' && <section className="space-y-3 pt-5 border-t border-white/10">
+                   <h3 className="text-sm font-bold text-white">Your accepted team</h3>
+                   <p className="text-sm text-gray-400">Create or join a team using verified IQMG numbers and a unique Team ID. Only accepted members count for this event.</p>
+                   <a href="/dashboard/teams?from=cart&create=1" onClick={()=>{cart.addToCart({id:String(eventId),title:eventTitle,category:event.category,isTeam:true,min_team:minTeamSize,max_team:maxTeamSize,team_id:selectedSavedTeam||undefined,payment_enabled:event.payment_enabled,payment_amount:event.payment_amount,coordinator_upi_id:event.coordinator_upi_id,coordinator_upi_name:event.coordinator_upi_name,date:event.date});onClose();}} className="arena-inline-link">Open My teams</a>
+                   {selectedSavedTeam && <div className="p-4 rounded-xl border border-green-500/30"><strong>{formData.team_name}</strong><ul>{formData.team_members.map(member=><li key={member.id} className="text-sm text-gray-300 py-2">{member.name} · {member.batch || 'Student'} · Accepted</li>)}</ul><p className="text-xs text-gray-400">Continue to the event cart to review team size and payment before registering.</p></div>}
+                 </section>}
 
                  {/* Error Alert */}
                  {error && (
@@ -875,6 +718,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                  )}
               </div>
               
+              {clashCheck.notice}
               {/* Submit footer */}
               <div className="p-7 pt-5 border-t border-white/[0.04] bg-black/20 backdrop-blur-md shrink-0">
                  <button
@@ -884,7 +728,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                     disabled={loading}
                     className="w-full py-4 bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:via-indigo-400 hover:to-purple-500 text-white rounded-2xl font-black text-sm uppercase tracking-[0.15em] shadow-[0_8px_32px_-4px_rgba(99,102,241,0.4)] hover:shadow-[0_8px_40px_-4px_rgba(99,102,241,0.55)] transform active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2.5 disabled:opacity-40 disabled:pointer-events-none"
                  >
-                    {loading ? <Loader2 className="animate-spin" size={18} /> : <div className="flex items-center gap-2.5">Confirm Registration <ChevronRight size={16} /></div>}
+                    {loading ? <Loader2 className="animate-spin" size={18} /> : <div className="flex items-center gap-2.5">{!previewOverrides ? mode === 'team' ? 'Continue to team checkout' : 'Continue to event checkout' : 'Confirm Registration'} <ChevronRight size={16} /></div>}
                  </button>
               </div>
            </div>

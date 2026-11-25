@@ -1,0 +1,44 @@
+.portal-brand {
+  --portal-brand-accent: #dfb894;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 1;
+  gap: 12px;
+  min-width: 0;
+  min-height: 62px;
+  padding: 10px 16px 10px 12px;
+  border: 1px solid #dfb89440;
+  border-radius: 16px;
+  background: #10121def;
+  color: #f8eee4;
+  text-decoration: none;
+  box-shadow: 0 4px 12px #0003;
+}
+.portal-brand:focus-visible { outline: 2px solid var(--portal-brand-accent); outline-offset: 4px; }
+.portal-brand__mark { display: grid; place-items: center; flex-shrink: 0; width: 42px; height: 42px; }
+.portal-brand__mark .brand3d-img { max-width: 100%; object-fit: contain; filter: none !important; transform: none !important; animation: none !important; transition: none; will-change: auto; }
+.portal-brand__mark .brand3d-fallback { background: none; color: var(--portal-brand-accent); -webkit-text-fill-color: currentColor; animation: none; }
+.portal-brand__copy { display: grid; gap: 3px; min-width: 0; }
+.portal-brand__name { font: 500 31px/1 'Crimson Pro', Georgia, serif; color: #f8eee4; white-space: nowrap; text-wrap: balance; }
+.portal-brand__caption { font: 500 10px/1.4 'Rajdhani', system-ui, sans-serif; color: #c6bcb4; white-space: nowrap; }
+.portal-brand__edition { display: grid; gap: 3px; padding-left: 16px; margin-left: 4px; border-left: 1px solid #dfb89440; color: var(--portal-brand-accent); text-align: center; }
+.portal-brand__edition > span { font: 500 9px/1 'Rajdhani', system-ui, sans-serif; text-transform: uppercase; }
+.portal-brand__edition strong { font: 500 23px/1 'Crimson Pro', Georgia, serif; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) {
+  .portal-brand { min-height: 48px; gap: 7px; padding: 7px 10px 7px 7px; border-radius: 12px; }
+  .portal-brand__mark { width: 30px; height: 32px; }
+  .portal-brand__mark > span { transform: scale(.82); }
+  .portal-brand__name { font-size: 24px; }
+  .portal-brand__caption { font-size: 8px; }
+  .portal-brand__edition { padding-left: 9px; margin-left: 2px; gap: 3px; }
+  .portal-brand__edition > span { font-size: 8px; }
+  .portal-brand__edition strong { font-size: 19px; }
+}
+@media (max-width: 380px) {
+  .portal-brand { gap: 5px; padding-inline: 6px; }
+  .portal-brand__mark { width: 25px; }
+  .portal-brand__name { font-size: 21px; }
+  .portal-brand__caption { font-size: 7px; }
+  .portal-brand__edition { padding-left: 6px; }
+  .portal-brand__edition strong { font-size: 17px; }
+}

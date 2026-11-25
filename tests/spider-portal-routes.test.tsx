@@ -5,13 +5,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { SiteSpiderEffects } from '../src/components/ui/spider/SiteSpiderEffects';
 import { isFestivalRoute, isPortalRoute } from '../src/utils/portalRoutes';
 import { publishIntroPhase, rememberIntroFallback } from '../src/components/cinematic/introCapability';
+import { FestivalSceneProvider, useFestivalSceneReadiness } from '../src/components/ui/festival/FestivalSceneReadiness';
 
 const mocks = vi.hoisted(() => ({ mounted: vi.fn(), disposed: vi.fn() }));
 vi.mock('../src/components/ui/spider/SiteSpider', () => ({ SiteSpider: () => {
   useEffect(() => { mocks.mounted(); return () => mocks.disposed(); }, []);
   return <div data-spider-experience><div className="site-spider-controls" /><div data-spider-web-highlight /></div>;
 } }));
-vi.mock('../src/components/ui/spider/SpiderOpening', () => ({ SpiderOpening: ({ loading }: { loading: boolean }) => <div data-spider-opening data-loading={String(loading)} /> }));
 
 let container: HTMLDivElement;
 let root: Root;
@@ -80,17 +80,46 @@ it('disposes the scene on staff entry, restores it for students, and keeps it al
   expect(container.querySelector('[data-spider-opening]')).toBeNull();
   expect(mocks.mounted).toHaveBeenCalledTimes(2);
   await render('/schedule');
-  expect(container.querySelector('[data-spider-opening]')).not.toBeNull();
+  expect(container.querySelector('[data-spider-opening]')).toBeNull();
   expect(mocks.mounted).toHaveBeenCalledTimes(2);
 });
 
-it.each(['/', '/events', '/gallery', '/sports', '/schedule', '/sponsors', '/rico-family', '/home-bound'])('keeps the public festival and loading introduction on %s', async path => {
+it.each(['/', '/events', '/gallery', '/sports', '/schedule', '/sponsors', '/rico-family'])('keeps the spider off public entry %s until the app is ready, without an opening overlay', async path => {
   expect(isPortalRoute(path)).toBe(false);
   expect(isFestivalRoute(path)).toBe(true);
   await render(path, false);
-  expect(container.querySelector('[data-spider-opening]')?.getAttribute('data-loading')).toBe('true');
+  expect(container.querySelector('[data-spider-opening]')).toBeNull();
+  expect(container.querySelector('[data-spider-experience]')).toBeNull();
   await render(path, true);
-  expect(container.querySelector('[data-spider-opening]')?.getAttribute('data-loading')).toBe('false');
+  expect(container.querySelector('[data-spider-opening]')).toBeNull();
+  expect(container.querySelector('[data-spider-experience]')).not.toBeNull();
+});
+
+it('keeps the Homebound concert page clear and restores effects on other festival pages', async () => {
+  await render('/home-bound', true);
+  expect(container.querySelector('[data-spider-experience]')).toBeNull();
+  expect(container.querySelector('.site-spider-controls')).toBeNull();
+  await render('/events', true);
+  expect(container.querySelector('[data-spider-experience]')).not.toBeNull();
+});
+
+it('waits for the public scene to settle before mounting the roaming spider', async () => {
+  function SceneReady() {
+    const { setSettled } = useFestivalSceneReadiness();
+    return <button onClick={() => setSettled(true)}>Scene ready</button>;
+  }
+  await act(async () => root.render(<FestivalSceneProvider required><SceneReady /><SiteSpiderEffects pathname="/" theme="spiderman" isReady /></FestivalSceneProvider>));
+  expect(container.querySelector('[data-spider-opening]')).toBeNull();
+  expect(container.querySelector('[data-spider-experience]')).toBeNull();
+  expect(mocks.mounted).not.toHaveBeenCalled();
+  await act(async () => container.querySelector('button')!.click());
+  expect(container.querySelector('[data-spider-experience]')).not.toBeNull();
+  expect(mocks.mounted).toHaveBeenCalledOnce();
+});
+
+it('keeps student effects available while the unrelated public scene is pending', async () => {
+  await act(async () => root.render(<FestivalSceneProvider required><SiteSpiderEffects pathname="/dashboard" theme="spiderman" isReady={false} /></FestivalSceneProvider>));
+  expect(container.querySelector('[data-spider-opening]')).toBeNull();
   expect(container.querySelector('[data-spider-experience]')).not.toBeNull();
 });
 

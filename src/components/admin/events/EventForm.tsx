@@ -298,6 +298,7 @@ export const EventForm: React.FC<EventFormProps> = ({
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">WhatsApp Group Link</label>
+                      <p className="text-xs text-gray-400 mb-2">Visible only to approved, active participants and authorised event staff.</p>
                       <input
                         type="url"
                         value={formData.whatsapp_group_link || ''}

@@ -26,6 +26,7 @@
     "test:rico-family-db": "node scripts/check-rico-family-database.mjs",
     "audit:rico-family": "node scripts/audit-rico-family.mjs",
     "check:security": "node scripts/security-check.mjs --dist",
+    "check:security:history": "node scripts/security-check.mjs --history",
     "postbuild": "node scripts/security-check.mjs --dist"
   },
   "dependencies": {

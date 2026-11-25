@@ -1,0 +1,8 @@
+.student-clash-warning { margin: 16px; padding: 18px; border: 1px solid #9a7a42; border-radius: 10px; background: #282619; color: #eddbb8; font: 12px/1.7 system-ui,sans-serif; }
+.student-clash-warning > strong { font-size: 14px; }
+.student-clash-warning ul { list-style: disc; padding-left: 20px; margin: 10px 0; }
+.student-clash-warning p { color: #c5bca7; margin: 10px 0; font-size: 11px; }
+.student-clash-warning label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.student-clash-warning input { width: 18px; height: 18px; margin-top: 4px; accent-color: #b5dd95; flex-shrink: 0; }
+
+.student-clash-warning { max-height: min(240px,35dvh); overflow-y: auto; flex-shrink: 0; }

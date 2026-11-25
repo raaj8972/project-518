@@ -1536,6 +1536,7 @@ export interface Database {
       }
       homebound_settings: {
         Row: {
+          page_content: import('../types/supabase').Json
           id: number
           instagram_url: string | null
           instagram_enabled: boolean
@@ -1543,6 +1544,7 @@ export interface Database {
           updated_at: string
         }
         Insert: {
+          page_content?: import('../types/supabase').Json
           id?: number
           instagram_url?: string | null
           instagram_enabled?: boolean
@@ -1550,6 +1552,7 @@ export interface Database {
           updated_at?: string
         }
         Update: {
+          page_content?: import('../types/supabase').Json
           id?: number
           instagram_url?: string | null
           instagram_enabled?: boolean

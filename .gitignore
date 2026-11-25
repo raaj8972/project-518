@@ -93,5 +93,6 @@ supabase/.temp/
 # Repeatable artist schema, role and storage verification.
 !scripts/audit-artist-stage.mjs
 !scripts/audit-artist-access.mjs
+!scripts/audit-homebound-content.mjs
 !scripts/diagnostics/artist-access-probes.mjs
 !scripts/diagnostics/guest-artist-save-smoke.mjs

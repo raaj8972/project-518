@@ -154,7 +154,10 @@ export const Login: React.FC = () => {
       <div className="staff-login-background" aria-hidden="true" />
       <div className="staff-login-layout">
         <aside className="staff-login-brand" aria-label="Festival management portal">
-          <div className="staff-login-college"><HeartPulse size={39} strokeWidth={1.25} /><span><strong>IQ CITY</strong><span>Medical College Hospital</span><small>Durgapur</small></span></div>
+          <div className="staff-login-college">
+            <span className="staff-login-college-mark" aria-hidden="true"><HeartPulse size={27} strokeWidth={1.4} /></span>
+            <div className="staff-login-college-copy"><span className="staff-login-college-kicker">Our host institute</span><strong>IQ City</strong><span>Medical College Hospital</span><small>Durgapur, West Bengal</small></div>
+          </div>
           <div className="staff-login-brand-content">
             <div className="staff-login-emblem">{brandMark(86)}</div>
             <h2>Ricorren<span>z</span>a</h2>

@@ -1,3 +1,4 @@
+import ParticipationVerification from '../shared/ParticipationVerification';
 import { supabase } from '../../lib/supabase';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Trophy, Plus, Trash2, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
@@ -276,6 +277,7 @@ export const EventRoundsSection: React.FC<Props> = ({ session, approvedRegs, pus
         <p className="text-sm text-gray-400 mt-0.5">{approvedRegs.length} approved participants</p>
       </div>
 
+      <ParticipationVerification eventId={session?.eventId ? String(session.eventId) : undefined} />
       {/* Add Round */}
       <div className="flex gap-2">
         <input

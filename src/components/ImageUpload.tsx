@@ -26,7 +26,7 @@ interface ImageUploadProps {
   /** Display the active site fallback without treating it as an uploaded draft asset. */
   previewFallback?: string;
   className?: string;
-  bucket: 'event-images' | 'gallery-images' | 'roadmap-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'guest-artist-audio' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos' | 'sports-images' | 'hero_v2' | 'team-branding';
+  bucket: 'event-images' | 'gallery-images' | 'roadmap-images' | 'sponsor-logos' | 'sponsor-brochures' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'guest-artist-audio' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos' | 'sports-images' | 'hero_v2' | 'team-branding';
   folder?: string;
   acceptedTypes?: string;
   fileTypeLabel?: string;

@@ -9,6 +9,7 @@ const Navbar = lazy(() => import('./components/Navbar').then(m => ({ default: m.
 const Footer = lazy(() => import('./components/Footer').then(m => ({ default: m.Footer })));
 
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { StudentEventToolsProvider } from './context/StudentEventToolsContext';
 import { StudentAuthProvider } from './context/StudentAuthContext';
 import { DataProvider } from './context/DataContext';
 import { useCoreData } from './context/CoreDataContext';
@@ -50,6 +51,8 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ 
 const CoordinatorLogin = lazy(() => import('./pages/CoordinatorLogin').then(m => ({ default: (m as any).CoordinatorLogin }))) as unknown as React.ComponentType<any>;
 const CoordinatorDashboard = lazy(() => import('./components/coordinator/CoordinatorDashboard').then(m => ({ default: (m as any).CoordinatorDashboard }))) as unknown as React.ComponentType<any>;
 const DashboardLayout = lazy(() => import('./layouts/DashboardLayout')) as unknown as React.ComponentType<any>;
+const DashboardGuide = lazy(() => import('./pages/dashboard/Guide'));
+const DashboardNotifications = lazy(() => import('./pages/dashboard/Notifications'));
 const DashboardOverview = lazy(() => import('./pages/dashboard/Overview')) as unknown as React.ComponentType<any>;
 const DashboardAnnouncements = lazy(() => import('./pages/dashboard/Announcements')) as unknown as React.ComponentType<any>;
 const DashboardMessages = lazy(() => import('./pages/dashboard/Messages')) as unknown as React.ComponentType<any>;
@@ -262,6 +265,8 @@ const InnerRouter: React.FC = () => {
           element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><DashboardLayout /></React.Suspense>,
           children: [
             { index: true, element: <React.Suspense fallback={null}><DashboardOverview /></React.Suspense> },
+            { path: 'guide', element: <React.Suspense fallback={null}><DashboardGuide /></React.Suspense> },
+            { path: 'notifications', element: <React.Suspense fallback={null}><DashboardNotifications /></React.Suspense> },
             { path: 'announcements', element: <React.Suspense fallback={null}><DashboardAnnouncements /></React.Suspense> },
             { path: 'messages', element: <React.Suspense fallback={null}><DashboardMessages /></React.Suspense> },
             { path: 'passes', element: <React.Suspense fallback={null}><DashboardPasses /></React.Suspense> },
@@ -340,6 +345,7 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <StudentAuthProvider>
+        <StudentEventToolsProvider>
           <EventCartProvider>
           <CombinedDataProvider>
             <DataProvider>
@@ -359,6 +365,7 @@ export default function App() {
             </DataProvider>
           </CombinedDataProvider>
           </EventCartProvider>
+        </StudentEventToolsProvider>
         </StudentAuthProvider>
       </AuthProvider>
     </ErrorBoundary>

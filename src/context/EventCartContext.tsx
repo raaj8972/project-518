@@ -12,6 +12,7 @@ export interface CartEvent {
   min_team?: number;
   max_team?: number;
   isTeam?: boolean;
+  team_id?: string;
 }
 
 interface EventCartContextType {
@@ -45,7 +46,7 @@ export const EventCartProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addToCart = useCallback((event: CartEvent) => {
     setCartItems(prev => {
-      if (prev.find(e => e.id === event.id)) return prev;
+      if (prev.find(e => e.id === event.id)) return event.team_id ? prev.map(item=>item.id===event.id?{...item,team_id:event.team_id}:item) : prev;
       return [...prev, event];
     });
   }, []);

@@ -1,0 +1,18 @@
+.event-group-note { color: #a3b4aa; font-size: 12px; line-height: 1.7; padding-block: 10px; }
+.event-group-card { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 20px; margin: 0 0 20px; border: 1px solid #33704d; border-radius: 12px; background: #112a1c; }
+.event-group-copy { min-width: 0; }
+.event-group-card .event-group-label { display: block; color: #a2c5ac; font: 500 9px/1.5 'Geist Variable',system-ui,sans-serif; margin-bottom: 6px; }
+.event-group-card .event-group-title { font: 600 16px/1.4 'Geist Variable',system-ui,sans-serif; color: #edf7ef; margin: 0; text-wrap: balance; }
+.event-group-card .event-group-copy > p { margin: 6px 0 0; color: #b5cbbc; font: 400 12px/1.7 'Geist Variable',system-ui,sans-serif; text-wrap: pretty; }
+.event-group-card .event-group-link { display: inline-flex; flex-shrink: 0; justify-content: center; align-items: center; gap: 10px; min-height: 48px; padding: 12px 18px; border: 1px solid #25d366; border-radius: 8px; background: #25d366; color: #072c17; font: 600 13px/1.5 'Geist Variable',system-ui,sans-serif; text-decoration: none; }
+.event-group-card .event-group-link:hover { background: #4de485; border-color: #4de485; }
+.event-group-link > svg { width: 16px; height: 16px; flex-shrink: 0; }
+.event-group-link > .event-group-whatsapp-icon { width: 21px; height: 21px; }
+.event-group-note button { background: none; color: #b5dd95; text-decoration: underline; border: 0; padding: 4px; cursor: pointer; }
+.event-group-note button:focus-visible,.event-group-card .event-group-link:focus-visible { outline: 2px solid #b5dd95; outline-offset: 4px; }
+.event-group-inset { padding-inline: 20px; }
+@media(max-width:639px) {
+ .event-group-card { flex-direction: column; align-items: stretch; gap: 16px; padding: 17px; }
+ .event-group-card .event-group-link { width: 100%; }
+ .event-group-inset { padding-inline: 12px; }
+}

@@ -14,6 +14,9 @@ import { dualUpdate } from '../src/lib/dualDb';
 import { eventCalendar } from '../src/utils/eventActions';
 import { groupParticipantIds } from '../src/utils/cartParticipants';
 
+vi.mock('../src/context/EventsContext', () => ({ useEventsData: () => ({ events: [], loading: false, isLoaded: true }) }));
+vi.mock('../src/context/StudentAuthContext', () => ({ useStudentAuth: () => ({ user: { id: 'student' } }) }));
+
 const mocks = vi.hoisted(() => ({ client: { rpc: vi.fn(), auth: { admin: { generateLink: vi.fn(), updateUserById: vi.fn() }, signInWithPassword: vi.fn() }, from: vi.fn() }, verify: vi.fn(), query: vi.fn(), storage: { from: vi.fn(), listBuckets: vi.fn() } }));
 vi.mock('../src/lib/supabase', () => ({ supabase: { storage: mocks.storage, from: mocks.query, auth: { onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) } } }));
 vi.mock('../netlify/functions/lib/supabase', () => ({ getSupabaseClient: () => mocks.client }));
@@ -26,6 +29,7 @@ let root: Root;
 beforeEach(() => {
   vi.resetAllMocks();
   invalidateStorageInventory();
+  vi.stubEnv('PORTAL_PASSWORD_VAULT_KEY', 'fixture-portal-password-vault-key-32b');
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container);
 });
@@ -116,7 +120,7 @@ describe('server authorization', () => {
 describe('working panel contracts', () => {
   it('shows the actual registration state rather than confirming unpaid registrations', async () => {
     const Context = () => <Outlet context={{ dataLoading:false, registrations:[{id:'reg',event_id:'event',status:'payment_pending',event:{title:'Paid event'}}] }} />;
-    await act(async () => root.render(<MemoryRouter initialEntries={['/dashboard/events']} future={{v7_startTransition:true,v7_relativeSplatPath:true}}><Routes><Route path="/dashboard" element={<Context />}><Route path="events" element={<EventsPanel />} /></Route></Routes></MemoryRouter>));
+    await act(async () => root.render(<MemoryRouter initialEntries={['/dashboard/events?view=registrations']} future={{v7_startTransition:true,v7_relativeSplatPath:true}}><Routes><Route path="/dashboard" element={<Context />}><Route path="events" element={<EventsPanel />} /></Route></Routes></MemoryRouter>));
     expect(container.textContent).toContain('payment pending');
     expect(container.textContent).not.toContain('Confirmed');
     expect(container.querySelectorAll('button').length).toBeGreaterThan(1);
@@ -137,7 +141,7 @@ describe('working panel contracts', () => {
   it('returns council success without leaking a shared sports password', async () => {
     mocks.client.rpc.mockResolvedValueOnce({data:{allowed:true},error:null}).mockResolvedValueOnce({data:true,error:null});
     const result = await run(councilLogin,{passcode:'test-code'});
-    expect(JSON.parse(result.body)).toEqual({success:true});
+    expect(JSON.parse(result.body)).toMatchObject({success:true});
     expect(mocks.client.auth.admin.generateLink).not.toHaveBeenCalled();
   });
   it('retires the shared sports passcode login in favour of individual admin permissions', async () => {

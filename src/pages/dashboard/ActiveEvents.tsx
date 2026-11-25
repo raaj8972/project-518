@@ -1,4 +1,7 @@
-import { getRankingData, subscribeRankingData } from '../../services/rankingData';
+import { getStudentScoreboard } from '../../services/studentRewards';
+import EventWhatsAppGroup from '../../components/shared/EventWhatsAppGroup';
+import { subscribeRankingData } from '../../services/rankingData';
+import type { TopStarProfile } from '../../hooks/useTopStars';
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOutletContext, useNavigate } from 'react-router-dom';
@@ -74,144 +77,17 @@ const ActiveEvents: React.FC = () => {
   const [payments, setPayments] = useState<Record<string, any>>({});
   const [paymentTarget, setPaymentTarget] = useState<any | null>(null);
   const [fetchingPaymentDetails, setFetchingPaymentDetails] = useState<string | null>(null);
-  const [globalRanks, setGlobalRanks] = useState<Record<string, { rank: number; tier: string; xp: number; likes: number; score: number }>>({});
+  const [globalRanks, setGlobalRanks] = useState<Record<string, TopStarProfile & { likes: number; score: number }>>({});
 
   // Fetch global ranks list
   useEffect(() => {
     const fetchRanks = async () => {
       try {
-        const { profiles: allProfiles, registrations: regsList, rounds: roundsList, eventRounds } = await getRankingData();
+        const { students } = await getStudentScoreboard();
+        const ranksMap: Record<string, TopStarProfile & { likes: number; score: number }> = {};
+        students.forEach(student => { ranksMap[student.id] = { ...student, likes: student.likes_count, score: student.hype_score }; });
+        setGlobalRanks(ranksMap);
 
-        const roundNameMap: Record<string, string> = {};
-        eventRounds.forEach(er => {
-          roundNameMap[er.id] = er.name;
-        });
-
-        // Count approved registrations per event to dynamically find the top 2 Major Events
-        const eventCounts: Record<string, number> = {};
-        regsList.forEach(r => {
-          if (r.status === 'approved' && r.event_id) {
-            eventCounts[r.event_id] = (eventCounts[r.event_id] || 0) + 1;
-          }
-        });
-
-        const computedMajorEventIds = Object.entries(eventCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 2)
-          .map(entry => entry[0]);
-
-        // Map rounds by registration_id (O(N))
-        const roundsByRegMap: Record<string, any[]> = {};
-        roundsList.forEach(rd => {
-          if (!roundsByRegMap[rd.registration_id]) {
-            roundsByRegMap[rd.registration_id] = [];
-          }
-          roundsByRegMap[rd.registration_id].push(rd);
-        });
-
-        // Map registrations by user_id (O(N))
-        const userRegsMap: Record<string, any[]> = {};
-        regsList.forEach(r => {
-          if (!userRegsMap[r.user_id]) {
-            userRegsMap[r.user_id] = [];
-          }
-          const rRounds = roundsByRegMap[r.id] || [];
-          userRegsMap[r.user_id].push({
-            ...r,
-            registration_rounds: rRounds
-          });
-        });
-
-        if (allProfiles) {
-          const sorted = allProfiles.map((p: any) => {
-            const xpRecord = Array.isArray(p.student_xp) ? p.student_xp[0] : p.student_xp;
-            const xp = xpRecord?.xp_total || 0;
-            const likes = p.likes_count || 0;
-            const pRegs = userRegsMap[p.id] || [];
-            
-            let likesPoints = likes * 10;
-            let participationPoints = 0;
-            let roundsPoints = 0;
-            let roundsCleared = 0;
-            let finalRoundPoints = 0;
-            let prizePoints = 0;
-            let approvedEventsCount = 0;
-
-            pRegs.forEach((r: any) => {
-              const isMajor = computedMajorEventIds.includes(r.event_id || '');
-              
-              if (r.status === 'approved') {
-                approvedEventsCount++;
-                participationPoints += isMajor ? 30 : 15;
-              }
-              
-              const rr = r.registration_rounds || [];
-              rr.forEach((roundObj: any) => {
-                if (roundObj.status === 'qualified') {
-                  roundsCleared++;
-                  roundsPoints += isMajor ? 40 : 20;
-                  
-                  const roundName = roundNameMap[roundObj.round_id] || '';
-                  const isFinalRound = roundName.toLowerCase().includes('final');
-                  if (isFinalRound) {
-                    finalRoundPoints += isMajor ? 60 : 30;
-                  }
-                  
-                  if (roundObj.prize_rank === '1st') {
-                    prizePoints += isMajor ? 100 : 50;
-                  } else if (roundObj.prize_rank === '2nd') {
-                    prizePoints += isMajor ? 60 : 30;
-                  } else if (roundObj.prize_rank === '3rd') {
-                    prizePoints += isMajor ? 40 : 20;
-                  }
-                }
-              });
-            });
-
-            const totalScore = likesPoints + participationPoints + roundsPoints + finalRoundPoints + prizePoints;
-
-            const participatedEvents = Array.from(new Set(
-              pRegs
-                .filter((r: any) => r.status === 'approved' && r.event)
-                .map((r: any) => r.event.title)
-            )) as string[];
-
-            return {
-              id: p.id,
-              username: p.username,
-              tier: xpRecord?.tier || 'bronze',
-              xp: xp,
-              likes: likes,
-              score: totalScore,
-              rounds_cleared: roundsCleared,
-              participated_events: participatedEvents,
-              points_breakdown: {
-                likes: likesPoints,
-                participation: participationPoints,
-                rounds: roundsPoints,
-                finalRound: finalRoundPoints,
-                prizes: prizePoints,
-                events_count: approvedEventsCount
-              }
-            };
-          }).sort((a, b) => b.score - a.score);
-
-          const ranksMap: Record<string, any> = {};
-          sorted.forEach((p, index) => {
-            ranksMap[p.id] = {
-              rank: index + 1,
-              username: p.username,
-              tier: p.tier,
-              xp: p.xp,
-              likes: p.likes,
-              score: p.score,
-              rounds_cleared: p.rounds_cleared,
-              participated_events: p.participated_events,
-              points_breakdown: p.points_breakdown
-            };
-          });
-          setGlobalRanks(ranksMap);
-        }
       } catch (err) {
         console.error('Error fetching global ranks:', err);
       }
@@ -625,6 +501,8 @@ const ActiveEvents: React.FC = () => {
                     </button>
                   </div>
 
+                  <div className="event-group-inset"><EventWhatsAppGroup eventId={reg.event_id} eventTitle={eventTitle} approved /></div>
+
                   {/* Expanded panel */}
                   <AnimatePresence>
                     {isOpen && !isLoading && (
@@ -742,20 +620,13 @@ const ActiveEvents: React.FC = () => {
                                 </div>
 
                                 {participants.map(p => {
-                                  // Deterministic fallback rank for mock/demo students so badges are visible
-                                  let rInfo = globalRanks[p.user_id];
-                                  if (!rInfo) {
-                                    const nameVal = p.full_name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                                    const mockRank = (nameVal % 45) + 6; // Rank between 6 and 50
-                                    rInfo = {
-                                      rank: mockRank,
-                                      tier: 'BRONZE',
-                                      xp: mockRank * 12,
-                                      likes: mockRank % 4,
-                                      score: mockRank * 150
-                                    };
-                                  }
-                                  const isTop5 = rInfo.rank <= 5;
+                                  const rInfo = globalRanks[p.user_id] || {
+                                    id: p.user_id, full_name: p.full_name, username: null,
+                                    avatar_url: p.avatar_url, aura_color: p.aura_color, background_url: null,
+                                    batch: p.batch, rank: 0, tier: 'bronze', xp: 0, likes: 0, likes_count: 0,
+                                    score: 0, hype_score: 0,
+                                  };
+                                  const isTop5 = rInfo.rank > 0 && rInfo.rank <= 5;
                                   return (
                                     <button
                                       key={p.registration_id}
@@ -784,7 +655,7 @@ const ActiveEvents: React.FC = () => {
                                           ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' 
                                           : 'bg-white/5 border-white/10 text-gray-400'
                                       }`}>
-                                        #{rInfo.rank}
+                                        {rInfo.rank > 0 ? `#${rInfo.rank}` : 'Not ranked'}
                                       </span>
                                     </button>
                                   );
@@ -909,6 +780,9 @@ const ActiveEvents: React.FC = () => {
               likes_count: selectedProfile.likes || 0,
               hype_score: selectedProfile.score || 0,
               rank: selectedProfile.rank || 0,
+              points_breakdown: selectedProfile.points_breakdown,
+              participated_events: selectedProfile.participated_events,
+              rounds_cleared: selectedProfile.rounds_cleared,
             }}
             onClose={() => setSelectedProfile(null)}
             onLike={() => {}}

@@ -1,3 +1,4 @@
+import { studentTierProgress } from '../../utils/studentTiers';
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Star, Zap, Shield, Crown, Trophy } from 'lucide-react';
@@ -17,7 +18,7 @@ interface XPRingProps {
   rank?: number; // New rank prop
 }
 
-const XPRing: React.FC<XPRingProps> = ({ profile, registrationsCount, sportsCount, realXP, realTier, rank }) => {
+const XPRing: React.FC<XPRingProps> = ({ profile, realXP, realTier, rank }) => {
   const isLegendary = rank !== undefined && rank > 0 && rank <= 5;
   const auraGradients = [
     'from-indigo-500 via-purple-500 to-pink-500',
@@ -29,35 +30,10 @@ const XPRing: React.FC<XPRingProps> = ({ profile, registrationsCount, sportsCoun
   const aura = isLegendary ? auraGradients[(rank - 1) % 5] : null;
 
   const { level, percent, tier, color } = useMemo(() => {
-    let total = realXP ?? 0;
-    if (realXP === undefined) {
-      if (profile?.full_name) total += 10;
-      if (profile?.phone) total += 10;
-      if (profile?.college) total += 10;
-      if (profile?.batch) total += 10;
-      if (profile?.avatar_url) total += 20;
-      total += registrationsCount * 10;
-      total += sportsCount * 15;
-    }
+    const progress = studentTierProgress(realXP ?? 0, realTier);
+    return { level: progress.level, percent: progress.percent, tier: progress.tier.id.toUpperCase(), color: progress.tier.color };
 
-    let t = realTier?.toLowerCase() || 'bronze';
-    let lvl = 1;
-    let clr = '#fb7185'; 
-    let maxForLevel = 200;
-    
-    if (total >= 1000 || t === 'platinum') {
-      t = 'platinum'; lvl = 4; clr = '#a855f7'; maxForLevel = 2000;
-    } else if (total >= 500 || t === 'gold') {
-      t = 'gold'; lvl = 3; clr = '#fbbf24'; maxForLevel = 1000;
-    } else if (total >= 200 || t === 'silver') {
-      t = 'silver'; lvl = 2; clr = '#94a3b8'; maxForLevel = 500;
-    } else {
-      t = 'bronze'; lvl = 1; clr = '#ef4444'; maxForLevel = 200;
-    }
-
-    const pct = Math.min((total / maxForLevel) * 100, 100);
-    return { xp: total, level: lvl, percent: pct, tier: t.toUpperCase(), color: clr, max: maxForLevel };
-  }, [profile, registrationsCount, sportsCount, realXP, realTier]);
+  }, [realXP, realTier]);
 
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
@@ -128,7 +104,7 @@ const XPRing: React.FC<XPRingProps> = ({ profile, registrationsCount, sportsCoun
           <Crown size={11} className="text-amber-400 fill-amber-400 animate-pulse shrink-0" />
         ) : (
           <>
-            {tier === 'PLATINUM' && <Crown size={11} className="text-purple-400 fill-purple-400 shrink-0" />}
+            {tier === 'ELITE' && <Crown size={11} className="text-[#b7d69a] fill-[#b7d69a] shrink-0" />}
             {tier === 'GOLD' && <Star size={11} className="text-yellow-400 fill-yellow-400 shrink-0" />}
             {tier === 'SILVER' && <Shield size={11} className="text-slate-400 fill-slate-400 shrink-0" />}
             {tier === 'BRONZE' && <Zap size={11} className="text-red-400 fill-red-400 shrink-0" />}

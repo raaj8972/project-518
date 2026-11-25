@@ -166,13 +166,14 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
   const handleImageUpload = async (file: File) => {
     try {
       setIsSubmitting(true);
+      if (!user) throw new Error('Sign in before uploading your registration photo.');
       const compressed = await compressImage(file);
       
       // Convert data URL to Blob for reliable upload
       const response = await fetch(compressed);
       const blob = await response.blob();
       
-    const fileName = `${Date.now()}-${user?.id || 'anon-' + Math.random().toString(36).substring(2, 9)}.webp`;
+    const fileName = `${user.id}/${crypto.randomUUID()}.webp`;
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('registration-photos')
       .upload(fileName, blob, { contentType: 'image/webp', upsert: false });

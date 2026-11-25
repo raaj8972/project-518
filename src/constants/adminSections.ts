@@ -20,7 +20,7 @@ export function getAdminSections(isOwner: boolean, annualSportsMode = false): Ad
     // DASHBOARD
     { id: 'overview' as TabType, name: 'Overview', icon: BarChart3, group: 'DASHBOARD' },
     { id: 'announcements' as TabType, name: 'Announcements', icon: Bell, group: 'DASHBOARD' },
-    { id: 'support-chat' as TabType, name: 'Support Chat', icon: MessageSquare, group: 'DASHBOARD' },
+    { id: 'support-chat' as TabType, name: 'Technical Support', icon: MessageSquare, group: 'DASHBOARD' },
     ...(isOwner ? [{ id: 'notifications' as TabType, name: 'Notifications', icon: Info, group: 'DASHBOARD' }] : []),
     { id: 'protection-center' as TabType, name: 'Protection Center', icon: Shield, group: 'DASHBOARD' },
 

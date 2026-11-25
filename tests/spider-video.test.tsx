@@ -4,20 +4,25 @@ import { createRoot, type Root } from 'react-dom/client';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { SpiderHeroContent } from '../src/components/ui/SpiderHeroContent';
 import { MemoryRouter } from 'react-router-dom';
+import { readFileSync } from 'node:fs';
 
 vi.mock('../src/context/DataContext', () => ({ useData: () => ({ homepageSettings: { hero_title: 'RICO', hero_subtitle: 'Campus festival' } }) }));
 const festivalArtwork = '/images/ricorrenza-emerald-environment.webp';
 let element: HTMLDivElement;
 let root: Root;
+let styles: HTMLStyleElement;
 beforeEach(() => {
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
   vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
   vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
   vi.stubGlobal('IntersectionObserver', undefined);
+  styles = document.createElement('style');
+  styles.textContent = readFileSync('src/components/ui/festival/FestivalEnvironment.css', 'utf8');
+  document.head.append(styles);
   element = document.createElement('div'); document.body.appendChild(element); root = createRoot(element);
 });
-afterEach(async () => { await act(async () => root.unmount()); element.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(async () => { await act(async () => root.unmount()); element.remove(); styles.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 async function render(props: React.ComponentProps<typeof SpiderHeroContent> = {}) {
   await act(async () => root.render(<MemoryRouter><SpiderHeroContent {...props} /></MemoryRouter>));
 }
@@ -26,7 +31,7 @@ it('loads the clean scene plate without flashing the old painted island while re
   await render();
   expect(element.querySelector('video')).toBeNull();
   expect(element.querySelector('.festival-environment-plate')?.getAttribute('src')).toBe(festivalArtwork);
-  expect(element.querySelector('.spider-hero-city')).toBeNull();
+  expect(getComputedStyle(element.querySelector('.festival-environment-fallback')!).opacity).toBe('0');
   expect(element.querySelector('h1')?.textContent).toBe('RICO');
   expect(element.querySelector('.spider-hero-subtitle')?.textContent).toBe('Campus festival');
   expect(element.querySelector('a[href="/events"]')?.textContent).toContain('Explore Events');
@@ -51,7 +56,7 @@ it('replaces an unavailable configured clip with festival artwork and recovers w
   await act(async () => video.dispatchEvent(new Event('error')));
   expect(element.querySelector('video')).toBeNull();
   expect(element.querySelector('.festival-environment-plate')?.getAttribute('src')).toBe(festivalArtwork);
-  expect(element.querySelector('.spider-hero-city')).toBeNull();
+  expect(getComputedStyle(element.querySelector('.festival-environment-fallback')!).opacity).toBe('0');
   await render({ media: { video_url: '/replacement.mp4' } as any });
   expect(element.querySelector('video')?.getAttribute('src')).toBe('/replacement.mp4');
   expect(element.querySelector('.spider-hero-city')).toBeNull();

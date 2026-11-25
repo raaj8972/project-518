@@ -1,6 +1,9 @@
 import { SponsorEditionControls, LegacySponsorArchive } from './sponsors/SponsorPublicationControls';
-import { resolveHomepagePartners, readHomepagePartners, sponsorPlacement, setSponsorPlacement, type HomepagePartner } from '../../utils/homepageContent';
+import { resolveHomepagePartners, readHomepagePartners, sponsorPlacement, partnerPlacementPeriod, setSponsorPlacement, type HomepagePartner, type PartnerPlacementPatch } from '../../utils/homepageContent';
 import '../../styles/HomepageStudio.css';
+import { sponsorshipTeamContacts } from '../../utils/sponsorshipContacts';
+import { sortSponsorshipPackages, packageMovePlan } from '../../utils/sponsorshipPackages';
+import { safeSponsorLink } from '../../utils/sponsorPresentation';
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, X, Pencil, Trash2, Sparkles, Medal, Edit, Save, Building, Star, ExternalLink, FileImage, ArrowUp, ArrowDown, Eye, EyeOff, Award, FileText, Link as LinkIcon, Download, Mail } from 'lucide-react';
 import { SponsorIconCatalog as LucideIcons } from '../../lib/sponsorIconCatalog';
@@ -22,7 +25,7 @@ type SubTabType = 'sponsors' | 'packages' | 'settings';
 export const SponsorsManagement: React.FC = () => {
   const { push } = useToast();
   const { 
-    sponsors,
+    sponsors, coreCommittees, coreTeamMembers,
     homepageSettings, updateHomepageSettings,
     sponsorshipPackages,
     sponsorshipSettings,
@@ -53,9 +56,17 @@ export const SponsorsManagement: React.FC = () => {
   const sponsorSavePending=useRef(false);
   const featurePending=useRef(false);
   const [featureBusy,setFeatureBusy]=useState(false);
+  const currentYear=Number(homepageSettings?.brand_year)||Number(BRAND_YEAR);
+  const linkedContacts=sponsorshipTeamContacts(coreCommittees || [],coreTeamMembers || []);
+  const [brochureUploading,setBrochureUploading]=useState(false);
+  const [settingsSaving,setSettingsSaving]=useState(false);
+  const settingsPending=useRef(false);
+  const [packageBusy,setPackageBusy]=useState(false);
+  const packagePending=useRef(false);
+  const [packageMessage,setPackageMessage]=useState('');
   const placements=readHomepagePartners(homepageSettings?.sponsor_logos);
-  const publication=resolveHomepagePartners(sponsors,placements);
-  const homepagePublication=resolveHomepagePartners(sponsors,placements,{featuredOnly:true});
+  const publication=resolveHomepagePartners(sponsors,placements,{currentYear});
+  const homepagePublication=resolveHomepagePartners(sponsors,placements,{featuredOnly:true,currentYear});
   const savePublication=async(patch:{sponsor_logos?:HomepagePartner[];featured_partners_enabled?:boolean})=>{
     if(publicationPending.current)throw new Error('Another partner change is still saving.');
     if(requiresApproval||approvalLoading)throw new Error('An owner manages edition and visibility changes.');
@@ -65,8 +76,8 @@ export const SponsorsManagement: React.FC = () => {
     finally{publicationPending.current=false;setPublicationBusy(false);}
   };
   const savePlacements=(records:HomepagePartner[])=>savePublication({sponsor_logos:records});
-  const changePlacement=async(sponsor:Sponsor,patch:Partial<Pick<HomepagePartner,'period'|'enabled'>>)=>{
-    try{await savePlacements(setSponsorPlacement(sponsor,placements,patch));}catch{/* Feedback is shown above the sponsor list. */}
+  const changePlacement=async(sponsor:Sponsor,patch:PartnerPlacementPatch)=>{
+    try{await savePlacements(setSponsorPlacement(sponsor,placements,patch,currentYear));}catch{/* Feedback is shown above the sponsor list. */}
   };
 
 
@@ -195,7 +206,7 @@ export const SponsorsManagement: React.FC = () => {
       color: 'from-gray-500 to-gray-600',
       icon: 'Medal',
       benefits: [],
-      order_position: sponsorshipPackages.length + 1,
+      order_position: Math.max(0, ...sponsorshipPackages.map((pkg: any) => pkg.order_position || 0)) + 1,
       enabled: true
     });
     setPackageIconTouched(false);
@@ -236,7 +247,7 @@ export const SponsorsManagement: React.FC = () => {
         setIsAdding(false);
         resetForm();
         try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
-        if(created?.id){try{await savePlacements(setSponsorPlacement(created,placements,{period:newEdition,enabled:true}));}catch{setPublicationMessage('Sponsor saved. Its edition could not be saved; select Previous or Current on the sponsor card to retry.');}}
+        if(created?.id){try{await savePlacements(setSponsorPlacement(created,placements,{period:newEdition,enabled:true},currentYear));}catch{setPublicationMessage('Sponsor saved. Its edition could not be saved; select Previous or Current on the sponsor card to retry.');}}
       }
     } catch (error) {
       console.error('Error adding sponsor:', error);
@@ -338,11 +349,13 @@ export const SponsorsManagement: React.FC = () => {
   };
 
   const handleAddPackage = async () => {
+    if(approvalLoading||packagePending.current)return;
     if (!packageForm.tier || !packageForm.price) {
       alert('Please fill in all required fields (tier and price)');
       return;
     }
     
+    packagePending.current=true;setPackageBusy(true);
     try {
       // Sanitize: trim and drop empty benefits
       const sanitized = {
@@ -369,15 +382,17 @@ export const SponsorsManagement: React.FC = () => {
     } catch (error) {
       console.error('Error adding sponsorship package:', error);
       alert('Failed to add sponsorship package. Please try again.');
-    }
+    } finally { packagePending.current=false;setPackageBusy(false); }
   };
 
   const handleUpdatePackage = async (id: number) => {
+    if(approvalLoading||packagePending.current)return;
     if (!packageForm.tier || !packageForm.price) {
       alert('Please fill in all required fields (tier and price)');
       return;
     }
     
+    packagePending.current=true;setPackageBusy(true);
     try {
       // Sanitize: trim and drop empty benefits
       const sanitized = {
@@ -409,11 +424,13 @@ export const SponsorsManagement: React.FC = () => {
       console.error('Error updating sponsorship package:', error);
       alert('Failed to update sponsorship package. Please try again.');
       savingProgress.done();
-    }
+    } finally { packagePending.current=false;setPackageBusy(false); }
   };
 
   const handleDeletePackage = async (id: number) => {
+    if(approvalLoading||packagePending.current)return;
     if (confirm('Are you sure you want to delete this sponsorship package? This action cannot be undone.')) {
+      packagePending.current=true;setPackageBusy(true);
       try {
         if (requiresApproval) {
           const result = await submitForApproval('sponsorship_package', 'delete', {}, id);
@@ -428,11 +445,13 @@ export const SponsorsManagement: React.FC = () => {
       } catch (error) {
         console.error('Error deleting sponsorship package:', error);
         alert('Failed to delete sponsorship package. Please try again.');
-      }
+      } finally { packagePending.current=false;setPackageBusy(false); }
     }
   };
 
   const handleTogglePackageEnabled = async (id: number) => {
+    if(approvalLoading||packagePending.current)return;
+    packagePending.current=true;setPackageBusy(true);
     try {
       if (requiresApproval) {
         const pkg = sponsorshipPackages.find((p: SponsorshipPackage) => p.id === id);
@@ -450,7 +469,7 @@ export const SponsorsManagement: React.FC = () => {
     } catch (error) {
       console.error('Error toggling package status:', error);
       alert('Failed to update package status. Please try again.');
-    }
+    } finally { packagePending.current=false;setPackageBusy(false); }
   };
 
   const startEditingPackage = (pkg: SponsorshipPackage) => {
@@ -468,6 +487,9 @@ export const SponsorsManagement: React.FC = () => {
   };
 
   const handleSaveSettings = async () => {
+    if(approvalLoading||brochureUploading||settingsPending.current)return;
+    if(settingsForm.brochure_url.trim()&&!safeSponsorLink(settingsForm.brochure_url)){push({message:'Add a valid http or https brochure URL.',type:'error'});return;}
+    settingsPending.current=true;setSettingsSaving(true);
     try {
       if (requiresApproval) {
         // For settings, we treat it as an update to a singleton 'sponsorship_settings' entity
@@ -497,7 +519,7 @@ export const SponsorsManagement: React.FC = () => {
       console.error('Error updating sponsorship settings:', error);
       alert('Failed to update sponsorship settings. Please try again.');
       savingProgress.done();
-    }
+    } finally {settingsPending.current=false;setSettingsSaving(false);}
   };
 
   const handleCancelSettings = () => {
@@ -676,12 +698,12 @@ export const SponsorsManagement: React.FC = () => {
 
   // Group sponsors by category for better organization
   const groupedSponsors = allCategories.reduce((acc, category) => {
-    acc[category] = sponsors.filter((sponsor: Sponsor) => sponsor.category === category && (editionFilter==='all' || (sponsorPlacement(sponsor,placements)?.period || 'previous')===editionFilter));
+    acc[category] = sponsors.filter((sponsor: Sponsor) => sponsor.category === category && (editionFilter==='all' || partnerPlacementPeriod(sponsorPlacement(sponsor,placements),currentYear)===editionFilter));
     return acc;
   }, {} as Record<string, Sponsor[]>);
 
   // Sort packages by order position
-  const sortedPackages = [...sponsorshipPackages].sort((a, b) => a.order_position - b.order_position);
+  const sortedPackages = sortSponsorshipPackages(sponsorshipPackages);
 
   // Sort contact sections by order
   const sortedContactSections = [...(sponsorshipSettings?.contactSections || [])].sort((a, b) => a.order - b.order);
@@ -746,32 +768,24 @@ export const SponsorsManagement: React.FC = () => {
   ];
 
   const handleMovePackage = async (id: number, direction: 'up' | 'down') => {
-    const currentIndex = sortedPackages.findIndex(p => p.id === id);
-    if (currentIndex === -1) return;
-    
-    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex < 0 || targetIndex >= sortedPackages.length) return;
-    
-    const currentPkg = sortedPackages[currentIndex];
-    const targetPkg = sortedPackages[targetIndex];
-    
-    // Swap order positions
-    const currentOrder = currentPkg.order_position;
-    const targetOrder = targetPkg.order_position;
-    
+    if(approvalLoading||packagePending.current)return;
+    const plan=packageMovePlan(sponsorshipPackages,id,direction);
+    if(!plan.length)return;
+    packagePending.current=true;setPackageBusy(true);setPackageMessage('');
+    const completed: typeof plan=[];
     try {
-      // If positions are the same, we need to force a difference
-      if (currentOrder === targetOrder) {
-        await updateSponsorshipPackage(currentPkg.id, { order_position: direction === 'up' ? currentOrder - 1 : currentOrder + 1 });
-      } else {
-        // Standard swap
-        await updateSponsorshipPackage(currentPkg.id, { order_position: targetOrder });
-        await updateSponsorshipPackage(targetPkg.id, { order_position: currentOrder });
+      for(const step of plan){
+        if(requiresApproval){
+          const result=await submitForApproval('sponsorship_package','update',{order_position:step.next},step.id);
+          if(!result.success)throw new Error(result.error||'Could not submit this order change.');
+        }else{await updateSponsorshipPackage(step.id,{order_position:step.next});completed.push(step);}
       }
-    } catch (error) {
-      console.error('Failed to reorder packages:', error);
-      alert('Failed to reorder packages');
-    }
+      setPackageMessage(requiresApproval?'Order changes submitted for approval.':'Package order saved. The public page uses this order.');
+    }catch{
+      let restored=true;
+      for(const step of completed.reverse()){try{await updateSponsorshipPackage(step.id,{order_position:step.previous});}catch{restored=false;}}
+      setPackageMessage(requiresApproval?'Some order requests could not be submitted. Review pending approvals before retrying.':restored?'Could not save the new order. The previous order has been restored.':'Could not finish restoring the order. Refresh packages before trying again.');
+    }finally{packagePending.current=false;setPackageBusy(false);}
   };
 
   const base64ToFile = async (base64String: string, fileName: string): Promise<File> => {
@@ -841,26 +855,19 @@ export const SponsorsManagement: React.FC = () => {
   };
 
   const handleTierScanComplete = async (scannedTiers: any[]) => {
-    setShowTierScanner(false);
+    if(approvalLoading||packagePending.current)return;
+    setShowTierScanner(false);packagePending.current=true;setPackageBusy(true);
     try {
-      let count = 0;
-      for (const tier of scannedTiers) {
-        await addSponsorshipPackage({
-          tier: tier.tier || `Tier ${count + 1}`,
-          price: tier.price || 'Contact Us',
-          color: tier.color || 'from-gray-500 to-gray-600',
-          icon: tier.icon || 'Medal',
-          benefits: tier.benefits || [],
-          order_position: tier.order_position || sponsorshipPackages.length + count + 1,
-          enabled: true,
-        });
+      let count=0;
+      for(const tier of scannedTiers){
+        const record={tier:tier.tier||`Tier ${count+1}`,price:tier.price||'Contact Us',color:tier.color||'from-gray-500 to-gray-600',icon:tier.icon||'Medal',benefits:Array.isArray(tier.benefits)?tier.benefits:[],order_position:Math.max(0,...sponsorshipPackages.map((pkg: any)=>pkg.order_position||0))+count+1,enabled:true};
+        if(requiresApproval){const result=await submitForApproval('sponsorship_package','create',record);if(!result.success)throw new Error(result.error||'Could not submit tier.');}
+        else await addSponsorshipPackage(record);
         count++;
       }
-      alert(`Successfully created ${count} sponsorship tiers from brochure!`);
-    } catch (error: any) {
-      console.error('[SponsorsManagement] AI tier import failed:', error);
-      alert(`Import failed: ${error.message}`);
-    }
+      setPackageMessage(requiresApproval?`${count} tiers submitted for approval.`:`${count} sponsorship tiers added.`);
+    }catch(error){setPackageMessage(error instanceof Error?error.message:'Could not import tiers.');}
+    finally{packagePending.current=false;setPackageBusy(false);}
   };
 
   return (
@@ -1073,7 +1080,7 @@ export const SponsorsManagement: React.FC = () => {
       {activeSubTab === 'sponsors' && (
         <div className="space-y-6">
           <div className="studio-auto-notice"><strong>One sponsor directory → Sponsors page + Home</strong><p>Choose Previous or Current on each sponsor. A complete, visible Current sponsor publishes the current edition; otherwise Previous partners stay live. Switch on Show on homepage for logos you want on Home. Names, logos, websites and order come from the same sponsor record.</p><label className="flex items-center gap-2 text-sm"><input type="checkbox" aria-label="Show partner section on homepage" checked={homepageSettings?.featured_partners_enabled !== false} disabled={publicationBusy||requiresApproval||approvalLoading} onChange={event=>void savePublication({featured_partners_enabled:event.target.checked}).catch(()=>{})}/>Show partner section on homepage</label><p><strong>Live edition: {publication.period}</strong> · {publication.partners.length} on Sponsors · {homepagePublication.partners.length} selected for Home{homepageSettings?.featured_partners_enabled===false ? ' · Homepage section is switched off' : ''}</p>{publicationMessage&&<p role="status">{publicationMessage}</p>}<div className="studio-profile-actions">{(['all','current','previous'] as const).map(period=><button type="button" className="studio-button studio-button-secondary" aria-pressed={editionFilter===period} key={period} onClick={()=>setEditionFilter(period)}>{period==='all'?'All sponsors':period==='current'?'Current partners':'Previous partners'}</button>)}</div></div>
-          <LegacySponsorArchive sponsors={sponsors} placements={placements} busy={publicationBusy} locked={requiresApproval||approvalLoading} onSave={savePlacements}/>
+          <LegacySponsorArchive sponsors={sponsors} placements={placements} busy={publicationBusy} locked={requiresApproval||approvalLoading} currentYear={currentYear} onSave={savePlacements}/>
 
           {/* Add Sponsor Button */}
           <div className="flex justify-between items-center bg-white/5 border border-white/10 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden group">
@@ -1135,6 +1142,8 @@ export const SponsorsManagement: React.FC = () => {
               </p>
             </div>
           )}
+
+<p className="studio-auto-notice">Current edition: {currentYear}. Changing the brand year archives current partners under their saved year. Publishing a returning brand keeps its earlier edition in the archive.</p>
 
           {/* Add Sponsor Form */}
           {isAdding && (
@@ -1349,7 +1358,7 @@ export const SponsorsManagement: React.FC = () => {
                               </div>
                             )}
                             
-                            <SponsorEditionControls sponsor={sponsor} placements={placements} busy={publicationBusy} locked={requiresApproval||approvalLoading} onChange={patch=>void changePlacement(sponsor,patch)} />
+                            <SponsorEditionControls sponsor={sponsor} placements={placements} busy={publicationBusy} locked={requiresApproval||approvalLoading} currentYear={currentYear} onChange={patch=>void changePlacement(sponsor,patch)} />
                             <div className="flex justify-between items-center">
                               <button
                                 type="button"
@@ -1507,6 +1516,8 @@ export const SponsorsManagement: React.FC = () => {
             </div>
           </div>
 
+<p className="studio-auto-notice">Packages appear in this order on the public Sponsors page. Add your own tier names, prices and benefits; all enabled tiers are shown.</p>{packageMessage&&<p role="status" className="studio-auto-notice">{packageMessage}</p>}
+
           {/* Add Package Form */}
           {isAddingPackage && (
             <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
@@ -1661,6 +1672,7 @@ export const SponsorsManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleAddPackage}
+                  disabled={packageBusy||approvalLoading}
                   className="w-full sm:w-auto px-6 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-300 flex items-center justify-center"
                 >
                   <Save size={16} className="mr-1" />
@@ -1798,6 +1810,7 @@ export const SponsorsManagement: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleUpdatePackage(pkg.id)}
+                          disabled={packageBusy||approvalLoading}
                           className="w-full sm:w-auto px-4 py-2 bg-yellow-400 text-black rounded hover:bg-yellow-300 flex items-center justify-center"
                         >
                           <Save size={14} className="mr-1" />
@@ -1840,22 +1853,22 @@ export const SponsorsManagement: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleMovePackage(pkg.id, 'up')}
-                              disabled={index === 0}
+                              disabled={packageBusy||approvalLoading||index === 0}
                               className={`p-1 rounded transition-colors ${
                                 index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'
                               }`}
-                              title="Move Up"
+                              title="Move Up" aria-label={`Move ${pkg.tier} up`}
                             >
                               <ArrowUp size={14} />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleMovePackage(pkg.id, 'down')}
-                              disabled={index === sortedPackages.length - 1}
+                              disabled={packageBusy||approvalLoading||index === sortedPackages.length - 1}
                               className={`p-1 rounded transition-colors ${
                                 index === sortedPackages.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'
                               }`}
-                              title="Move Down"
+                              title="Move Down" aria-label={`Move ${pkg.tier} down`}
                             >
                               <ArrowDown size={14} />
                             </button>
@@ -1864,6 +1877,7 @@ export const SponsorsManagement: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleTogglePackageEnabled(pkg.id)}
+                            disabled={packageBusy||approvalLoading}
                             className={`p-1 rounded transition-colors ${
                               pkg.enabled 
                                 ? 'bg-green-100 text-green-600' 
@@ -2019,8 +2033,11 @@ export const SponsorsManagement: React.FC = () => {
                       <ImageUpload
                         onImageSelect={(url) => setSettingsForm(prev => ({ ...prev, brochure_url: url }))}
                         currentImage={settingsForm.brochure_url}
-                        bucket="pdf"
-                        folder="brochures"
+                        bucket="sponsor-brochures"
+                        folder={`brochures/${currentYear}`}
+                        enableCropper={false}
+                        preserveExistingMedia
+                        onProcessingChange={setBrochureUploading}
                         acceptedTypes="application/pdf"
                         fileTypeLabel="PDF up to 10MB"
                       />
@@ -2068,15 +2085,17 @@ export const SponsorsManagement: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleSaveSettings}
+                    disabled={brochureUploading||settingsSaving||approvalLoading}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 flex items-center transition-colors"
                   >
                     <Save size={16} className="mr-2" />
-                    Save Settings
+                    {brochureUploading?'Uploading brochure…':settingsSaving?'Saving…':'Save Settings'}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="space-y-6">
+                <div className="studio-auto-notice"><strong>Connected to Rico Family</strong><p>Enabled Sponsorship team members and PR heads supply the public enquiry names, phone numbers and emails. Update those people in Rico Family to keep this section current. Additional office contacts below remain editable here.</p><p>{linkedContacts.length ? linkedContacts.map(person=>person.name).join(' · ') : 'No enabled Sponsorship members or PR heads have been added yet.'}</p></div>
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Page Title</h4>
                   <div className="p-3 bg-gray-50 rounded-lg border">

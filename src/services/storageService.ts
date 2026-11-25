@@ -1,3 +1,4 @@
+import { resolvePrivateMediaUrl } from './privateMedia';
 import { supabase } from '../lib/supabase';
 
 export interface StoredObject { name: string; publicUrl: string; size: number; created_at: string | null }
@@ -61,7 +62,8 @@ export function getBucketInventory(bucket: string): Promise<StoredObject[]> {
   if (cached && cached.expiresAt > Date.now()) return cached.promise;
   const version = generation;
   const entry = { expiresAt: Infinity, promise: Promise.resolve([] as StoredObject[]) };
-  entry.promise = listObjects(bucket).then(objects => {
+  entry.promise = listObjects(bucket).then(async objects => {
+    await Promise.all(objects.map(async object => { object.publicUrl = await resolvePrivateMediaUrl(object.publicUrl); }));
     objects.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '') || a.name.localeCompare(b.name));
     if (version === generation) entry.expiresAt = Date.now() + INVENTORY_TTL;
     else if (inventories.get(bucket) === entry) inventories.delete(bucket);

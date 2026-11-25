@@ -1,5 +1,6 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { studentTier } from '../../utils/studentTiers';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Trophy, Star, Shield, Crown } from 'lucide-react';
 
 interface DynamicBadgeProps {
@@ -9,15 +10,18 @@ interface DynamicBadgeProps {
 }
 
 const DynamicBadge: React.FC<DynamicBadgeProps> = ({ tier, size = 'md', showLabel = false }) => {
+  const reducedMotion = useReducedMotion();
+  const resolvedTier = studentTier(tier);
+  const isElite = resolvedTier.id === 'elite';
   const getTierConfig = (tierName: string) => {
-    switch (tierName?.toLowerCase()) {
-      case 'platinum':
+    switch (tierName) {
+      case 'elite':
         return {
           icon: Crown,
-          color: 'from-cyan-300 via-white to-blue-400',
-          glow: 'shadow-[0_0_20px_rgba(103,232,249,0.5)]',
-          label: 'Platinum',
-          secondary: 'text-cyan-200'
+          color: 'from-[#d9c58e] via-[#b5d49b] to-[#7ca478]',
+          glow: 'shadow-sm',
+          label: 'Elite',
+          secondary: 'text-[#d9ddb0]'
         };
       case 'gold':
         return {
@@ -46,7 +50,7 @@ const DynamicBadge: React.FC<DynamicBadgeProps> = ({ tier, size = 'md', showLabe
     }
   };
 
-  const config = getTierConfig(tier);
+  const config = getTierConfig(resolvedTier.id);
   const Icon = config.icon;
 
   const sizeClasses = {
@@ -56,14 +60,14 @@ const DynamicBadge: React.FC<DynamicBadgeProps> = ({ tier, size = 'md', showLabe
   };
 
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="flex flex-col items-center gap-1.5" role="img" aria-label={`${config.label} tier`} title={`${config.label} tier`}>
       <motion.div
-        whileHover={{ scale: 1.1, rotateY: 180 }}
+        whileHover={reducedMotion ? undefined : isElite ? { scale: 1.04 } : { scale: 1.1, rotateY: 180 }}
         transition={{ type: "spring", stiffness: 300, damping: 15 }}
         style={{ perspective: 1000 }}
-        className={`relative ${sizeClasses[size]} rounded-xl bg-gradient-to-br ${config.color} ${config.glow} flex items-center justify-center border border-white/30 backdrop-blur-sm`}
+        className={`relative ${isElite ? 'student-elite-badge' : ''} ${sizeClasses[size]} rounded-xl bg-gradient-to-br ${config.color} ${config.glow} flex items-center justify-center border border-white/30 backdrop-blur-sm`}
       >
-        <div className="absolute inset-0 bg-white/10 rounded-xl overflow-hidden">
+        {!isElite && !reducedMotion && <div className="absolute inset-0 bg-white/10 rounded-xl overflow-hidden">
           <motion.div
             animate={{ 
               x: [-100, 200],
@@ -76,12 +80,12 @@ const DynamicBadge: React.FC<DynamicBadgeProps> = ({ tier, size = 'md', showLabe
             }}
             className="w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12"
           />
-        </div>
+        </div>}
         
-        <Icon className="w-full h-full text-black/80 drop-shadow-sm" />
+        <Icon aria-hidden="true" className="w-full h-full text-black/80 drop-shadow-sm" />
         
         {/* Particle Glow */}
-        <div className={`absolute -inset-1 bg-gradient-to-br ${config.color} opacity-20 blur-xl -z-10`} />
+        {!isElite && <div className={`absolute -inset-1 bg-gradient-to-br ${config.color} opacity-20 blur-xl -z-10`} />}
       </motion.div>
       
       {showLabel && (

@@ -3,6 +3,7 @@ import './shims/envShims';
 import { StrictMode } from 'react';
 console.log('[main.tsx] Module execution started, React available:', !!StrictMode);
 import { createRoot } from 'react-dom/client';
+import App from './App';
 import './index.css';
 import './styles/Spiderman.css';
 import { registerServiceWorker } from './utils/serviceWorkerRegistration';
@@ -34,18 +35,6 @@ function showFatal(message: string) {
   removeSkeleton();
 }
 
-// Retry helper for dynamic imports
-async function retryImport<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
-  try {
-    return await fn();
-  } catch (err) {
-    if (retries <= 0) throw err;
-    console.warn(`Import failed, retrying in ${delay}ms...`, err);
-    await new Promise(r => setTimeout(r, delay));
-    return retryImport(fn, retries - 1, delay * 2);
-  }
-}
-
 (async () => {
   try {
     console.log('[Main] Starting application bootstrap...');
@@ -54,14 +43,13 @@ async function retryImport<T>(fn: () => Promise<T>, retries = 3, delay = 1000): 
     import('./utils/preloadBrand').catch(e => console.warn('[Main] PreloadBrand failed to load:', e));
     
     // Attempt to load the main App module with retries
-    const AppModule = await retryImport(() => import('./App.tsx'));
+    const AppModule = { default: App };
     
     // Check if the module has a default export before accessing it
     if (!AppModule || !AppModule.default) {
       throw new Error('The application failed to load: default export missing in App.tsx. This usually indicates a circular dependency or initialization failure.');
     }
     
-    const App = AppModule.default;
     
     console.log('[Main] App module loaded, rendering root...');
     

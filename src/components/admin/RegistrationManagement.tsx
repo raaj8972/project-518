@@ -1,10 +1,12 @@
+import { PrivateMediaImage, PrivateMediaLink } from '../PrivateMedia';
+import { prepareBrandAsset } from '../../utils/brandAsset';
 import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { 
-  Users, Search, Filter, Download, Trash2, RefreshCw, 
-  CheckCircle, XCircle, 
+import {
+  Users, Search, Filter, Download, Trash2, RefreshCw,
+  CheckCircle, XCircle,
   Mail, Eye, Loader2, Sparkles, AlertTriangle,
   Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw, ChevronDown, Settings, MailCheck, MailX,
   Pencil, Check, ChevronLeft, ChevronRight, Image as ImageIcon
@@ -17,23 +19,24 @@ import { adminDataService } from '../../services/adminDataService';
 import { dualRead, dualUpdate } from '../../lib/dualDb';
 import { exportRegistrationsToExcel } from '../../utils/excelExport';
 import { REGISTRATION_COLUMNS, EXPORT_PRESETS, RegistrationColumnKey } from '../../utils/reportExport';
-import { 
-  exportRegistrationsToPDF, 
+import {
+  exportRegistrationsToPDF,
   exportRegistrationsByEvent as exportRegistrationsByEventPDF,
-  exportRegistrationsByStatus as exportRegistrationsByStatusPDF, 
-  preloadWatermark, 
-  exportEventSummaryPDF 
+  exportRegistrationsByStatus as exportRegistrationsByStatusPDF,
+  preloadWatermark,
+  exportEventSummaryPDF
 } from '../../utils/pdfExport';
 import { encryptData } from '../../utils/encryption';
 import ExportPdfButton from '../../components/ExportPdfButton';
 import { useRegistrations } from '../../hooks/useRegistrations';
 import { useRegistrationMutations } from '../../hooks/useRegistrationMutations';
+import { getAccessibleEventWhatsAppGroups } from '../../services/eventWhatsAppGroups';
 
 const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    viewBox="0 0 16 16" 
-    fill="currentColor" 
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 16 16"
+    fill="currentColor"
     className={className}
   >
     <path d="M13.601 2.326A7.854 7.854 0 0 0 6.979 0c-4.308 0-7.796 3.486-7.796 7.793 0 1.954.555 3.553 1.548 4.903l-1.649 4.8 4.92-1.286a7.862 7.862 0 0 0 3.799.965h.004c4.316 0 7.805-3.48 7.805-7.797 0-2.127-.836-4.13-2.316-5.597zM2.844 13.568l.492-1.656-.25-.398A6.366 6.366 0 0 1 1.768 7.793c0-3.522 2.87-6.393 6.398-6.393 1.708 0 3.315.666 4.524 1.874a6.37 6.37 0 0 1 1.87 4.529c0 3.526-2.87 6.397-6.398 6.397-1.618 0-3.14-.627-4.314-1.78l-.348-.344-1.656.492zm9.143-3.072c-.225-.113-1.333-.658-1.54-.733-.207-.075-.357-.112-.508.113-.15.225-.585.733-.717.883-.131.15-.262.169-.487.056-.225-.113-.951-.35-1.812-1.118-.673-.6-1.125-1.34-1.257-1.565-.131-.225-.014-.347.098-.459.1-.1.225-.262.338-.393.113-.131.15-.225.225-.375.075-.15.038-.281-.019-.393-.056-.113-.508-1.224-.696-1.673-.183-.44-.37-.38-.508-.38l-.432-.008c-.15 0-.394.056-.6.281-.207.225-.788.769-.788 1.875 0 1.106.806 2.175.919 2.325.113.15 3.169 4.838 7.675 6.788 1.071.464 1.907.557 2.56.486.726-.079 1.333-.543 1.521-1.066.188-.524.188-.973.131-1.067-.056-.094-.207-.169-.431-.281z"/>
@@ -41,17 +44,17 @@ const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
 );
 
 // Inline Editable Row Component for details
-const EditableRow = ({ 
-  label, 
-  value, 
-  onSave, 
-  canEdit = false, 
+const EditableRow = ({
+  label,
+  value,
+  onSave,
+  canEdit = false,
   multiline = false,
   className = ''
-}: { 
-  label: string, 
-  value: string | number | null | undefined, 
-  onSave: (val: string) => Promise<boolean>, 
+}: {
+  label: string,
+  value: string | number | null | undefined,
+  onSave: (val: string) => Promise<boolean>,
   canEdit?: boolean,
   multiline?: boolean,
   className?: string
@@ -86,16 +89,16 @@ const EditableRow = ({
       {isEditing ? (
         <div className="flex-1 flex items-start gap-2 max-w-md">
           {multiline ? (
-             <textarea 
-               className="flex-1 border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none border-white/10 min-h-[60px] text-gray-200 bg-white/5 placeholder-gray-500" 
-               value={tempValue} 
+             <textarea
+               className="flex-1 border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none border-white/10 min-h-[60px] text-gray-200 bg-white/5 placeholder-gray-500"
+               value={tempValue}
                onChange={e => setTempValue(e.target.value)}
-             /> 
+             />
           ) : (
-             <input 
-               type="text" 
-               className="flex-1 border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none border-white/10 text-gray-200 bg-white/5 placeholder-gray-500" 
-               value={tempValue} 
+             <input
+               type="text"
+               className="flex-1 border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none border-white/10 text-gray-200 bg-white/5 placeholder-gray-500"
+               value={tempValue}
                onChange={e => setTempValue(e.target.value)}
              />
           )}
@@ -150,11 +153,11 @@ const ProcessingOverlay: React.FC<{ title: string; progress: number; currentItem
             </h3>
             <span className="text-indigo-400 font-black bg-indigo-500/10 px-2 py-0.5 rounded text-[10px] tabular-nums uppercase tracking-widest border border-indigo-500/20">{Math.round(progress)}%</span>
           </div>
-          
+
           {currentItem && <p className="text-gray-400 mb-4 text-xs font-bold truncate pl-6.5 italic uppercase tracking-tighter opacity-80">{currentItem}</p>}
-          
+
           <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden border border-white/5 shadow-inner">
-            <div 
+            <div
               className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all duration-300 ease-out"
               style={{ width: `${Math.max(2, progress)}%` }}
             />
@@ -175,6 +178,16 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   // Removed registrations, deletedRegistrations and mutation methods from useData
   const { events, siteSettings, updateSiteSettings, adminUsers, eventCoordinators, resetRegistrationIdSequence, isOwner: checkIsOwner } = useData();
   const { user } = useAuth();
+  const [eventGroups, setEventGroups] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setEventGroups({});
+    if (!user && !coordinatorMode) return;
+    let active = true;
+    const load = () => { void getAccessibleEventWhatsAppGroups().then(groups => { if (active) setEventGroups(groups); }).catch(() => { if (active) setEventGroups({}); }); };
+    load();
+    const channel = supabase.channel('registration-event-groups').on('postgres_changes', { event: '*', schema: 'public', table: 'event_whatsapp_groups' }, load).subscribe();
+    return () => { active = false; void supabase.removeChannel(channel); };
+  }, [user?.id, coordinatorMode, coordinatorEventId]);
 
   const isOwner = useMemo(() => {
     const admin = adminUsers?.find(u => u.user_id === user?.id);
@@ -182,7 +195,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   }, [user, adminUsers, checkIsOwner]);
 
   const { push } = useToast();
-  
+
   // Pagination State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -196,14 +209,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedBatch, setSelectedBatch] = useState<string>('all');
-  const [selectedEmailStatus, setSelectedEmailStatus] = useState<string>('all'); 
+  const [selectedEmailStatus, setSelectedEmailStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'active' | 'trash'>('active');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch Registrations using new Hook
-  const { 
-    registrations, 
-    count, 
+  const {
+    registrations,
+    count,
     isLoading: isRegistrationsLoading,
     refresh: refreshRegistrations,
     stats
@@ -259,7 +272,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const [emailLogs, setEmailLogs] = useState<any[]>([]); // New state for logs
   const [logsLoading, setLogsLoading] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
-  
+
   // Email status tracking: map registration ID to email sent status
   const [emailStatusMap, setEmailStatusMap] = useState<Record<string, { sent: boolean; count: number }>>({})
 
@@ -290,13 +303,13 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
-  
+
   // UI state for collapsible sections
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
   // Compute duplicates map:
-  // We flag a registration as duplicate if another active registration exists 
+  // We flag a registration as duplicate if another active registration exists
   // with the same (event_title + email) OR (event_title + phone).
   const duplicateIds = useMemo(() => {
     const dupes = new Set<string>();
@@ -313,7 +326,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       }
       // Key: Event + Phone
       if (r.phone) {
-         // Normalize phone: strip spaces/dashes for comparison if needed, 
+         // Normalize phone: strip spaces/dashes for comparison if needed,
          // but simple trim is safer with varying formats
         const k = `${r.event_title.trim()}|${r.phone.trim()}`;
         if (!phoneMap.has(k)) phoneMap.set(k, []);
@@ -373,7 +386,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       });
 
       const validNames = namesList.filter(n => !!n.name);
-      
+
       // Initialize with original URLs
       namesList.forEach(n => { next[n.id] = n.url; });
 
@@ -382,7 +395,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
           const { data, error } = await supabase.storage
             .from('registration-photos')
             .createSignedUrls(validNames.map(n => n.name), 60 * 60 * 24);
-          
+
           if (!error && data) {
             data.forEach((signed, index) => {
               if (signed.signedUrl) {
@@ -407,7 +420,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         const { data } = await supabase.storage
           .from('pdf-watermarks')
           .getPublicUrl('watermark.png');
-        
+
         if (data?.publicUrl) {
           // Check if file actually exists by fetching it
           const response = await fetch(data.publicUrl, { method: 'HEAD' });
@@ -474,7 +487,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
           const { data } = await supabase.storage
             .from('pdf-watermarks')
             .getPublicUrl(`stamp.${ext}`);
-          
+
           if (data?.publicUrl) {
             const response = await fetch(data.publicUrl, { method: 'HEAD' });
             if (response.ok) {
@@ -496,31 +509,32 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const handleStampUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     if (!file.type.includes('png') && !file.type.includes('svg')) {
       push({ message: 'Please upload a PNG or SVG file for the stamp.', type: 'error' });
       return;
     }
-    
+
     try {
       setStampUploading(true);
-      
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+
+      const uploadFile = await prepareBrandAsset(file);
+      const ext = 'png';
       const fileName = `stamp.${ext}`;
-      
+
       const { error } = await supabase.storage
         .from('pdf-watermarks')
-        .upload(fileName, file, { 
+        .upload(fileName, uploadFile, {
           cacheControl: '0',
-          upsert: true 
+          upsert: true
         });
-      
+
       if (error) throw error;
-      
+
       const { data } = await supabase.storage
         .from('pdf-watermarks')
         .getPublicUrl(fileName);
-      
+
       if (data?.publicUrl) {
         const urlWithCacheBuster = `${data.publicUrl}?t=${Date.now()}`;
         setStampUrl(urlWithCacheBuster);
@@ -542,7 +556,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       await supabase.storage
         .from('pdf-watermarks')
         .remove(['stamp.png', 'stamp.svg']);
-      
+
       setStampUrl(null);
       setStampDataUrl(null);
       push({ message: 'Stamp removed.', type: 'success' });
@@ -552,16 +566,16 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   };
 
   // Server-side filtered via useRegistrations hook
-  const filteredRegistrations = registrations; 
+  const filteredRegistrations = registrations;
 
 
   // Get unique event titles from events context instead of registrations list
-  const uniqueEvents = useMemo(() => 
+  const uniqueEvents = useMemo(() =>
     events.map(e => e.title).sort(),
     [events]
   );
 
-  const uniqueCategories = useMemo(() => 
+  const uniqueCategories = useMemo(() =>
     // Use event categories context or derive from events if needed. Using events context is safer.
     // If eventCategories context is empty, we can't show them, but that's fine.
     // Assuming eventCategories is available in useData.
@@ -594,23 +608,23 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     return n;
   });
   const allVisibleSelected = filteredRegistrations.length > 0 && filteredRegistrations.every(r => selectedIds.has(r.id));
-  
+
   const doBulkDelete = async () => {
     const ids = Array.from(selectedIds);
     if (!ids.length) { push({ message: 'Select at least one row to delete.', type: 'info' }); return; }
-    
+
       if (viewMode === 'trash') {
       if (!confirm(`PERMANENTLY DELETE ${ids.length} registration(s)?\n\nThis cannot be undone.`)) return;
-      try { 
-        await bulkPermanentDelete?.(ids); 
-        setSelectedIds(new Set()); 
+      try {
+        await bulkPermanentDelete?.(ids);
+        setSelectedIds(new Set());
       }
       catch (e) { console.error(e); }
     } else {
       if (!confirm(`Move ${ids.length} registration(s) to Trash?`)) return;
-      try { 
-        await bulkDeleteRegistrations?.(ids); 
-        setSelectedIds(new Set()); 
+      try {
+        await bulkDeleteRegistrations?.(ids);
+        setSelectedIds(new Set());
       }
       catch (e) { console.error(e); }
     }
@@ -620,9 +634,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     const ids = Array.from(selectedIds);
     if (!ids.length) { push({ message: 'Select at least one row to restore.', type: 'info' }); return; }
     if (!confirm(`Restore ${ids.length} registration(s)?`)) return;
-    try { 
-        await bulkRestoreRegistrations?.(ids); 
-        setSelectedIds(new Set()); 
+    try {
+        await bulkRestoreRegistrations?.(ids);
+        setSelectedIds(new Set());
     }
     catch (e) { console.error(e); }
   };
@@ -634,14 +648,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       const sourceRegs = registrations;
       const regIds = sourceRegs.map(r => r.id);
       if (regIds.length === 0) return;
-      
+
       // Fetch confirmation email logs for all registrations in current view
       const { data } = await dualRead({
         table: 'email_logs',
         in: ['registration_id', regIds],
         eq: ['template_type', 'confirmation']
       });
-      
+
       // Build status map
       const statusMap: Record<string, { sent: boolean; count: number }> = {};
       data?.forEach((log: any) => {
@@ -653,7 +667,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         }
         statusMap[log.registration_id].count++;
       });
-      
+
       setEmailStatusMap(statusMap);
     } catch (err) {
       console.error('Error fetching email statuses:', err);
@@ -665,7 +679,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   }, [fetchEmailStatuses]);
 
   // Helper to send approval email (extracted for reuse)
-  const sendApprovalEmail = async (reg: any, onProgress?: (pct: number, stage: string) => void) => { 
+  const sendApprovalEmail = async (reg: any, onProgress?: (pct: number, stage: string) => void) => {
     return adminDataService.sendApprovalEmail(reg, {
       emailProvider,
       events,
@@ -680,17 +694,17 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     try {
       console.log('Updating status for registration:', registrationId, 'to:', newStatus);
       await updateRegistrationStatus(registrationId, newStatus);
-      
+
       // If approved, trigger confirmation email
       if (newStatus === 'approved') {
         const reg = registrations.find(r => r.id === registrationId);
         if (reg) {
             setProcessingState({ active: true, title: 'Approving Registration', progress: 0, item: `Generating receipt for ${reg.full_name}...` });
-            
+
             const result = await sendApprovalEmail(reg, (pct, stage) => {
               setProcessingState(prev => ({ ...prev, progress: pct, item: stage }));
             });
-            
+
             setProcessingState({ active: false, title: '', progress: 0 });
 
             if (result.success) {
@@ -728,10 +742,10 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     const confirmMessage = isTrash
       ? `PERMANENTLY DELETE registration for "${registration.full_name}"?\n\nThis cannot be undone.`
       : `Move registration for "${registration.full_name}" to Trash?`;
-    
+
     const confirmed = confirm(confirmMessage);
     console.log('[Delete] User confirmation:', confirmed, 'ViewMode:', viewMode);
-    
+
     if (confirmed) {
       setDeletingIds(prev => new Set(prev).add(registrationId));
       try {
@@ -766,7 +780,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const handleRestoreRegistration = async (registrationId: string) => {
     const registration = registrations.find(r => r.id === registrationId);
     if (!confirm(`Restore registration for "${registration?.full_name || 'Unknown'}"?`)) return;
-    
+
     try {
       await restoreRegistration(registrationId);
       push({ message: 'Registration restored.', type: 'success' });
@@ -820,7 +834,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const [emailCustomBody, setEmailCustomBody] = useState('');
   const [emailAdditionalData, setEmailAdditionalData] = useState<any>({});
   const [emailSending, setEmailSending] = useState(false);
-  
+
   const handleOpenEmailModal = () => {
       const selectedCount = selectedIds.size;
       if (selectedCount === 0) {
@@ -843,12 +857,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       const p = String(r.phone).replace(/[^0-9+]/g, '').trim();
       if (p.length >= 10) phones.add(p);
     });
-    
+
     if (phones.size === 0) {
       push({ message: 'No valid phone numbers found in current filter.', type: 'info' });
       return;
     }
-    
+
     // Format as comma-separated
     const text = Array.from(phones).join(',');
     try {
@@ -868,12 +882,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const handleSendCustomEmail = async () => {
       const recipients = filteredRegistrations.filter(r => selectedIds.has(r.id));
       if (!recipients.length) return;
-      
+
       try {
           setEmailSending(true);
           let sent = 0;
           let failed = 0;
-          
+
           // Send sequentially to avoid rate limits/timeouts
           for (const reg of recipients) {
               const token = (await supabase.auth.getSession()).data.session?.access_token;
@@ -894,11 +908,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                  else failed++;
               }
           }
-          
+
           push({ message: `Emails sent: ${sent}, Failed: ${failed}`, type: sent > 0 ? 'success' : 'error' });
           setShowEmailModal(false);
           setSelectedIds(new Set()); // Deselect after sending
-          
+
       } catch (e: any) {
           console.error(e);
           push({ message: 'Failed to send batch emails.', type: 'error' });
@@ -906,7 +920,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
           setEmailSending(false);
       }
   };
-  
+
   const handleRejectClick = (id: string) => {
     setRejectingId(id);
     setRejectionReason('');
@@ -923,13 +937,13 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         setIsSendingRejection(true);
         // 1. Update status
         await updateRegistrationStatus(rejectingId, 'rejected');
-        
+
         // 2. Send Email
         const token = (await supabase.auth.getSession()).data.session?.access_token;
         if (token) {
              const res = await fetch('/api/send-rejection', {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
@@ -940,7 +954,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     siteUrl: window.location.origin // Pass current origin for re-registration link
                 })
             });
-            
+
             if (!res.ok) {
                 console.error('Rejection email failed');
                 push({ message: 'Status updated to Rejected, but email failed.', type: 'error' });
@@ -995,49 +1009,49 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const handleBulkApprove = async () => {
     // Determine which items are pending in the current view
     const pendingRegs = filteredRegistrations.filter(r => r.status === 'pending');
-    
+
     if (!pendingRegs.length) {
       push({ message: 'No pending registrations in current filter.', type: 'info' });
       return;
     }
     if (!confirm(`Approve ${pendingRegs.length} pending registration(s)?\nThis will trigger emails for all of them.`)) return;
-    
+
     try {
       const ids = pendingRegs.map(r => r.id);
-      
+
       setProcessingState({ active: true, title: 'Bulk Approving...', progress: 0 });
-      
+
       // Update DB status first
       await (bulkApproveRegistrations?.(ids));
       setProcessingState(prev => ({ ...prev, progress: 10, item: 'Database updated. Sending emails...' }));
-      
+
       let sentCount = 0;
       const CHUNK_SIZE = 3;  // Reduced chunk size for better visual feedback
-      
+
       for (let i = 0; i < pendingRegs.length; i += CHUNK_SIZE) {
           const chunk = pendingRegs.slice(i, i + CHUNK_SIZE);
-          
+
           await Promise.all(chunk.map(async (reg) => {
               setProcessingState(prev => ({ ...prev, item: `Processing ${reg.full_name}...` }));
               // We don't pass granular callback for bulk to avoid flickering progress bar
               const res = await sendApprovalEmail(reg);
               if (res && res.success) sentCount++;
           }));
-          
+
           const processed = Math.min(pendingRegs.length, i + CHUNK_SIZE);
           const pct = 10 + ((processed / pendingRegs.length) * 90); // Scale from 10% to 100%
-          
-          setProcessingState(prev => ({ 
-            ...prev, 
-            progress: pct, 
-            title: `Approved ${processed}/${pendingRegs.length}` 
+
+          setProcessingState(prev => ({
+            ...prev,
+            progress: pct,
+            title: `Approved ${processed}/${pendingRegs.length}`
           }));
       }
-      
+
       setProcessingState({ active: false, title: '', progress: 0 });
 
       push({ message: `Sent ${sentCount}/${pendingRegs.length} confirmation emails.`, type: 'success' });
-      
+
       // BADGE FIX: Refresh email statuses to update badges immediately
       await fetchEmailStatuses();
 
@@ -1087,12 +1101,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   // 3. Ensure "Team Members" is included if not explicitly removed (to fix user issue)
   const pdfColumns = useMemo(() => {
     let cols = [...selectedColumns];
-    
+
     // If user wants to exclude ID & College specifically for PDF
     if (pdfExcludeIdCollege) {
       cols = cols.filter(c => c !== 'id' && c !== 'college');
     }
-    
+
     // If College is globally disabled, remove it
     if (!registrationInstitutionVisible) {
       cols = cols.filter(c => c !== 'college');
@@ -1101,8 +1115,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     // Remove Status column from PDF as requested
     cols = cols.filter(c => c !== 'status');
 
-    // Ensure Team Members is present if we have Team Name or Total Members, 
-    // unless the user has explicitly deselected it? 
+    // Ensure Team Members is present if we have Team Name or Total Members,
+    // unless the user has explicitly deselected it?
     // The user said "it does not show the team member information".
     // I'll add it if it's missing, but only if 'team_name' is present (implying team context).
     if (cols.includes('team_name') && !cols.includes('team_members')) {
@@ -1114,20 +1128,20 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         cols.push('team_members');
       }
     }
-    
+
     return cols;
   }, [selectedColumns, pdfExcludeIdCollege, registrationInstitutionVisible]);
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
       {processingState.active && (
-        <ProcessingOverlay 
-          title={processingState.title} 
-          progress={processingState.progress} 
-          currentItem={processingState.item} 
+        <ProcessingOverlay
+          title={processingState.title}
+          progress={processingState.progress}
+          currentItem={processingState.item}
         />
       )}
-      
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div>
           <h2 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
@@ -1140,12 +1154,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
             Strategic participant lifecycle management
           </p>
         </div>
-        
+
         <div className="flex items-center gap-3">
              <div className="flex items-center bg-black/20 backdrop-blur-sm rounded-xl px-3 py-1 border border-white/10">
                 <span className="text-xs text-gray-500 mr-2 font-bold uppercase tracking-wide">Email Via:</span>
                 <div className="relative">
-                  <select 
+                  <select
                       value={emailProvider}
                       onChange={(e) => setEmailProvider(e.target.value as any)}
                       className="bg-transparent border-none py-2 pr-6 text-sm focus:ring-0 cursor-pointer text-white appearance-none font-medium"
@@ -1160,7 +1174,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
              </div>
         </div>
       </div>
-          
+
           {/* Quick Actions Bar */}
           <div className="rico-glass-card rounded-[2rem] p-5 border-white/5 shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-[80px] group-hover:bg-indigo-500/10 transition-colors duration-700"></div>
@@ -1178,7 +1192,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                       <CheckCircle size={16} className="mr-2" />
                       Approve All Pending
                     </button>
-                    
+
                     <button
                       onClick={handleBulkReject}
                       disabled={isMutating}
@@ -1337,7 +1351,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     {option.label}
                   </button>
                 ))}
-                
+
                 <button
                   onClick={handleCopyPhones}
                   className="flex items-center justify-center bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-cyan-600/20 text-sm font-bold hover:-translate-y-0.5"
@@ -1364,8 +1378,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               </div>
               Advanced Settings
             </h3>
-            <ChevronDown 
-              size={20} 
+            <ChevronDown
+              size={20}
               className={`text-gray-500 transition-transform group-hover:text-gray-400 ${showAdvancedSettings ? 'rotate-180' : ''}`}
             />
           </button>
@@ -1379,9 +1393,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   <div className="text-sm font-bold text-gray-300 mb-3 uppercase tracking-wide">PDF Watermark</div>
                   {watermarkUrl ? (
                     <div className="flex items-center gap-2 mb-3">
-                      <img 
-                        src={watermarkUrl || undefined} 
-                        alt="Watermark preview" 
+                      <img
+                        src={watermarkUrl || undefined}
+                        alt="Watermark preview"
                         className="h-10 w-auto opacity-50 border border-white/20 rounded"
                       />
                       <span className="text-xs text-emerald-400 font-bold">✓ Active</span>
@@ -1412,9 +1426,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   <div className="text-sm font-bold text-gray-300 mb-3 uppercase tracking-wide">PDF Stamp</div>
                   {stampUrl ? (
                     <div className="flex items-center gap-2 mb-3">
-                      <img 
-                        src={stampUrl || undefined} 
-                        alt="Stamp preview" 
+                      <img
+                        src={stampUrl || undefined}
+                        alt="Stamp preview"
                         className="h-10 w-auto border border-white/20 rounded"
                       />
                       <span className="text-xs text-emerald-400 font-bold">✓ Active</span>
@@ -1453,7 +1467,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     <Filter size={14} className="mr-2" />
                     Select Columns
                   </button>
-                  
+
                   <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer group">
                     <input
                       type="checkbox"
@@ -1480,7 +1494,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     />
                     <span className="font-medium group-hover:text-white transition-colors">Show Institution Field</span>
                   </label>
-                  
+
                   <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer group">
                     <input
                       type="checkbox"
@@ -1491,9 +1505,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     />
                     <span className="font-medium group-hover:text-white transition-colors">Make Optional</span>
                   </label>
-                  
-                  <button 
-                    className={`px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white text-sm font-bold shadow-lg ${savingRegSettings ? 'opacity-60 cursor-not-allowed' : 'hover:from-amber-500 hover:to-orange-500 hover:-translate-y-0.5 transition-all'}`} 
+
+                  <button
+                    className={`px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white text-sm font-bold shadow-lg ${savingRegSettings ? 'opacity-60 cursor-not-allowed' : 'hover:from-amber-500 hover:to-orange-500 hover:-translate-y-0.5 transition-all'}`}
                     disabled={savingRegSettings}
                     onClick={async () => {
                       try {
@@ -1544,15 +1558,15 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="flex flex-wrap gap-2">
               {Object.keys(EXPORT_PRESETS).map(p => (
                 <button
                   key={p}
                   onClick={() => handlePresetChange(p)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-                    exportPreset === p 
-                      ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]' 
+                    exportPreset === p
+                      ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]'
                       : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
                   }`}
                 >{p}</button>
@@ -1578,25 +1592,25 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
 
             <div className="flex items-center space-x-3 pt-2 border-t border-white/5">
               <label className="text-sm font-medium text-gray-400">PDF Split Threshold</label>
-              <input 
-                type="number" 
-                min={0} 
-                value={splitThreshold} 
-                onChange={e => setSplitThreshold(parseInt(e.target.value)||0)} 
-                className="w-20 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50" 
+              <input
+                type="number"
+                min={0}
+                value={splitThreshold}
+                onChange={e => setSplitThreshold(parseInt(e.target.value)||0)}
+                className="w-20 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
               />
               <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">(0 = no split)</span>
             </div>
 
             <div className="flex justify-end space-x-3 pt-2">
-              <button 
-                onClick={() => setShowColumnModal(false)} 
+              <button
+                onClick={() => setShowColumnModal(false)}
                 className="px-4 py-2 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
               >
                 Cancel
               </button>
-              <button 
-                onClick={() => { setShowColumnModal(false); push({ message: 'Column selection updated.', type: 'success'}); }} 
+              <button
+                onClick={() => { setShowColumnModal(false); push({ message: 'Column selection updated.', type: 'success'}); }}
                 className="px-6 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 transition-all hover:scale-105"
               >
                 Apply Changes
@@ -1615,7 +1629,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               <Filter size={16} className="mr-2" />
               Active Filters:
             </span>
-            
+
             {selectedEvent !== 'all' && (
               <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
                 <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Event:</span> {selectedEvent}
@@ -1624,7 +1638,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </button>
               </span>
             )}
-            
+
             {selectedStatus !== 'all' && (
               <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
                 <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Status:</span> {selectedStatus}
@@ -1633,7 +1647,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </button>
               </span>
             )}
-            
+
             {selectedBatch !== 'all' && (
               <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
                 <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Batch:</span> {selectedBatch}
@@ -1642,7 +1656,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </button>
               </span>
             )}
-            
+
             {selectedCategory !== 'all' && (
               <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
                 <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Category:</span> {selectedCategory}
@@ -1651,7 +1665,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </button>
               </span>
             )}
-            
+
             {dateFrom && (
               <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
                 <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">From:</span> {dateFrom}
@@ -1660,7 +1674,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </button>
               </span>
             )}
-            
+
             {dateTo && (
               <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
                 <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">To:</span> {dateTo}
@@ -1669,7 +1683,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </button>
               </span>
             )}
-            
+
             {searchTerm && (
               <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
                 <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Search:</span> "{searchTerm}"
@@ -1687,7 +1701,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </button>
               </span>
             )}
-            
+
             {showDuplicatesOnly && (
               <span className="inline-flex items-center gap-1 bg-amber-500/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-amber-200 border border-amber-500/20 hover:border-amber-400/50 transition-all shadow-lg">
                 <AlertTriangle size={14} className="text-amber-400" />
@@ -1716,7 +1730,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               Clear All
             </button>
           </div>
-          
+
           <div className="mt-3 text-xs font-medium text-gray-500 flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
             Showing <span className="text-white font-bold">{filteredRegistrations.length}</span> of <span className="text-gray-400">{registrations.length}</span> registrations
@@ -1860,8 +1874,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               <Settings size={16} className="mr-2 group-hover:rotate-45 transition-transform duration-500" />
               Advanced Filters
             </span>
-            <ChevronDown 
-              size={16} 
+            <ChevronDown
+              size={16}
               className={`transition-transform duration-300 ${showAdvancedFilters ? 'rotate-180 text-indigo-400' : ''}`}
             />
           </button>
@@ -1923,11 +1937,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               <div className="md:col-span-3">
                 <label className={`inline-flex items-center space-x-3 px-4 py-3 rounded-xl border transition-all cursor-pointer w-full md:w-auto ${showDuplicatesOnly ? 'bg-amber-500/10 border-amber-500/30' : 'bg-black/20 border-white/5 hover:bg-black/30'}`}>
                   <div className="relative flex items-center">
-                    <input 
-                      type="checkbox" 
-                      checked={showDuplicatesOnly} 
-                      onChange={(e) => setShowDuplicatesOnly(e.target.checked)} 
-                      className="peer appearance-none w-5 h-5 border-2 border-gray-500 rounded checked:bg-amber-500 checked:border-amber-500 focus:ring-2 focus:ring-amber-500/50 transition-colors" 
+                    <input
+                      type="checkbox"
+                      checked={showDuplicatesOnly}
+                      onChange={(e) => setShowDuplicatesOnly(e.target.checked)}
+                      className="peer appearance-none w-5 h-5 border-2 border-gray-500 rounded checked:bg-amber-500 checked:border-amber-500 focus:ring-2 focus:ring-amber-500/50 transition-colors"
                     />
                     <CheckCircle className="absolute w-4 h-4 text-white hidden peer-checked:block pointer-events-none left-0.5" />
                   </div>
@@ -2097,23 +2111,17 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                             <Phone size={12} className="mr-1" />
                             {registration.phone}
                             {registration.phone && (() => {
-                              const event = events.find((e: any) => e.id === registration.event_id);
-                              const groupLink = event?.whatsapp_group_link || '';
+                              const eligible = registration.status === 'approved' && registration.is_active === true && !registration.deleted_at;
+                              const groupLink = eligible ? eventGroups[String(registration.event_id)] || '' : '';
                               const firstName = registration.full_name.split(' ')[0];
                               const eventTitle = registration.event_title;
-                              
-                              const message = `Hello ${firstName}! 👋\n\nYou have successfully registered for *${eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${groupLink || 'Link will be shared soon'}`;
-                              
+
+                              const message = eligible ? `Hello ${firstName}! 👋\n\nYour registration for *${eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR} is approved! 🎭\n\n${groupLink ? `Join the official WhatsApp group for important updates:\n\n${groupLink}` : 'The event group link will be shared soon.'}` : `Hello ${firstName}! This is regarding your registration for *${eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}. The WhatsApp group becomes available after coordinator approval.`;
+
                               const cleanPhone = registration.phone.replace(/[^0-9]/g, '');
                               const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-                              
-                              console.log('WhatsApp Message Details:', {
-                                eventId: registration.event_id,
-                                hasEvent: !!event,
-                                groupLink,
-                                messageLength: message.length
-                              });
-                              
+
+
                               return (
                                 <a
                                   href={whatsappUrl}
@@ -2214,9 +2222,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                         if (data && data.length > 0) {
                                           setEmailStatusMap(prev => ({
                                             ...prev,
-                                            [registration.id]: { 
-                                              sent: data.some((log: any) => log.status === 'sent'), 
-                                              count: data.length 
+                                            [registration.id]: {
+                                              sent: data.some((log: any) => log.status === 'sent'),
+                                              count: data.length
                                             }
                                           }));
                                         }
@@ -2287,7 +2295,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   )}
                 </td>
                   </tr>
-                  
+
                   {/* Expanded Details Row */}
                   {expandedRegistration === registration.id && (
                     <tr className="animate-in fade-in slide-in-from-top-2 duration-300">
@@ -2297,9 +2305,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                             <div>
                               <h4 className="font-semibold text-white mb-2">Registration Details</h4>
                               <div className="space-y-1 sm:space-y-2">
-                                <EditableRow 
-                                  label="Full Name" 
-                                  value={registration.full_name} 
+                                <EditableRow
+                                  label="Full Name"
+                                  value={registration.full_name}
                                   onSave={async (val) => {
                                     try {
                                       await dualUpdate('registrations', registration.id, { full_name: val });
@@ -2307,19 +2315,19 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                       push({ message: 'Update failed', type: 'error' });
                                       return false;
                                     }
-                                    await updateRegistrationStatus(registration.id, registration.status); 
+                                    await updateRegistrationStatus(registration.id, registration.status);
                                     push({ message: 'Name updated', type: 'success' });
                                     return true;
-                                  }} 
-                                  canEdit={isOwner} 
+                                  }}
+                                  canEdit={isOwner}
                                 />
                                 <div className="flex items-start gap-2 min-h-[24px] text-sm">
                                   <strong className="text-gray-400 w-[140px] flex-shrink-0 pt-0.5">Registration ID:</strong>
                                   <span className="text-gray-200 font-mono text-xs pt-0.5 select-all">{registration.id}</span>
                                 </div>
-                                <EditableRow 
-                                  label="College" 
-                                  value={registration.college} 
+                                <EditableRow
+                                  label="College"
+                                  value={registration.college}
                                   onSave={async (val) => {
                                     try {
                                       await dualUpdate('registrations', registration.id, { college: val });
@@ -2330,12 +2338,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                     await updateRegistrationStatus(registration.id, registration.status);
                                     push({ message: 'College updated', type: 'success' });
                                     return true;
-                                  }} 
-                                  canEdit={isOwner} 
+                                  }}
+                                  canEdit={isOwner}
                                 />
-                                <EditableRow 
-                                  label="Email" 
-                                  value={registration.email} 
+                                <EditableRow
+                                  label="Email"
+                                  value={registration.email}
                                   onSave={async (val) => {
                                     try {
                                       const enc = encryptData(val);
@@ -2347,12 +2355,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                     await updateRegistrationStatus(registration.id, registration.status);
                                     push({ message: 'Email updated', type: 'success' });
                                     return true;
-                                  }} 
-                                  canEdit={isOwner} 
+                                  }}
+                                  canEdit={isOwner}
                                 />
-                                <EditableRow 
-                                  label="Phone" 
-                                  value={registration.phone} 
+                                <EditableRow
+                                  label="Phone"
+                                  value={registration.phone}
                                   onSave={async (val) => {
                                     try {
                                       const enc = encryptData(val);
@@ -2364,12 +2372,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                     await updateRegistrationStatus(registration.id, registration.status);
                                     push({ message: 'Phone updated', type: 'success' });
                                     return true;
-                                  }} 
-                                  canEdit={isOwner} 
+                                  }}
+                                  canEdit={isOwner}
                                 />
-                                  <EditableRow 
-                                    label="Batch" 
-                                    value={registration.participant_type} 
+                                  <EditableRow
+                                    label="Batch"
+                                    value={registration.participant_type}
                                     onSave={async (val) => {
                                       try {
                                         // Update the batch globally for this user's email
@@ -2377,13 +2385,13 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                            await updateBatchGlobally(registration.email, val);
                                            return true;
                                         }
-                                        return false;                                        
+                                        return false;
                                       } catch (err) {
                                         push({ message: 'Global batch update failed', type: 'error' });
                                         return false;
                                       }
-                                    }} 
-                                    canEdit={isOwner} 
+                                    }}
+                                    canEdit={isOwner}
                                   />
                                 <div className="flex items-start gap-2 min-h-[24px] text-sm">
                                   <strong className="text-gray-400 w-[140px] flex-shrink-0 pt-0.5">Date:</strong>
@@ -2397,21 +2405,21 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                   <ImageIcon size={14} /> Participant Photo
                                 </h4>
                                 <div className="flex flex-col sm:flex-row items-center gap-4">
-                                  <img
+                                  <PrivateMediaImage
                                     src={(registration as any).photo_url as any}
                                     alt={`${registration.full_name} photo`}
                                     className="w-32 h-32 rounded-xl object-cover border-2 border-white/10 shadow-lg hover:scale-105 transition-transform duration-500"
                                     referrerPolicy="no-referrer"
                                   />
                                   <div className="flex flex-col gap-2 w-full">
-                                    <a
+                                    <PrivateMediaLink
                                       href={(registration as any).photo_url as any}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all border border-white/10"
                                     >
                                       <Eye size={14} /> View Original
-                                    </a>
+                                    </PrivateMediaLink>
                                     <button
                                       onClick={() => downloadPhoto((registration as any).photo_url as string, registration.full_name)}
                                       className="flex items-center justify-center gap-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-xs font-bold py-2.5 px-4 rounded-xl transition-all border border-indigo-500/20"
@@ -2422,17 +2430,17 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                 </div>
                               </div>
                             )}
-                            
+
                             {/* Motivation removed from registration details */}
                           </div>
-                          
+
                           {/* Team Members */}
                           {registration.is_team_registration && (
                             <div>
                             <div className="space-y-2">
-                                <EditableRow 
-                                  label="Team Name" 
-                                  value={registration.team_name} 
+                                <EditableRow
+                                  label="Team Name"
+                                  value={registration.team_name}
                                   onSave={async (val) => {
                                     try {
                                       await dualUpdate('registrations', registration.id, { team_name: val });
@@ -2443,8 +2451,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                     await updateRegistrationStatus(registration.id, registration.status);
                                     push({ message: 'Team name updated', type: 'success' });
                                     return true;
-                                  }} 
-                                  canEdit={isOwner} 
+                                  }}
+                                  canEdit={isOwner}
                                 />
                               <h4 className="font-black text-[10px] text-indigo-300 uppercase tracking-widest mb-4 flex items-center gap-2 mt-4">
                                 <Users size={14} /> Team Members ({registration.total_members})
@@ -2453,9 +2461,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                 {safeTeamMembers(registration).map((member: any, index: number) => (
                                   <div key={index} className="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl backdrop-blur-md space-y-3 relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/10 transition-colors" />
-                                    <EditableRow 
-                                      label="Name" 
-                                      value={member.name} 
+                                    <EditableRow
+                                      label="Name"
+                                      value={member.name}
                                       onSave={async (val) => {
                                         try {
                                           const members = safeTeamMembers(registration);
@@ -2471,9 +2479,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                       canEdit={isOwner}
                                       className="!min-h-[24px]"
                                     />
-                                    <EditableRow 
-                                      label="Email" 
-                                      value={member.email} 
+                                    <EditableRow
+                                      label="Email"
+                                      value={member.email}
                                       onSave={async (val) => {
                                         try {
                                           const members = safeTeamMembers(registration);
@@ -2489,9 +2497,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                       canEdit={isOwner}
                                       className="!min-h-[24px]"
                                     />
-                                    <EditableRow 
-                                      label="Phone" 
-                                      value={member.phone} 
+                                    <EditableRow
+                                      label="Phone"
+                                      value={member.phone}
                                       onSave={async (val) => {
                                         try {
                                           const members = safeTeamMembers(registration);
@@ -2581,7 +2589,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               ))}
             </tbody>
           </table>
-          
+
           {/* Pagination Controls */}
           {count > 0 && (
             <div className="px-6 py-4 flex items-center justify-between border-t border-white/5 bg-white/[0.02]">
@@ -2603,7 +2611,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   <option value={100}>100 / page</option>
                 </select>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
@@ -2612,7 +2620,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 >
                   <ChevronLeft size={16} />
                 </button>
-                
+
                 <div className="flex items-center gap-1">
                   {/* Simplified pagination: just show current page */}
                   <span className="text-[10px] font-black text-indigo-300 bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20 uppercase tracking-widest shadow-lg backdrop-blur-md">
@@ -2639,7 +2647,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
             <Users size={64} className="mx-auto text-indigo-500/30 mb-6 animate-pulse" />
             <h3 className="text-xl font-black text-white mb-3 tracking-tight uppercase">No registrations found</h3>
             <p className="text-gray-400 max-w-sm mx-auto font-bold uppercase tracking-widest text-[10px] opacity-60 italic">
-              {registrations.length === 0 
+              {registrations.length === 0
                 ? "The database is currently empty. No registrations have been submitted yet."
                 : "Try adjusting your filters to see more results."
               }
@@ -2664,14 +2672,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     placeholder="e.g., ID card not clear, Invalid details..."
                 />
                 <div className="flex justify-end gap-3">
-                    <button 
+                    <button
                         onClick={() => { setRejectingId(null); setRejectionReason(''); }}
                         className="px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all font-bold"
                         disabled={isSendingRejection}
                     >
                         Cancel
                     </button>
-                    <button 
+                    <button
                         onClick={confirmRejection}
                         disabled={isSendingRejection || !rejectionReason.trim()}
                         className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-500 shadow-lg shadow-red-600/20 flex items-center gap-2 font-bold transition-all"
@@ -2701,12 +2709,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto flex-1 space-y-6 custom-scrollbar">
-                
+
                 {/* Template Type Selector */}
                 <div className="grid grid-cols-3 gap-4">
-                    <button 
+                    <button
                         onClick={() => setEmailTemplate('winner')}
                         className={`p-4 rounded-xl border flex flex-col items-center gap-3 transition-all duration-300 relative overflow-hidden group ${emailTemplate === 'winner' ? 'border-yellow-500/50 bg-yellow-500/10 text-yellow-200' : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20'}`}
                     >
@@ -2716,7 +2724,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                         <span className="font-bold text-sm tracking-wide">Winner</span>
                         {emailTemplate === 'winner' && <div className="absolute inset-0 bg-yellow-500/5 animate-pulse" />}
                     </button>
-                    <button 
+                    <button
                         onClick={() => setEmailTemplate('selection')}
                         className={`p-4 rounded-xl border flex flex-col items-center gap-3 transition-all duration-300 relative overflow-hidden group ${emailTemplate === 'selection' ? 'border-teal-500/50 bg-teal-500/10 text-teal-200' : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20'}`}
                     >
@@ -2726,7 +2734,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                         <span className="font-bold text-sm tracking-wide">Selection</span>
                         {emailTemplate === 'selection' && <div className="absolute inset-0 bg-teal-500/5 animate-pulse" />}
                     </button>
-                    <button 
+                    <button
                         onClick={() => setEmailTemplate('custom')}
                         className={`p-4 rounded-xl border flex flex-col items-center gap-3 transition-all duration-300 relative overflow-hidden group ${emailTemplate === 'custom' ? 'border-blue-500/50 bg-blue-500/10 text-blue-200' : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20'}`}
                     >
@@ -2761,7 +2769,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                     </button>
                                 ))}
                             </div>
-                            <input 
+                            <input
                                 type="text"
                                 className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-yellow-500/50 outline-none placeholder-gray-600 transition-all font-medium"
                                 placeholder="Or type custom position..."
@@ -2771,7 +2779,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Additional Message (Optional)</label>
-                            <textarea 
+                            <textarea
                                 className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-yellow-500/50 outline-none h-24 placeholder-gray-600 transition-all font-medium custom-scrollbar"
                                 placeholder="Any specific instructions for the winner..."
                                 value={emailCustomBody}
@@ -2792,7 +2800,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Round Cleared</label>
-                            <input 
+                            <input
                                 type="text"
                                 className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-teal-500/50 outline-none placeholder-gray-600 transition-all font-medium"
                                 placeholder="e.g. preliminary round, audition round, first evaluation"
@@ -2802,7 +2810,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Selection Stage</label>
-                            <input 
+                            <input
                                 type="text"
                                 className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-teal-500/50 outline-none placeholder-gray-600 transition-all font-medium"
                                 placeholder="e.g. Round 2, Finals, Interview Round"
@@ -2812,7 +2820,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                         </div>
                         <div>
                              <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Additional Message (Optional)</label>
-                            <textarea 
+                            <textarea
                                 className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-teal-500/50 outline-none h-24 placeholder-gray-600 transition-all font-medium custom-scrollbar"
                                 placeholder="Instructions for the next round..."
                                 value={emailCustomBody}
@@ -2826,7 +2834,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
                         <div>
                             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Subject Line</label>
-                            <input 
+                            <input
                                 type="text"
                                 className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-blue-500/50 outline-none placeholder-gray-600 transition-all font-medium"
                                 placeholder="e.g. Important Update regarding..."
@@ -2836,7 +2844,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                         </div>
                          <div>
                             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Message Body</label>
-                            <textarea 
+                            <textarea
                                 className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-blue-500/50 outline-none h-32 placeholder-gray-600 transition-all font-medium custom-scrollbar"
                                 placeholder="Type your full message here..."
                                 value={emailCustomBody}
@@ -2845,7 +2853,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                         </div>
                     </div>
                 )}
-            
+
                 {/* Preview Box */}
                 <div className="bg-black/30 border border-white/10 p-5 rounded-xl text-sm text-gray-300 space-y-2 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-[30px] -translate-y-1/2 translate-x-1/2"></div>
@@ -2855,7 +2863,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     <p className="flex justify-between"><strong className="text-gray-500">Recipients:</strong> <span className="text-white font-mono">{selectedIds.size} users</span></p>
                     <p className="flex justify-between"><strong className="text-gray-500">Template:</strong> <span className="text-white font-mono">{emailTemplate.toUpperCase()}</span></p>
                     <p className="flex justify-between items-start gap-4">
-                        <strong className="text-gray-500 flex-shrink-0">Subject:</strong> 
+                        <strong className="text-gray-500 flex-shrink-0">Subject:</strong>
                         <span className="text-white text-right italic opacity-80">{
                             emailTemplate === 'winner' ? `🎉 Congratulations! You are a ${emailAdditionalData.position || 'Winner'}...` :
                             emailTemplate === 'selection' ? `Selection Update: You're selected for ${emailAdditionalData.stage || 'next round'}!` :
@@ -2867,13 +2875,13 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
             </div>
 
             <div className="p-5 border-t border-white/10 bg-white/5 rounded-b-2xl flex justify-end gap-3">
-                <button 
+                <button
                     onClick={() => setShowEmailModal(false)}
                     className="px-5 py-2.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all font-bold"
                 >
                     Cancel
                 </button>
-                <button 
+                <button
                     onClick={handleSendCustomEmail}
                     disabled={emailSending}
                     className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 shadow-lg shadow-blue-600/20 font-bold flex items-center gap-2 disabled:opacity-50 hover:scale-105 transition-all"

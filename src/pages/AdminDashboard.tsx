@@ -1,3 +1,4 @@
+import ParticipationVerification from '../components/shared/ParticipationVerification';
 import { getAdminSections } from '../constants/adminSections';
 import { legacyAccessSections } from '../utils/adminAccessRoutes';
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
@@ -6,10 +7,10 @@ import { AdminLayout, TabType } from '../components/admin/layout/AdminLayout';
 import { Shield, PartyPopper, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AnnouncementsPanel } from '../components/shared/AnnouncementsPanel';
+import { useSupportUnread } from '../hooks/useSupportUnread';
 import { ChatPanel } from '../components/shared/ChatPanel';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { isMasterOwner } from '../constants/owners';
 import { useData } from '../context/DataContext';
 // Lazy load admin panels to reduce initial bundle size
 const EventsManagement = React.lazy(() => import('../components/admin/EventsManagement').then(m => ({ default: m.EventsManagement })));
@@ -145,26 +146,19 @@ export const AdminDashboard: React.FC = () => {
 
 
 
-  const isMasterBypassUser = !!user?.user_metadata?.master_bypass || user?.id === 'master-admin-bypass';
+
 
   // Determine if current user is the OWNER
   const isOwner = useMemo(() => {
 
     try {
-      // Check for master admin bypass and hardcoded owners
-      const email = user?.email?.toLowerCase().trim();
-      const isHardcoded = isMasterOwner(email);
-
-      if (isMasterBypassUser || user?.user_metadata?.is_super_admin || isHardcoded) {
-        return true;
-      }
       const uid = user?.id;
       if (!uid || !Array.isArray(adminUsers)) return false;
       return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
     } catch {
       return false;
     }
-  }, [user, isMasterBypassUser, adminUsers]);
+  }, [user, adminUsers]);
 
 
   // Debounce redirect to handle transient auth events on tab focus
@@ -339,12 +333,9 @@ export const AdminDashboard: React.FC = () => {
   // Determine if current user is an ADMIN (owner OR admin role)
   const isAdmin = (() => {
     try {
-      if (isMasterBypassUser || user?.user_metadata?.is_super_admin) return true;
       const uid = user?.id;
-      const email = user?.email?.toLowerCase();
-      if (email?.includes('sports') && email?.includes('council')) return true;
       if (!uid || !Array.isArray(adminUsers)) return false;
-      return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.role === 'council' || a.is_primary));
+      return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
     } catch {
       return false;
     }
@@ -367,7 +358,7 @@ export const AdminDashboard: React.FC = () => {
   // Allow the Security tab for non-owner/non-council admins so they can manage their own 2FA
   if (isAdmin && !isCouncil) {
     allowedIds.add('security');
-    allowedIds.add('support-chat'); // Allow support chat for admins
+    // Technical support is assigned explicitly through Support chat page access.
   }
     // Notifications manager is generally safe; allow for all admins by default
     allowedIds.add('notifications');
@@ -417,6 +408,8 @@ export const AdminDashboard: React.FC = () => {
     // Only show tabs explicitly allowed (others hidden for non-owners)
     return tabs.filter((t) => allowedIds.has(t.id));
   })();
+
+  const supportUnread = useSupportUnread('admin', isAuthenticated && visibleTabs.some(tab => tab.id === 'support-chat'));
 
   // Ensure activeTab is always one of the visible tabs for current user
   useEffect(() => {
@@ -521,6 +514,7 @@ export const AdminDashboard: React.FC = () => {
 
   // Badge counts
   const badges = {
+    'support-chat': supportUnread,
     registrations: pendingRegistrations,
     auditions: pendingAuditions,
     memberships: pendingMemberships
@@ -630,7 +624,7 @@ export const AdminDashboard: React.FC = () => {
 
             {activeTab === 'support-chat' && (
               <div className="h-[750px]">
-                <ChatPanel themeAccent="indigo" />
+                <ChatPanel mode="admin" themeAccent="indigo" />
               </div>
             )}
 
@@ -647,7 +641,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'schedule' && <ScheduleManagement />}
             {activeTab === 'gallery' && <GalleryManagement />}
             {activeTab === 'sponsors' && <SponsorsManagement />}
-            { activeTab === 'registrations' && <RegistrationManagement />}
+            { activeTab === 'registrations' && <><ParticipationVerification /><RegistrationManagement /></>}
             { activeTab === 'student-passes' && (
               <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Pass Management...</div>}>
                 <StudentPassManagement />

@@ -1,3 +1,4 @@
+import { prepareBrandAsset } from '../utils/brandAsset';
 import { supabase } from '../lib/supabase';
 import { generateRegistrationReceiptPDF } from '../utils/pdfExport';
 import type { Registration } from '../types/data';
@@ -67,7 +68,8 @@ export const adminDataService = {
     }
 
     try {
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+      file = await prepareBrandAsset(file);
+      const ext = 'png';
       const fileName = `${type}.${ext}`;
       
       const { error } = await supabase.storage

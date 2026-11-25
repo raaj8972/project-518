@@ -68,7 +68,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateRoadmapMilestone: core.updateRoadmapMilestone,
     deleteRoadmapMilestone: core.deleteRoadmapMilestone,
     toggleRoadmapMilestoneEnabled: core.toggleRoadmapMilestoneEnabled,
-    toggleSponsorshipPackageEnabled: core.toggleSponsorshipPackageEnabled,
+    toggleSponsorshipPackageEnabled: management.toggleSponsorshipPackageEnabled,
 
     // Events Domain
     events: events.events,
@@ -232,22 +232,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Storage Domain
     storageQuotaBytes: null,
-    getRegistrationPhotos: async (page = 1, limit = 25) => {
-      const offset = (page - 1) * limit;
-      const { data, error } = await supabase.storage.from('registration-photos').list('', {
-        limit,
-        offset,
-        sortBy: { column: 'created_at', order: 'desc' }
-      });
-      if (error) { console.error('[RegPhotos] list error:', error.message); return { items: [], total: 0 }; }
-      const items = (data || []).filter(f => f.name && !f.name.startsWith('.')).map(f => {
-        const { data: urlData } = supabase.storage.from('registration-photos').getPublicUrl(f.name);
-        return { name: f.name, publicUrl: urlData.publicUrl, size: (f.metadata as any)?.size ?? 0, created_at: f.created_at ?? null };
-      });
-      const { data: countData } = await supabase.storage.from('registration-photos').list('', { limit: 10000 });
-      const total = countData?.filter(f => f.name && !f.name.startsWith('.')).length ?? items.length;
-      return { items, total };
-    },
+    getRegistrationPhotos: (page = 1, limit = 25) => getBucketObjects('registration-photos', page, limit),
     computeRegistrationPhotosUsage: async () => {
       const { data, error } = await supabase.storage.from('registration-photos').list('', { limit: 10000 });
       if (error) return { totalBytes: 0, count: 0 };

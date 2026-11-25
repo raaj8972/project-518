@@ -6,6 +6,7 @@ import { StudentAuthProvider, useStudentAuth } from '../src/context/StudentAuthC
 import { useSecondClock } from '../src/hooks/useSecondClock';
 
 const mocks = vi.hoisted(() => ({ from: vi.fn(), session: vi.fn(), callback: undefined as undefined | ((event: string, session: any) => void) }));
+vi.mock('../src/services/studentTeams', () => ({ getCollegeIdentity: async () => null }));
 vi.mock('../src/lib/supabase', () => ({ supabase: {
   from: mocks.from,
   auth: { getSession: mocks.session, onAuthStateChange: (callback: any) => { mocks.callback = callback; return { data: { subscription: { unsubscribe() {} } } }; } },
@@ -54,4 +55,12 @@ it('does not restore a signed-out student from an earlier in-flight profile requ
   await act(async () => vi.advanceTimersByTimeAsync(0));
   await act(async () => { mocks.callback?.('SIGNED_OUT', null); complete({ data: { id: 'student' }, error: null }); });
   expect(container.textContent).toBe('anonymous:none:false');
+});
+it('invalidates an earlier request when the same account signs out and signs back in',async()=>{
+ const pending:Array<(value:any)=>void>=[];mocks.session.mockResolvedValue({data:{session:{user}}});mocks.from.mockImplementation(()=>profileQuery(new Promise(resolve=>pending.push(resolve))));
+ function Name(){const state=useStudentAuth();return <p>{state.profile?.full_name||'none'}</p>;}
+ await act(async()=>root.render(<StudentAuthProvider><Name/></StudentAuthProvider>));await act(async()=>vi.advanceTimersByTimeAsync(0));
+ await act(async()=>{mocks.callback?.('SIGNED_OUT',null);mocks.callback?.('SIGNED_IN',{user});await vi.advanceTimersByTimeAsync(0);});expect(pending).toHaveLength(2);
+ await act(async()=>pending[0]({data:{id:'student',full_name:'Outdated profile'},error:null}));expect(container.textContent).toBe('none');
+ await act(async()=>pending[1]({data:{id:'student',full_name:'Current profile'},error:null}));expect(container.textContent).toBe('Current profile');
 });

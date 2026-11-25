@@ -3,6 +3,7 @@ import { normalizedProgress, smoothRange } from './cinematicMotion';
 import { CLOUD_HOLD_MS, createScrollVideoController, HOME_FADE_MS } from './scrollVideo';
 import { cloudEntryPose, introAssets, introFlow } from './introFlow';
 import VideoCloudTransition from './VideoCloudTransition';
+import RicorrenzaPrelude from './RicorrenzaPrelude';
 import { useCoreData } from '../../context/CoreDataContext';
 import { getPortalLogoUrl } from './portalLogoUrl';
 import { getIntroPolicy, INTRO_LIMITS, publishIntroPhase, rememberIntroFallback, savedIntroFallback, supportsCinematicIntro, visibleTimeout } from './introCapability';
@@ -53,7 +54,18 @@ export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_E
   const cloudLoaded = useRef(false), cloudHeld = useRef(false), cloudTimer = useRef<ReturnType<typeof setTimeout>>();
   const finishTimer = useRef<ReturnType<typeof setTimeout>>(), complete = useRef(false);
   const resetAfterBypass = useRef(false);
+  const [preludeDone, setPreludeDone] = useState(false);
+  const preludeComplete = useRef(false);
   const enabled = !bypassReason;
+
+  const finishPrelude = useCallback(() => {
+    // Clear both native restoration and Lenis' queued target before unlocking.
+    progress.current = 0; mediaProgress.current = 0;
+    window.dispatchEvent(new CustomEvent('rico:scroll-to', { detail: { top: 0 } }));
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    preludeComplete.current = true; setPreludeDone(true);
+    updateVisual.current();
+  }, [mediaProgress]);
 
   useEffect(() => { updateVisual.current(); }, [homePending]);
   useEffect(() => () => prepareHome(false), [prepareHome]);
@@ -159,7 +171,8 @@ export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_E
     let mountedScene = false;
     const apply = () => {
       if (disposed) return;
-      let p = progress.current;
+      let p = preludeComplete.current ? progress.current : 0;
+      if (!preludeComplete.current) progress.current = 0;
       // Without the portal, end at the original cloud transition instead of
       // leaving the removed chapter's empty scroll distance behind.
       const timelineEnd = portalEnabled ? 1 : .65;
@@ -264,7 +277,7 @@ export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_E
   return <div ref={root} className="cinematic-experience cinematic-video-experience" data-cinematic-experience data-intro-mode={enabled ? portalEnabled ? 'video-3d' : 'video' : 'direct'} data-intro-portal={portalEnabled} data-intro-bypass={bypassReason} data-video-device={mobile ? 'mobile' : 'desktop'}>
     {enabled && <>
       <div ref={runway} className="cinematic-runway" aria-hidden="true" />
-      <div ref={overlay} className="cinematic-overlay cinematic-video-overlay" data-cinematic-overlay role="region" tabIndex={0} aria-label={portalEnabled ? 'Ricorrenza scroll film introduction. In the 3D hall, drag left or right to look around the character. Scroll vertically to move forward.' : 'Ricorrenza scroll film introduction. Scroll to enter the festival.'}>
+      <div ref={overlay} className="cinematic-overlay cinematic-video-overlay" data-cinematic-overlay data-logo-prelude-active={!preludeDone} role="region" tabIndex={0} aria-label={portalEnabled ? 'Ricorrenza scroll film introduction. In the 3D hall, drag left or right to look around the character. Scroll vertically to move forward.' : 'Ricorrenza scroll film introduction. Scroll to enter the festival.'}>
         {portalEnabled && <div ref={sceneHost} className="cinematic-scene-stage" data-scene-state={sceneLoaded ? 'ready' : 'loading'} aria-hidden="true">
           {sceneMounted && <SceneBoundary onFailure={onSceneFailure}><Suspense fallback={null}><CinematicScene variant="portal" look={look} logoUrl={portalLogoUrl} progress={sceneProgress} quality={quality} onReady={onSceneReady} onFailure={onSceneFailure} registerInvalidate={registerInvalidate} /></Suspense></SceneBoundary>}
         </div>}
@@ -275,13 +288,14 @@ export default function CinematicHome({ children, portalEnabled = INTRO_PORTAL_E
         {portalEnabled && <div ref={wash} className="cinematic-portal-wash" aria-hidden="true" />}
         {capable && <VideoCloudTransition video={video} progress={mediaProgress} mobile={mobile} onReady={onCloudReady} onFailure={onCloudFailure} registerDraw={registerCloudDraw} />}
         <div className="cinematic-video-shade" aria-hidden="true" />
-        <button type="button" onClick={skip} className="cinematic-skip cinematic-video-skip">Skip intro <span aria-hidden="true">↗</span></button>
-        {!ready && <div className="cinematic-video-loading" role="status" aria-live="polite"><span className="cinematic-video-spinner" aria-hidden="true" /><span>Preparing the film{buffered > 0 ? ` · ${buffered}%` : '…'}</span></div>}
+        <button type="button" onClick={skip} disabled={!preludeDone} className="cinematic-skip cinematic-video-skip">Skip intro <span aria-hidden="true">↗</span></button>
+        {!ready && <div className="cinematic-video-loading" role="status" aria-live="polite" aria-hidden={!preludeDone}><span className="cinematic-video-spinner" aria-hidden="true" /><span>Preparing the film{buffered > 0 ? ` · ${buffered}%` : '…'}</span></div>}
         {ready && waitingForTransition && homePreparing && homePending && <div className="cinematic-video-loading" role="status">Opening your campus…</div>}
         {sceneMounted && !sceneLoaded && progress.current >= .55 && <div className="cinematic-video-loading" role="status">Opening the 3D realm…</div>}
         <div ref={hint} className="cinematic-video-scroll"><span aria-hidden="true">↓</span><span>SCROLL TO ENTER<small>Your journey moves with you.</small></span></div>
         {portalEnabled && <div ref={lookHint} className="cinematic-video-scroll cinematic-look-hint" hidden><span aria-hidden="true">↔</span><span>DRAG TO LOOK AROUND<small>Scroll to move forward.</small></span></div>}
         <div className="cinematic-video-meter" aria-hidden="true"><span ref={meter}>0%</span><div><i ref={track} /></div></div>
+        {!preludeDone && <RicorrenzaPrelude onComplete={finishPrelude} />}
       </div>
     </>}
     {!enabled && !['reduced-motion', 'deep-link', 'disabled', 'offline', 'save-data'].includes(bypassReason || '') &&

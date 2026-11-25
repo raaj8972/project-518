@@ -5,6 +5,8 @@ import { useAuth } from './AuthContext';
 import { getPublicSecuritySettings } from '../services/publicSecuritySettings';
 import { persistRoadmap } from '../utils/persistRoadmap';
 import { preloadBrandAssets } from '../utils/preloadBrand';
+import { rolloverPartnerPlacements } from '../utils/homepageContent';
+import { BRAND_YEAR } from '../constants/brand';
 import { 
   SiteSettings, HeroMedia, AboutSettings, HomeboundSettings, 
   HomepageSettings, FormSettings, SocialMediaSettings, SecuritySettings, PageKey, RoadmapMilestone,
@@ -92,7 +94,7 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [heroMedia, setHeroMedia] = useState<Partial<Record<PageKey, HeroMedia | null>>>({});
   const [aboutSettings, setAboutSettings] = useState<AboutSettings | null>(null);
-  const [homeboundSettings, setHomeboundSettings] = useState<AboutSettings | any>(null);
+  const [homeboundSettings, setHomeboundSettings] = useState<HomeboundSettings | null>(null);
   const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null);
   const [formSettings, setFormSettings] = useState<FormSettings | null>(null);
   const [socialMediaSettings, setSocialMediaSettings] = useState<SocialMediaSettings | null>(null);
@@ -146,7 +148,9 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   };
   
   const updateHomeboundSettings = async (patch: Partial<HomeboundSettings>) => {
-    await dualUpsert('homebound_settings', { id: 1, ...patch });
+    const saved = await dualUpsert('homebound_settings', { id: 1, ...patch });
+    if (!saved) throw new Error('The Homebound settings were not saved. Please refresh and try again.');
+    setHomeboundSettings(saved);
     await refreshAll(true);
   };
 
@@ -159,7 +163,21 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
       await refreshAll(true);
       return;
     }
-    await dualUpsert('homepage_settings', { id: 1, ...patch });
+    const nextPatch = { ...patch };
+    const previousYear = Number(homepageSettings?.brand_year) || Number(BRAND_YEAR);
+    const nextYear = Number(patch.brand_year);
+    if (Number.isInteger(nextYear) && nextYear > previousYear) {
+      // Save the new brand year and its archived placements in the same row write.
+      const latest = await dualRead({ table: 'homepage_settings', eq: ['id', 1], maybeSingle: true, forceRefresh: true });
+      const liveYear = Number(latest.data?.brand_year) || previousYear;
+      if (nextYear > liveYear) {
+        nextPatch.sponsor_logos = rolloverPartnerPlacements(patch.sponsor_logos ?? latest.data?.sponsor_logos ?? homepageSettings?.sponsor_logos, liveYear, nextYear) as unknown as HomepageSettings['sponsor_logos'];
+      }
+    }
+    const sponsorFields = ['sponsor_logos', 'featured_partners_enabled'];
+    if (Object.keys(nextPatch).length && Object.keys(nextPatch).every(key => sponsorFields.includes(key))) {
+      await dualUpdate('homepage_settings', 1, nextPatch);
+    } else await dualUpsert('homepage_settings', { id: 1, ...nextPatch });
     await refreshAll(true);
   };
 
@@ -226,7 +244,7 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   const toggleSponsorshipPackageEnabled = async (id: number) => {
     const { data: current } = await dualRead({ table: 'sponsorship_packages', eq: ['id', id], maybeSingle: true });
     if (current) {
-      await dualUpsert('sponsorship_packages', { id, enabled: !current.enabled });
+      await dualUpdate('sponsorship_packages', id, { enabled: !current.enabled });
       setRefreshTrigger(p => p + 1);
     }
   };
@@ -259,6 +277,16 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   useEffect(() => {
     void refreshAll(true);
   }, [refreshAll, user?.id]);
+
+  useEffect(() => {
+    if (!pathname.startsWith('/home-bound') && !pathname.startsWith('/admin')) return;
+    const channel = supabase.channel('homebound-page-settings-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'homebound_settings', filter: 'id=eq.1' }, payload => {
+        invalidateTableCache('homebound_settings');
+        setHomeboundSettings(payload.eventType === 'DELETE' ? null : payload.new as HomeboundSettings);
+      }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [pathname]);
 
   // Real-time subscription for site_settings & homepage_settings
   useEffect(() => {
@@ -341,8 +369,8 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   };
 
   return (
-    <CoreContext.Provider value={value}>
+    <PrimaryCoreDataContext.Provider value={value}>
       {children}
-    </CoreContext.Provider>
+    </PrimaryCoreDataContext.Provider>
   );
 };

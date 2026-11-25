@@ -4,26 +4,27 @@ import {createRoot,type Root} from 'react-dom/client';
 import {beforeEach,afterEach,expect,it,vi} from 'vitest';
 import {SponsorsManagement} from '../src/components/admin/SponsorsManagement';
 import {resolveHomepagePartners} from '../src/utils/homepageContent';
-const mocks=vi.hoisted(()=>({place:vi.fn(),feature:vi.fn(),add:vi.fn(),update:vi.fn(),approval:vi.fn(),requires:false,snapshot:null as any,legacy:[] as any[]}));
+const mocks=vi.hoisted(()=>({place:vi.fn(),feature:vi.fn(),add:vi.fn(),update:vi.fn(),approval:vi.fn(),requires:false,snapshot:null as any,legacy:[] as any[],packages:[] as any[],packageUpdate:vi.fn(),settingsUpdate:vi.fn(),uploadProps:null as any}));
 vi.mock('../src/context/DataContext',()=>({useData:()=>{
  const [sponsors,setSponsors]=React.useState([{id:1,name:'Old Partner',logo:'old.png',category:'Title Sponsor',description:'',website:'https://old.example',featured:true,order_position:1},{id:2,name:'New Partner',logo:'new.png',category:'Co Sponsor',description:'',website:'',featured:false,order_position:2}]);
+ const [packages,setPackages]=React.useState(mocks.packages);
  const [homepage,setHomepage]=React.useState({sponsor_logos:mocks.legacy});mocks.snapshot={sponsors,homepage};
- return {sponsors,homepageSettings:homepage,sponsorshipPackages:[],sponsorshipSettings:{page_title:'Sponsors',intro_text:'Introduction',brochure_title:'Brochure',contactSections:[]},sanitizeUrl:(url:string)=>url,
+ return {sponsors,homepageSettings:homepage,sponsorshipPackages:packages,sponsorshipSettings:{page_title:'Sponsors',intro_text:'Introduction',brochure_title:'Brochure',contactSections:[]},sanitizeUrl:(url:string)=>url,
  updateHomepageSettings:async(patch:any)=>{await mocks.place(patch);setHomepage(previous=>({...previous,...patch}));},
  toggleSponsorFeatured:async(id:number)=>{await mocks.feature(id);setSponsors(previous=>previous.map(sponsor=>sponsor.id===id?{...sponsor,featured:!sponsor.featured}:sponsor));},
  addSponsor:async(record:any)=>{const created={...record,id:3};await mocks.add(record);setSponsors(previous=>[...previous,created]);return created;},
  updateSponsor:async(id:number,record:any)=>{await mocks.update(id,record);setSponsors(previous=>previous.map(sponsor=>sponsor.id===id?{...sponsor,...record}:sponsor));},
- deleteSponsor:vi.fn(),addSponsorshipPackage:vi.fn(),updateSponsorshipPackage:vi.fn(),deleteSponsorshipPackage:vi.fn(),toggleSponsorshipPackageEnabled:vi.fn(),updateSponsorshipSettings:vi.fn(),addContactSection:vi.fn(),updateContactSection:vi.fn(),deleteContactSection:vi.fn()};
+ deleteSponsor:vi.fn(),addSponsorshipPackage:vi.fn(),updateSponsorshipPackage:async(id:number,patch:any)=>{await mocks.packageUpdate(id,patch);setPackages(previous=>previous.map(item=>item.id===id?{...item,...patch}:item));},deleteSponsorshipPackage:vi.fn(),toggleSponsorshipPackageEnabled:vi.fn(),updateSponsorshipSettings:mocks.settingsUpdate,addContactSection:vi.fn(),updateContactSection:vi.fn(),deleteContactSection:vi.fn()};
 }}));
 vi.mock('../src/hooks/useApprovals',()=>({useApprovals:()=>({checkRequiresApproval:async()=>mocks.requires,submitForApproval:mocks.approval})}));
 vi.mock('../src/context/SavingProgressContext',()=>({useSavingProgress:()=>({withSteps:()=>({next:vi.fn()}),done:vi.fn()})}));
 vi.mock('../src/components/ToastProvider',()=>({useToast:()=>({push:vi.fn()})}));
-vi.mock('../src/components/ImageUpload',()=>({ImageUpload:({onImageSelect}:any)=><button type="button" aria-label="Upload sponsor logo" onClick={()=>onImageSelect('uploaded.png')}>Upload</button>}));
+vi.mock('../src/components/ImageUpload',()=>({ImageUpload:(props:any)=>{if(props.bucket==='sponsor-brochures'){mocks.uploadProps=props;return <button type="button" aria-label="Start brochure upload" onClick={()=>props.onProcessingChange(true)}>Upload PDF</button>;}return <button type="button" aria-label="Upload sponsor logo" onClick={()=>props.onImageSelect('uploaded.png')}>Upload</button>;}}));
 vi.mock('../src/components/admin/InlineDescriptionAI',()=>({InlineDescriptionAI:()=>null}));
 vi.mock('../src/components/admin/sponsors/AISponsorScanner',()=>({AISponsorScanner:()=>null}));
 vi.mock('../src/components/admin/sponsors/AITierScanner',()=>({AITierScanner:()=>null}));
 let host:HTMLDivElement,root:Root;
-beforeEach(()=>{(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;localStorage.clear();mocks.requires=false;mocks.legacy=[];for(const mock of [mocks.place,mocks.feature,mocks.add,mocks.update])mock.mockReset().mockResolvedValue(undefined);mocks.approval.mockReset().mockResolvedValue({success:true});vi.spyOn(window,'alert').mockImplementation(()=>{});host=document.createElement('div');document.body.append(host);root=createRoot(host);});
+beforeEach(()=>{(globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;localStorage.clear();mocks.requires=false;mocks.legacy=[];mocks.packages=[];mocks.uploadProps=null;for(const mock of [mocks.place,mocks.feature,mocks.add,mocks.update,mocks.packageUpdate,mocks.settingsUpdate])mock.mockReset().mockResolvedValue(undefined);mocks.approval.mockReset().mockResolvedValue({success:true});vi.spyOn(window,'alert').mockImplementation(()=>{});host=document.createElement('div');document.body.append(host);root=createRoot(host);});
 afterEach(async()=>{await act(async()=>root.unmount());host.remove();vi.restoreAllMocks();});
 const mount=async()=>{await act(async()=>root.render(<SponsorsManagement/>));};
 function button(label:string){return [...host.querySelectorAll<HTMLButtonElement>('button')].find(node=>node.getAttribute('aria-label')===label||node.textContent?.trim()===label)!;}
@@ -69,4 +70,41 @@ it('keeps earlier saved logos editable in Sponsors and respects their homepage v
 it('controls the entire homepage partner section here without replacing its logo selection',async()=>{
  await mount();const checkbox=host.querySelector<HTMLInputElement>('[aria-label="Show partner section on homepage"]')!;await act(async()=>checkbox.click());
  expect(mocks.place).toHaveBeenCalledWith({featured_partners_enabled:false});expect(mocks.snapshot.homepage.featured_partners_enabled).toBe(false);expect(host.textContent).toContain('Homepage section is switched off');
+});
+
+it('saves partner category and historical year separately from the sponsorship tier',async()=>{
+ await mount();await select('Archive year for Old Partner','2025');
+ expect(mocks.snapshot.homepage.sponsor_logos[0]).toMatchObject({sponsor_id:1,edition_year:2025,period:'previous'});
+ const field=host.querySelector<HTMLInputElement>('[aria-label="Partner category for Old Partner"]')!;
+ await input(field,'Food & Beverages');
+ const save=field.parentElement!.querySelector<HTMLButtonElement>('button')!;
+ await act(async()=>save.click());
+ expect(mocks.snapshot.homepage.sponsor_logos[0]).toMatchObject({sponsor_id:1,edition_year:2025,partner_category:'Food & Beverages'});
+ expect(mocks.snapshot.sponsors[0].category).toBe('Title Sponsor');
+ expect(mocks.update).not.toHaveBeenCalled();
+ await select('Edition for Old Partner','current');
+ expect(mocks.snapshot.homepage.sponsor_logos.find((record:any)=>record.sponsor_id===1)).toMatchObject({edition_year:2026});
+ expect(mocks.snapshot.homepage.sponsor_logos.find((record:any)=>record.sponsor_id===1).partner_category).toBe('Food & Beverages');
+});
+
+const packageFixtures=()=>[1,2,3].map(id=>({id,tier:`Tier ${id}`,price:'₹1000+',color:'from-yellow-400 to-amber-600',icon:'Crown',benefits:['Brand visibility'],enabled:true,order_position:id*10}));
+it('persists one-place tier ordering and restores the prior order if a write fails',async()=>{
+ mocks.packages=packageFixtures();await mount();await click('Sponsorship packages');await click('Move Tier 2 up');
+ expect(mocks.packageUpdate.mock.calls).toEqual([[2,{order_position:10}],[1,{order_position:20}]]);
+ mocks.packageUpdate.mockClear();mocks.packageUpdate.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(undefined);
+ await click('Move Tier 3 up');
+ expect(mocks.packageUpdate.mock.calls).toEqual([[3,{order_position:20}],[1,{order_position:30}],[3,{order_position:30}]]);
+ expect(host.textContent).toContain('previous order has been restored');
+});
+it('submits tier ordering for approval without direct package writes',async()=>{
+ mocks.packages=packageFixtures();mocks.requires=true;await mount();await click('Sponsorship packages');await click('Move Tier 2 up');
+ expect(mocks.packageUpdate).not.toHaveBeenCalled();
+ expect(mocks.approval.mock.calls).toEqual([['sponsorship_package','update',{order_position:10},2],['sponsorship_package','update',{order_position:20},1]]);
+});
+it('connects PDF-only brochure storage and prevents saving while an upload is active',async()=>{
+ await mount();await click('Page settings');await click('Edit Settings');
+ expect(mocks.uploadProps).toMatchObject({bucket:'sponsor-brochures',folder:'brochures/2026',acceptedTypes:'application/pdf',preserveExistingMedia:true,enableCropper:false});
+ await click('Start brochure upload');expect(button('Uploading brochure…').disabled).toBe(true);expect(mocks.settingsUpdate).not.toHaveBeenCalled();
+ await act(async()=>{mocks.uploadProps.onImageSelect('https://festival.example/brochure.pdf');mocks.uploadProps.onProcessingChange(false);});await click('Save Settings');
+ expect(mocks.settingsUpdate).toHaveBeenCalledWith(expect.objectContaining({brochure_url:'https://festival.example/brochure.pdf'}));
 });

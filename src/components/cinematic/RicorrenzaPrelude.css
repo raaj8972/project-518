@@ -1,0 +1,203 @@
+.rico-logo-prelude {
+  --rico-play: paused;
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  overflow: hidden;
+  isolation: isolate;
+  background: #000;
+  color: #f4f3e7;
+  touch-action: none;
+  user-select: none;
+}
+.rico-logo-prelude[data-running='true'][data-paused='false'] { --rico-play: running; }
+.rico-logo-prelude[data-web-covered='true'] { background: transparent; }
+.rico-title-content { position: absolute; inset: 0; }
+.rico-logo-prelude[data-web-covered='true'] .rico-title-content { visibility: hidden; }
+.rico-logo-prelude *, .rico-logo-prelude *::before, .rico-logo-prelude *::after {
+  animation-duration: var(--rico-title-duration);
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-play-state: var(--rico-play);
+}
+.rico-title-atmosphere {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 106%, #70b600 0, #153500 20%, #020a02 63%, #000 100%);
+  animation-name: rico-atmosphere-reveal;
+}
+.rico-title-atmosphere > img { width: 100%; height: 100%; object-fit: cover; }
+.rico-title-live-atmosphere { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; }
+.rico-title-atmosphere[data-live='true'] .rico-title-live-atmosphere { opacity: 1; }
+.rico-title-cloud-flow { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.rico-title-cloud-bank { position: absolute; inset: -5%; will-change: transform; animation-duration: 3.2s; animation-iteration-count: infinite; animation-direction: alternate; animation-timing-function: ease-in-out; }
+.rico-title-cloud-bank img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.rico-title-cloud-bank-left { -webkit-mask-image: radial-gradient(ellipse 84% 27% at 0 100%, #000 25%, #000e 49%, transparent 100%); mask-image: radial-gradient(ellipse 84% 27% at 0 100%, #000 25%, #000e 49%, transparent 100%); animation-name: rico-cloud-bank-left; }
+.rico-title-cloud-bank-right { -webkit-mask-image: radial-gradient(ellipse 84% 27% at 100% 100%, #000 25%, #000e 49%, transparent 100%); mask-image: radial-gradient(ellipse 84% 27% at 100% 100%, #000 25%, #000e 49%, transparent 100%); animation-name: rico-cloud-bank-right; animation-duration: 4.1s; }
+.rico-title-rays { position: absolute; inset: 0; overflow: hidden; pointer-events: none; mix-blend-mode: screen; }
+.rico-title-atmosphere[data-live='true'] .rico-title-rays { opacity: .7; }
+.rico-title-rays > i {
+  position: absolute;
+  left: 50%;
+  top: -3%;
+  width: var(--ray-width);
+  height: 120%;
+  overflow: hidden;
+  transform-origin: 50% 0;
+  clip-path: polygon(48% 0, 52% 0, 100% 100%, 0 100%);
+  background: linear-gradient(90deg, transparent, #96e82a26 20%, #d9ff9f8c 48%, #aaf44333 72%, transparent);
+  -webkit-mask-image: linear-gradient(#000b, #000 12%, #0007 48%, transparent 83%);
+  mask-image: linear-gradient(#000b, #000 12%, #0007 48%, transparent 83%);
+  filter: blur(3px);
+  animation-name: rico-ray-fan;
+  animation-duration: 2.6s;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  animation-timing-function: ease-in-out;
+}
+.rico-title-rays > i > b { position: absolute; inset: -100% 0 0; background: repeating-linear-gradient(180deg, transparent 0 12%, #e9ffc65c 18%, transparent 29% 36%); animation-name: rico-ray-fall; animation-duration: 1.7s; animation-iteration-count: infinite; }
+.rico-title-light-source { position: absolute; top: -5%; left: 42%; width: 16%; height: 21%; background: radial-gradient(ellipse at 50% 15%, #f4ffd1bd, #b8ff5a5c 24%, #8fe12e22 46%, transparent 70%); animation-name: rico-source-breathe; animation-duration: 2.1s; animation-iteration-count: infinite; animation-direction: alternate; }
+.rico-title-light-flare { position: absolute; top: 5%; left: 8%; width: 84%; height: 3%; background: radial-gradient(ellipse, #edffc7bd 0, #b6ff4a5c 18%, #87e32628 42%, transparent 70%); animation-name: rico-source-breathe; animation-duration: 1.8s; animation-iteration-count: infinite; animation-direction: alternate; }
+.rico-title-camera {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(84vw, 1700px);
+  transform-origin: 39.5% 52%;
+  will-change: transform, opacity;
+  animation-name: rico-title-camera;
+}
+.rico-title-credit {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  margin-bottom: -.25%;
+  text-align: center;
+  font-family: 'Arial', sans-serif;
+  animation-name: rico-title-credit;
+}
+.rico-title-college, .rico-title-medical, .rico-title-presents, .rico-title-plaque span, .rico-title-caption {
+  background: linear-gradient(180deg, #fff 5%, #a6aaa1 42%, #f7f7ed 49%, #c1c3b7 66%, #777d70 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 2px #000);
+}
+.rico-title-college { font-size: clamp(22px, 3vw, 58px); font-weight: 500; line-height: 1.1; letter-spacing: .27em; padding-left: .27em; }
+.rico-title-medical { position: relative; margin-top: .5%; font-size: clamp(9px, 1.4vw, 25px); line-height: 1.5; letter-spacing: .52em; padding-left: .52em; }
+.rico-title-medical::before, .rico-title-medical::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 22%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #adff0c, transparent);
+  box-shadow: 0 0 6px #8eff00;
+}
+.rico-title-medical::before { right: 109%; }
+.rico-title-medical::after { left: 109%; }
+.rico-title-presents { margin-top: 1.15%; font-size: clamp(8px, 1.25vw, 23px); letter-spacing: .62em; padding-left: .62em; }
+.rico-title-wordmark { position: relative; width: 100%; aspect-ratio: 4.9; }
+.rico-title-wordmark > img { position: relative; z-index: 1; display: block; width: 100%; height: 100%; object-fit: contain; }
+.rico-title-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: italic 900 clamp(32px, 9vw, 180px)/1 Georgia, serif;
+  letter-spacing: -.055em;
+  color: #e1e0bd;
+  text-shadow: 1px 2px #aa8222, 2px 4px #513d0d, 3px 6px #15150a;
+}
+.rico-title-metal-sweep {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  -webkit-mask: url('/media/cinematic/ricorrenza-title-metal-v1.webp') center / contain no-repeat;
+  mask: url('/media/cinematic/ricorrenza-title-metal-v1.webp') center / contain no-repeat;
+}
+.rico-title-metal-sweep i {
+  position: absolute;
+  inset: -80% -12%;
+  background: linear-gradient(105deg, transparent 40%, #a5ff0044 44%, #deffa9b8 48%, #f4ffdce6 49.5%, #c5ff6555 51%, transparent 56%);
+  mix-blend-mode: screen;
+  animation-name: rico-metal-sweep;
+}
+.rico-title-compass { position: absolute; z-index: 3; left: 39.5%; top: 48%; width: 3%; aspect-ratio: 1; transform: translate(-50%, -50%); pointer-events: none; }
+.rico-title-compass i, .rico-title-compass b { position: absolute; inset: 0; background: #dfff9c; clip-path: polygon(50% 0, 56% 43%, 100% 50%, 56% 57%, 50% 100%, 44% 57%, 0 50%, 44% 43%); }
+.rico-title-compass { filter: drop-shadow(0 0 9px #bbff00); animation-name: rico-compass-reveal; }
+.rico-title-compass b { transform: rotate(45deg) scale(.6); }
+.rico-title-edition { display: flex; flex-direction: column; align-items: center; margin-top: -3%; animation-name: rico-title-edition; }
+.rico-title-plaque {
+  position: relative;
+  width: 58%;
+  padding: .6% 4% .9%;
+  text-align: center;
+  background: linear-gradient(0deg, #30550088, #000c 55%, #172d0680);
+  clip-path: polygon(0 0, 100% 0, 90% 100%, 10% 100%);
+}
+.rico-title-plaque::before, .rico-title-plaque::after { content: ''; position: absolute; inset: 0 0 auto; height: 2px; background: linear-gradient(90deg, transparent, #8bdc0b 20%, #e5ffbc 50%, #8bdc0b 80%, transparent); box-shadow: 0 0 12px #9aff00; }
+.rico-title-plaque::after { inset: auto 0 0; }
+.rico-title-plaque span { font: italic 600 clamp(20px, 3.1vw, 59px)/1.2 'Arial', sans-serif; letter-spacing: .28em; padding-left: .28em; white-space: nowrap; }
+.rico-title-caption { margin-top: 1.55%; font: 500 clamp(7px, 1.25vw, 23px)/1.5 'Arial', sans-serif; letter-spacing: .52em; padding-left: .52em; white-space: nowrap; }
+.rico-title-particles { position: absolute; inset: 0; pointer-events: none; }
+.rico-title-particles i {
+  position: absolute;
+  left: calc(4% + var(--spark) * 6%);
+  bottom: calc(4% + var(--spark-row) * 4%);
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #c7ff62;
+  box-shadow: 0 0 5px #a7ed42;
+  animation-name: rico-title-spark;
+}
+.rico-title-darkness { position: absolute; inset: 0; background: #000; pointer-events: none; animation-name: rico-darkness; }
+.rico-title-skip { position: absolute; z-index: 10; right: max(20px, env(safe-area-inset-right)); top: max(20px, env(safe-area-inset-top)); transform: translateY(-200%); padding: 12px 18px; border: 1px solid #c5f987; background: #061006; color: #f3ffdf; font-size: 12px; }
+.rico-title-skip:focus-visible { transform: none; outline: 2px solid #c5f987; outline-offset: 4px; }
+
+.cinematic-video-overlay[data-logo-prelude-active='true'] :is(.cinematic-video-skip, .cinematic-video-loading, .cinematic-video-scroll, .cinematic-video-meter) { visibility: hidden; }
+
+@keyframes rico-darkness { 0%, 3% { opacity: 1; } 16% { opacity: .58; } 30%, 100% { opacity: 0; } }
+@keyframes rico-atmosphere-reveal { 0% { opacity: 0; transform: scale(1.14); } 20% { opacity: .24; } 52% { opacity: .7; } 72%, 100% { opacity: 1; transform: scale(1); } }
+@keyframes rico-cloud-bank-left { from { transform: translate3d(-2.5%, 1.5%, 0) scale(1.02); } to { transform: translate3d(3.5%, -3.5%, 0) scale(1.075); } }
+@keyframes rico-cloud-bank-right { from { transform: translate3d(2.5%, 2%, 0) scale(1.035); } to { transform: translate3d(-3.5%, -3%, 0) scale(1.09); } }
+@keyframes rico-ray-fan { 0% { opacity: calc(var(--ray-strength) * .65); transform: translateX(-50%) rotate(var(--ray-from)); } 50% { opacity: var(--ray-strength); } 100% { opacity: calc(var(--ray-strength) * .8); transform: translateX(-50%) rotate(var(--ray-to)); } }
+@keyframes rico-ray-fall { from { transform: translate3d(0, -18%, 0); } to { transform: translate3d(0, 48%, 0); } }
+@keyframes rico-source-breathe { from { opacity: .45; transform: scale(.86); } to { opacity: .95; transform: scale(1.12); } }
+@keyframes rico-title-camera {
+  0%, 18% { opacity: 0; transform: translate(-50%, -50%) scale(4.7) rotate(-6deg); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(3.8) rotate(-4deg); }
+  48% { opacity: 1; transform: translate(-50%, -50%) scale(1.45) rotate(-1deg); }
+  66%, 84% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1.035) rotate(0); }
+}
+@keyframes rico-title-credit { 0%, 49% { opacity: 0; transform: translate3d(0, 12px, 0); } 66%, 100% { opacity: 1; transform: translate3d(0, 0, 0); } }
+@keyframes rico-title-edition { 0%, 52% { opacity: 0; transform: translate3d(0, 15px, 0); } 70%, 100% { opacity: 1; transform: translate3d(0, 0, 0); } }
+@keyframes rico-metal-sweep { 0%, 18% { opacity: 0; transform: translate3d(-85%, 0, 0); } 23% { opacity: .9; } 54% { opacity: .9; transform: translate3d(80%, 0, 0); } 65%, 100% { opacity: 0; transform: translate3d(100%, 0, 0); } }
+@keyframes rico-compass-reveal { 0%, 26% { opacity: 0; transform: translate(-50%, -50%) scale(.2) rotate(-25deg); } 58%, 100% { opacity: .9; transform: translate(-50%, -50%) scale(1) rotate(0); } }
+@keyframes rico-title-spark { 0%, 8% { opacity: 0; transform: translate3d(0, 20px, 0); } 35% { opacity: .55; } 85% { opacity: .7; } 100% { opacity: 0; transform: translate3d(calc((var(--spark) - 8) * 3px), -32svh, 0); } }
+
+/* The whole name stays visible in portrait; only the atmospheric plate crops. */
+@media (max-width: 767px) {
+  .rico-title-camera { width: 96vw; top: 48%; }
+  .rico-title-atmosphere > img { object-position: 50% 50%; }
+  .rico-title-rays > i { height: 105%; }
+  .rico-title-credit { margin-bottom: 5%; }
+  .rico-title-college { font-size: clamp(24px, 7vw, 42px); }
+  .rico-title-medical { font-size: clamp(8px, 2.25vw, 14px); letter-spacing: .36em; padding-left: .36em; margin-top: 2%; }
+  .rico-title-presents { font-size: clamp(8px, 2.15vw, 13px); margin-top: 5%; letter-spacing: .5em; }
+  .rico-title-edition { margin-top: 0; }
+  .rico-title-plaque { width: 76%; padding-block: 2%; }
+  .rico-title-plaque span { font-size: clamp(19px, 5.5vw, 34px); letter-spacing: .24em; }
+  .rico-title-caption { margin-top: 5%; font-size: clamp(7px, 2vw, 12px); letter-spacing: .32em; padding-left: .32em; }
+  .rico-title-particles i:nth-child(even) { display: none; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .rico-title-camera { width: min(75vw, 130svh); }
+  .rico-title-college { font-size: 5svh; }
+  .rico-title-medical, .rico-title-presents, .rico-title-caption { font-size: 2svh; }
+  .rico-title-plaque span { font-size: 5svh; }
+}

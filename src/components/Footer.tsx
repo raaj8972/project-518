@@ -25,6 +25,8 @@ export const Footer = memo(function Footer() {
   const { pathname } = useLocation();
   const isHomeBound = pathname === '/home-bound' || pathname.startsWith('/home-bound/');
   if (pathname.startsWith('/admin') || pathname.startsWith('/security-') || pathname.startsWith('/coordinator/dashboard') || pathname.startsWith('/dashboard')) return null;
+  // Homebound includes its own compact music-page footer beneath the journey.
+  if (isHomeBound) return null;
 
   const socials = isHomeBound ? [] : [
     ...(socialMediaSettings?.instagram_enabled && socialMediaSettings.instagram_url ? [{ label: 'Instagram', href: socialMediaSettings.instagram_url, Icon: InstagramLogoIcon }] : []),

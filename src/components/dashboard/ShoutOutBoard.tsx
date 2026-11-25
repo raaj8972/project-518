@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Heart, VenetianMask, Sparkles, MessageSquareHeart, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useStudentAuth } from '../../context/StudentAuthContext';
-import { useXPEngine } from '../../hooks/useXPEngine';
+
 import { useData } from '../../context/DataContext';
 
 interface ShoutOut {
@@ -19,7 +19,7 @@ interface ShoutOut {
 
 const ShoutOutBoard: React.FC = () => {
   const { user } = useStudentAuth();
-  const { awardXP } = useXPEngine();
+
   const { siteSettings } = useData();
   const [shoutouts, setShoutouts] = useState<ShoutOut[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -215,8 +215,7 @@ const ShoutOutBoard: React.FC = () => {
 
       if (error) throw error;
       
-      // Award +2 XP for spreading positivity
-      await awardXP('submitted_shoutout', 2, { anonymous: isAnonymous });
+
 
       toast.success('Shout-out posted!');
       setNewMessage('');

@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Download, Printer } from 'lucide-react';
+import { escapeHtml } from '../../utils/safeHtml';
 
 interface QRCodeGeneratorProps {
   passToken: string;
@@ -41,7 +42,7 @@ export function QRCodeGenerator({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Entry Pass - ${participantName || 'Guest'}</title>
+          <title>Entry Pass - ${escapeHtml(participantName || 'Guest')}</title>
           <style>
             body {
               font-family: Arial, sans-serif;
@@ -87,8 +88,8 @@ export function QRCodeGenerator({
         <body>
           <div class="pass-container">
             <h1>🎭 RICORRENZA 2025</h1>
-            <div class="type">${passType || 'Entry Pass'}</div>
-            ${participantName ? `<div class="name">${participantName}</div>` : ''}
+            <div class="type">${escapeHtml(passType || 'Entry Pass')}</div>
+            ${participantName ? `<div class="name">${escapeHtml(participantName)}</div>` : ''}
             <img src="${imageUrl}" alt="QR Code" />
             <div class="instructions">
               Please present this QR code at the entry gate.<br/>

@@ -1,4 +1,14 @@
-# Device-specific film → cloud wipe → Home
+# Animated title → device-specific film → cloud wipe → Home
+
+## Automatic five-second title
+
+Fresh eligible homepage loads now begin with the reference-style silver/gold RICORRENZA title and green gothic atmosphere. The automatic timeline shows darkness/light/smoke at 0–1s, a metallic close-up with a green edge sweep at 1–2.5s, the full title with IQ CITY and RICO 2026 at 2.5–4s, then a silk spider-web wipe at 4–5s. The webs cover the title before it is hidden at 4.5s, then peel away to reveal the existing device-specific film at frame zero. Title and film no longer ghost over one another. The ending energy bloom/full-screen flash and the preceding spider opening remain removed.
+
+`RicorrenzaPrelude.tsx` owns the title artwork, input lock, visibility-aware five-second timer and cleanup. `RicorrenzaPrelude.css` owns the camera, light and independently moving cloud layers. `IntroWebWipe.tsx` / `.css` owns the shooting/clearing silk stages and covered-title callback. The film stays mounted and preloads while the title runs; its progress stays at zero until handoff. The prelude reuses the existing document-entry eligibility, so SPA navigation back to Home does not repeat it. Reduced motion, deep links, disabled intros and existing failure handling retain their bypass behavior. Escape or the keyboard-focus-only skip button opens the film early. Mobile layout preserves the full wordmark and uses a dedicated portrait atmosphere.
+
+The atmosphere uses live photograph-based cloud flow and overhead green god-rays through `TitleAtmosphere.tsx` / `titleAtmosphereRenderer.ts`. Lower photographed banks roll and rise while the upper architecture remains fixed. Two masked photo-cloud layers also move independently using CSS, so graphics fallback retains visible cloud movement. Rays sweep and send light bands downward; the upper source breathes locally without a fullscreen flash. The isolated rendering loop is capped at 30fps / 800K pixels and pauses while hidden. The shader no longer freezes at five seconds. No extra video is added.
+
+Artwork paths, generation prompts and validation are recorded in [the title design notes](design/ricorrenza-title-intro.md).
 
 ## Current mode: video to homepage
 

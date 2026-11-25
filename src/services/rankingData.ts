@@ -40,7 +40,7 @@ export function subscribeRankingData(listener: () => void) {
   listeners.add(listener);
   if (!channel) {
     channel = supabase.channel('shared-ranking-data');
-    for (const table of ['profiles', 'student_xp', 'registrations', 'registration_rounds', 'event_rounds']) {
+    for (const table of ['profiles', 'student_xp', 'registrations', 'registration_rounds', 'event_rounds', 'student_event_participation', 'student_verified_xp_awards', 'events', 'homepage_settings']) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
         invalidateRankingData();
         if (refreshTimer) clearTimeout(refreshTimer);
