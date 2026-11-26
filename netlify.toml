@@ -28,9 +28,6 @@
   node_bundler = "esbuild"
   external_node_modules = ["@tensorflow/tfjs-node", "canvas", "@tensorflow/tfjs-backend-wasm"]
 
-[functions.index-faces-batch]
-  timeout = 26
-
 # Environment variables (set these in Netlify dashboard)
 # SUPABASE_URL - Your Supabase project URL
 # SUPABASE_SERVICE_ROLE_KEY - Your Supabase service role key (keep secret!)

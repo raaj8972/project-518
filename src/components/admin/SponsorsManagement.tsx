@@ -1,3 +1,6 @@
+import { SponsorEditor, SponsorDialog, SponsorLogo } from './sponsors/SponsorEditor';
+import { MagnifyingGlassIcon, PlusIcon, ArrowTopRightIcon, StarIcon, StarFilledIcon, Pencil1Icon, TrashIcon, ChevronDownIcon, CheckCircledIcon, FileTextIcon } from '@radix-ui/react-icons';
+import '../../styles/SponsorsWorkspace.css';
 import { SponsorEditionControls, LegacySponsorArchive } from './sponsors/SponsorPublicationControls';
 import { resolveHomepagePartners, readHomepagePartners, sponsorPlacement, partnerPlacementPeriod, setSponsorPlacement, type HomepagePartner, type PartnerPlacementPatch } from '../../utils/homepageContent';
 import '../../styles/HomepageStudio.css';
@@ -5,11 +8,10 @@ import { sponsorshipTeamContacts } from '../../utils/sponsorshipContacts';
 import { sortSponsorshipPackages, packageMovePlan } from '../../utils/sponsorshipPackages';
 import { safeSponsorLink } from '../../utils/sponsorPresentation';
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, Pencil, Trash2, Sparkles, Medal, Edit, Save, Building, Star, ExternalLink, FileImage, ArrowUp, ArrowDown, Eye, EyeOff, Award, FileText, Link as LinkIcon, Download, Mail } from 'lucide-react';
+import { Plus, X, Trash2, Medal, Edit, Save, FileImage, ArrowUp, ArrowDown, Eye, EyeOff, Award, FileText, Link as LinkIcon, Download, Mail } from 'lucide-react';
 import { SponsorIconCatalog as LucideIcons } from '../../lib/sponsorIconCatalog';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
-import { InlineDescriptionAI } from './InlineDescriptionAI';
 import { AISponsorScanner } from './sponsors/AISponsorScanner';
 import { AITierScanner } from './sponsors/AITierScanner';
 import { supabase } from '../../lib/supabase';
@@ -28,7 +30,7 @@ export const SponsorsManagement: React.FC = () => {
     sponsors, coreCommittees, coreTeamMembers,
     homepageSettings, updateHomepageSettings,
     sponsorshipPackages,
-    sponsorshipSettings,
+    sponsorshipSettings, sponsorshipError, refreshSponsorship,
     addSponsor, 
     updateSponsor, 
     deleteSponsor,
@@ -44,7 +46,7 @@ export const SponsorsManagement: React.FC = () => {
     sanitizeUrl
   } = useData() as any;
   const savingProgress = useSavingProgress();
-  const { submitForApproval, checkRequiresApproval } = useApprovals();
+  const { submitForApproval, checkRequiresApproval } = useApprovals({ listen: false });
   const [requiresApproval, setRequiresApproval] = useState(false);
   const [approvalLoading,setApprovalLoading]=useState(true);
   const [publicationBusy,setPublicationBusy]=useState(false);
@@ -53,6 +55,12 @@ export const SponsorsManagement: React.FC = () => {
   const [editionFilter,setEditionFilter]=useState<'all'|'previous'|'current'>('all');
   const [newEdition,setNewEdition]=useLocalStorage<'previous'|'current'>('admin_sponsor_new_edition','current');
   const [savingSponsor,setSavingSponsor]=useState(false);
+  const [logoUploading,setLogoUploading]=useState(false);
+  const [sponsorError,setSponsorError]=useState('');
+  const [search,setSearch]=useState('');
+  const [tierFilter,setTierFilter]=useState('all');
+  const [deleteTarget,setDeleteTarget]=useState<Sponsor|null>(null);
+  const [deleting,setDeleting]=useState(false);
   const sponsorSavePending=useRef(false);
   const featurePending=useRef(false);
   const [featureBusy,setFeatureBusy]=useState(false);
@@ -223,92 +231,61 @@ export const SponsorsManagement: React.FC = () => {
     });
   };
 
+  const validatedSponsor = () => {
+    if (!form.name.trim() || !form.category.trim() || !form.logo.trim()) { setSponsorError('Add the sponsor name, tier and logo before saving.'); return null; }
+    if (!Number.isInteger(form.order_position) || form.order_position < 1) { setSponsorError('Display order must be a whole number of 1 or more.'); return null; }
+    const website = form.website.trim();
+    const normalized = website && !/^[a-z][a-z\d+.-]*:/i.test(website) ? `https://${website}` : website;
+    if (website && !safeSponsorLink(normalized)) { setSponsorError('Enter a valid website address, for example https://brand.com.'); return null; }
+    return { ...form, name: form.name.trim(), category: form.category.trim(), logo: form.logo.trim(), description: form.description.trim(), website: normalized };
+  };
   const handleAdd = async () => {
-    if(approvalLoading || sponsorSavePending.current)return;
-    if (!form.name || !form.category || !form.logo) {
-      alert('Please fill in all required fields (name, category, and logo)');
-      return;
-    }
-    
-    sponsorSavePending.current=true;setSavingSponsor(true);
+    if (approvalLoading || sponsorSavePending.current || logoUploading) return;
+    const record = validatedSponsor(); if (!record) return;
+    sponsorSavePending.current = true; setSavingSponsor(true); setSponsorError('');
     try {
       if (requiresApproval) {
-        const result = await submitForApproval('sponsor', 'create', form);
-        if (result.success) {
-          alert('Request submitted for approval. An owner will review your changes.');
-          setIsAdding(false);
-          resetForm();
-          try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
-        } else {
-          alert(`Failed to submit for approval: ${result.error}`);
-        }
+        const result = await submitForApproval('sponsor', 'create', record);
+        if (!result.success) throw new Error(result.error || 'Could not submit the sponsor.');
+        push({ message: 'Sponsor submitted for approval.', type: 'success' });
+        setIsAdding(false); resetForm();
       } else {
-        const created = await addSponsor(form);
-        setIsAdding(false);
-        resetForm();
-        try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
-        if(created?.id){try{await savePlacements(setSponsorPlacement(created,placements,{period:newEdition,enabled:true},currentYear));}catch{setPublicationMessage('Sponsor saved. Its edition could not be saved; select Previous or Current on the sponsor card to retry.');}}
+        const created = await addSponsor(record);
+        setIsAdding(false); resetForm();
+        if (created?.id) { try { await savePlacements(setSponsorPlacement(created, placements, { period: newEdition, enabled: true }, currentYear)); } catch { setPublicationMessage('Sponsor saved. Its edition could not be saved; select Previous or Current under Display settings to retry.'); } }
+        push({ message: 'Sponsor added.', type: 'success' });
       }
-    } catch (error) {
-      console.error('Error adding sponsor:', error);
-      alert('Failed to add sponsor. Please try again.');
-    } finally {sponsorSavePending.current=false;setSavingSponsor(false);}
+      try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
+    } catch { setSponsorError('Could not save this sponsor. Your details are kept; please try again.'); }
+    finally { sponsorSavePending.current = false; setSavingSponsor(false); }
   };
-
   const handleUpdate = async (id: number) => {
-    if(approvalLoading)return;
-    if (!form.name || !form.category || !form.logo) {
-      alert('Please fill in all required fields (name, category, and logo)');
-      return;
-    }
-    
+    if (approvalLoading || sponsorSavePending.current || logoUploading) return;
+    const record = validatedSponsor(); if (!record) return;
+    sponsorSavePending.current = true; setSavingSponsor(true); setSponsorError('');
     try {
       if (requiresApproval) {
-        const result = await submitForApproval('sponsor', 'update', form, id);
-        if (result.success) {
-          alert('Request submitted for approval. An owner will review your changes.');
-          setEditing(null);
-          resetForm();
-          try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
-        } else {
-          alert(`Failed to submit for approval: ${result.error}`);
-        }
-      } else {
-        const steps = savingProgress.withSteps(3, 'Preparing…');
-        steps.next('Validating');
-        await updateSponsor(id, form);
-        steps.next('Finalizing');
-        setEditing(null);
-        resetForm();
-        try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
-        savingProgress.done();
-      }
-    } catch (error) {
-      console.error('Error updating sponsor:', error);
-      alert('Failed to update sponsor. Please try again.');
-      savingProgress.done();
-    }
+        const result = await submitForApproval('sponsor', 'update', record, id);
+        if (!result.success) throw new Error(result.error || 'Could not submit changes.');
+      } else await updateSponsor(id, record);
+      setEditing(null); resetForm();
+      try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
+      push({ message: requiresApproval ? 'Changes submitted for approval.' : 'Sponsor updated.', type: 'success' });
+    } catch { setSponsorError('Could not update this sponsor. Your edits are kept; please try again.'); }
+    finally { sponsorSavePending.current = false; setSavingSponsor(false); }
   };
-
   const handleDelete = async (id: number) => {
-    if(approvalLoading)return;
-    if (confirm('Are you sure you want to delete this sponsor? This action cannot be undone.')) {
-      try {
-        if (requiresApproval) {
-          const result = await submitForApproval('sponsor', 'delete', {}, id);
-          if (result.success) {
-            alert('Request submitted for approval. An owner will review your changes.');
-          } else {
-            alert(`Failed to submit for approval: ${result.error}`);
-          }
-        } else {
-          await deleteSponsor(id);
-        }
-      } catch (error) {
-        console.error('Error deleting sponsor:', error);
-        alert('Failed to delete sponsor. Please try again.');
-      }
-    }
+    if (approvalLoading || sponsorSavePending.current) return;
+    sponsorSavePending.current = true; setDeleting(true); setSponsorError('');
+    try {
+      if (requiresApproval) {
+        const result = await submitForApproval('sponsor', 'delete', {}, id);
+        if (!result.success) throw new Error(result.error || 'Could not submit deletion.');
+      } else await deleteSponsor(id);
+      setDeleteTarget(null);
+      push({ message: requiresApproval ? 'Deletion submitted for approval.' : 'Sponsor deleted.', type: 'success' });
+    } catch { setSponsorError('Could not delete this sponsor. Please try again.'); }
+    finally { sponsorSavePending.current = false; setDeleting(false); }
   };
 
   const handleToggleFeatured = async (id: number) => {
@@ -331,7 +308,7 @@ export const SponsorsManagement: React.FC = () => {
       }
     } catch (error) {
       console.error('Error toggling featured status:', error);
-      alert('Failed to update featured status. Please try again.');
+      setPublicationMessage('Could not save homepage selection. Please try again.');
     } finally {featurePending.current=false;setFeatureBusy(false);}
   };
 
@@ -511,13 +488,13 @@ export const SponsorsManagement: React.FC = () => {
         await updateSponsorshipSettings(settingsForm);
         steps.next('Finalizing');
         setIsEditingSettings(false);
-        alert('Sponsorship settings updated successfully!');
+        push({ message: 'Sponsorship settings saved.', type: 'success' });
         try { localStorage.removeItem('admin_sponsorship_settings_draft'); } catch {}
         savingProgress.done();
       }
     } catch (error) {
       console.error('Error updating sponsorship settings:', error);
-      alert('Failed to update sponsorship settings. Please try again.');
+      push({ message: 'Could not save settings. Your edits are kept; please try again.', type: 'error' });
       savingProgress.done();
     } finally {settingsPending.current=false;setSettingsSaving(false);}
   };
@@ -655,52 +632,15 @@ export const SponsorsManagement: React.FC = () => {
     }
   };
 
-  const getCategoryColor = (category: string) => {
-    // Find matching sponsorship package
-    const matchingPackage = sponsorshipPackages.find((pkg: SponsorshipPackage) => 
-      pkg.tier.toLowerCase() === category.toLowerCase()
-    );
-    
-    if (matchingPackage) {
-      // Extract color from gradient class (e.g., "from-blue-500 to-blue-600" -> "#3B82F6")
-      const colorMap: Record<string, string> = {
-        'blue': '#3B82F6',
-        'purple': '#8B5CF6',
-        'pink': '#EC4899',
-        'green': '#10B981',
-        'yellow': '#F59E0B',
-        'red': '#EF4444',
-        'gray': '#6B7280',
-        'indigo': '#6366F1',
-        'cyan': '#06B6D4',
-        'orange': '#F97316'
-      };
-      
-      const colorKey = Object.keys(colorMap).find(key => 
-        matchingPackage.color.toLowerCase().includes(key)
-      );
-      
-      if (colorKey) {
-        return colorMap[colorKey];
-      }
-    }
-    
-    // Default colors for fixed categories
-    switch (category) {
-      case 'Title Sponsor':
-        return '#FFD700'; // Gold
-      case 'Co Sponsor':
-        return '#C0C0C0'; // Silver
-      default:
-        return '#6B7280'; // Gray
-    }
-  };
-
-  // Group sponsors by category for better organization
-  const groupedSponsors = allCategories.reduce((acc, category) => {
-    acc[category] = sponsors.filter((sponsor: Sponsor) => sponsor.category === category && (editionFilter==='all' || partnerPlacementPeriod(sponsorPlacement(sponsor,placements),currentYear)===editionFilter));
-    return acc;
-  }, {} as Record<string, Sponsor[]>);
+  const visibleSponsors = [...sponsors].filter((sponsor: Sponsor) => {
+    const matchesEdition = editionFilter === 'all' || partnerPlacementPeriod(sponsorPlacement(sponsor, placements), currentYear) === editionFilter;
+    const matchesTier = tierFilter === 'all' || sponsor.category === tierFilter;
+    const term = search.trim().toLowerCase();
+    return matchesEdition && matchesTier && (!term || [sponsor.name, sponsor.category, sponsor.website, sponsor.description].some(value => value?.toLowerCase().includes(term)));
+  }).sort((a: Sponsor,b: Sponsor) => (a.order_position || 0) - (b.order_position || 0) || a.id - b.id);
+  const currentCount = sponsors.filter((sponsor: Sponsor) => partnerPlacementPeriod(sponsorPlacement(sponsor, placements), currentYear) === 'current').length;
+  const closeSponsorEditor = () => { if (!savingSponsor && !logoUploading) { setEditing(null); setIsAdding(false); setSponsorError(''); resetForm(); } };
+  const openNewSponsor = () => { setSponsorError(''); setEditing(null); resetForm(); setIsAdding(true); };
 
   // Sort packages by order position
   const sortedPackages = sortSponsorshipPackages(sponsorshipPackages);
@@ -730,7 +670,6 @@ export const SponsorsManagement: React.FC = () => {
     'Shield',
     'ShieldCheck',
     'Trophy',
-    'Medal',
     'Target',
     'Zap',
     'Sparkles',
@@ -871,7 +810,7 @@ export const SponsorsManagement: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="partners-workspace">
       {/* AI Sponsor Scanner Modal */}
       {showSponsorScanner && (
         <AISponsorScanner 
@@ -888,605 +827,44 @@ export const SponsorsManagement: React.FC = () => {
         />
       )}
 
-      {/* Edit Sponsor Modal */}
-      {editing !== null && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-[#12121e] border border-amber-500/20 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-amber-900/30">
-            {/* Modal Header */}
-            <div className="sticky top-0 z-10 bg-[#12121e] border-b border-white/5 p-6 flex items-center justify-between rounded-t-3xl">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
-                  <Pencil size={20} className="text-amber-400" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">Edit Sponsor</h2>
-                  <p className="text-gray-500 text-xs tracking-widest uppercase font-bold">Modify partner details</p>
-                </div>
-              </div>
-              <button onClick={() => { setEditing(null); resetForm(); }} className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all">
-                <X size={20} />
-              </button>
-            </div>
+      {(isAdding || editing !== null) && <SponsorEditor form={form} onChange={setForm} categories={allCategories} edition={newEdition} onEditionChange={setNewEdition} locked={approvalLoading} busy={savingSponsor} uploading={logoUploading} onUploading={setLogoUploading} error={sponsorError} editing={editing !== null} onClose={closeSponsorEditor} onSave={() => { void (editing !== null ? handleUpdate(editing) : handleAdd()); }} />}
+      {deleteTarget && <SponsorDialog title="Delete this sponsor?" description="This removes the sponsor’s directory record and display links. Historical archive copies and uploaded logo files are kept." busy={deleting} onClose={() => { setDeleteTarget(null); setSponsorError(''); }} footer={<><button className="partner-button" disabled={deleting} onClick={() => setDeleteTarget(null)}>Keep sponsor</button><button className="partner-button partner-button-danger" disabled={deleting} onClick={() => void handleDelete(deleteTarget.id)}>{deleting ? 'Deleting…' : 'Delete sponsor'}</button></>}><div className="partner-delete-preview"><SponsorLogo src={deleteTarget.logo} name={deleteTarget.name} /><div><strong>{deleteTarget.name}</strong><p>{deleteTarget.category}</p></div></div>{sponsorError && <p role="alert" className="partner-feedback partner-feedback-error">{sponsorError}</p>}</SponsorDialog>}
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-6">
+      {sponsorshipError && <div role="alert" className="partner-feedback partner-feedback-error">{sponsorshipError} <button type="button" className="partner-text-button" onClick={() => void refreshSponsorship?.()}>Retry connection</button></div>}
+      <header className="partner-workspace-heading"><div><span className="partner-eyebrow">PARTNERSHIPS / {currentYear} EDITION</span><h2>A place for every partner.</h2><p>Manage brands, their visibility and the offer behind each partnership.</p></div><button type="button" className="partner-button partner-button-primary" disabled={approvalLoading} onClick={openNewSponsor}><PlusIcon />Add sponsor</button></header>
+      <nav className="partner-tabs" aria-label="Partnership tools">{([{id:'sponsors',label:'Sponsors',count:sponsors.length},{id:'packages',label:'Sponsorship packages',count:sponsorshipPackages.length},{id:'settings',label:'Page settings'}] as const).map(tab => <button key={tab.id} type="button" aria-label={tab.label} aria-current={activeSubTab === tab.id ? 'page' : undefined} onClick={() => setActiveSubTab(tab.id)}><span>{tab.label}</span>{'count' in tab && <small aria-hidden="true">{tab.count}</small>}</button>)}</nav>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-5">
-                  <div>
-                    <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest mb-2">Sponsor Name *</label>
-                    <input type="text" value={form.name}
-                      onChange={(e) => setForm((prev: any) => ({ ...prev, name: e.target.value }))}
-                      placeholder="Company or organization name"
-                      className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest mb-2">Category *</label>
-                    <select value={form.category}
-                      onChange={(e) => setForm((prev: any) => ({ ...prev, category: e.target.value }))}
-                      className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all">
-                      <option value="">Select category</option>
-                      {allCategories.map((cat: string) => (<option key={cat} value={cat}>{cat}</option>))}
-                    </select>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest">Description</label>
-                      <InlineDescriptionAI
-                        contextName={form.name}
-                        contextType="sponsor"
-                        onDescriptionGenerated={(desc) => setForm((prev: any) => ({ ...prev, description: desc }))}
-                      />
-                    </div>
-                    <textarea value={form.description}
-                      onChange={(e) => setForm((prev: any) => ({ ...prev, description: e.target.value }))}
-                      rows={4} placeholder="Brief description about the sponsor"
-                      className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest mb-2">Website URL</label>
-                    <input type="url" value={form.website}
-                      onChange={(e) => setForm((prev: any) => ({ ...prev, website: e.target.value }))}
-                      placeholder="https://sponsor-website.com"
-                      className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest mb-2">Display Order</label>
-                      <input type="number" value={form.order_position}
-                        onChange={(e) => setForm((prev: any) => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                        min="1"
-                        className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all" />
-                    </div>
-                    <div className="flex items-end pb-1">
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" className="sr-only" aria-label="Show on homepage" checked={form.featured} onChange={event=>setForm(previous=>({...previous,featured:event.target.checked}))}/>
-                        <div className={`w-10 h-6 rounded-full transition-all flex items-center ${form.featured ? 'bg-amber-500 justify-end' : 'bg-white/10 justify-start'}`}>
-                          <div className={`w-5 h-5 rounded-full mx-0.5 transition-all ${form.featured ? 'bg-white shadow-lg' : 'bg-gray-500'}`}></div>
-                        </div>
-                        <span className="text-sm font-bold text-gray-300 group-hover:text-white">Show on homepage</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-5">
-                  <div>
-                    <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest mb-2">Sponsor Logo *</label>
-                    <ImageUpload
-                      onImageSelect={(url: string) => setForm((prev: any) => ({ ...prev, logo: url }))}
-                      currentImage={form.logo} bucket="sponsor-logos" folder="sponsors"
-                      preserveExistingMedia
-                    />
-                  </div>
-                  {form.logo && (
-                    <div className="border border-white/5 rounded-xl p-4 bg-black/20">
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Preview</label>
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-black rounded-lg flex items-center justify-center overflow-hidden border border-white/10">
-                          <img src={form.logo} alt="Preview" className="max-w-full max-h-full object-contain p-1" />
-                        </div>
-                        <div>
-                          <p className="text-white font-bold">{form.name || 'Sponsor Name'}</p>
-                          <p className="text-gray-500 text-xs">{form.category || 'No category'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-[#12121e] border-t border-white/5 p-6 flex justify-end gap-3 rounded-b-3xl">
-              <button type="button" onClick={() => { setEditing(null); resetForm(); }}
-                className="px-6 py-2.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all font-bold text-sm flex items-center gap-2">
-                <X size={16} /> Cancel
-              </button>
-              <button type="button" onClick={() => handleUpdate(editing)}
-                className="px-8 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:shadow-lg hover:shadow-amber-500/20 transition-all font-bold text-sm flex items-center gap-2">
-                <Save size={16} /> Save Changes
-              </button>
-            </div>
+      {activeSubTab === 'sponsors' && <div className="partner-workspace-grid">
+        <section className="partner-directory" aria-label="Sponsor directory">
+          <div className="partner-directory-heading"><div><h3>Your sponsor directory</h3><p>{sponsors.length} {sponsors.length === 1 ? 'brand' : 'brands'} · {currentCount} current · {sponsors.length - currentCount} previous</p></div><button type="button" className="partner-text-button" onClick={() => setShowSponsorScanner(true)}>Import with AI<ArrowTopRightIcon /></button></div>
+          <div className="partner-searchbar"><label className="partner-search"><MagnifyingGlassIcon /><input aria-label="Search sponsors" placeholder="Search a name, tier or website…" value={search} onChange={event => setSearch(event.target.value)} />{search && <button type="button" aria-label="Clear sponsor search" onClick={() => setSearch('')}>×</button>}</label><select aria-label="Filter sponsorship tier" value={tierFilter} onChange={event => setTierFilter(event.target.value)}><option value="all">All tiers</option>{allCategories.map(category => <option key={category}>{category}</option>)}</select></div>
+          <div className="partner-filterbar"><div aria-label="Sponsor editions">{(['all','current','previous'] as const).map(period => <button key={period} type="button" aria-pressed={editionFilter === period} onClick={() => setEditionFilter(period)}>{period === 'all' ? 'All sponsors' : period === 'current' ? 'Current partners' : 'Previous partners'}</button>)}</div><span>{visibleSponsors.length} shown</span></div>
+          {publicationMessage && <p role="status" className="partner-feedback">{publicationMessage}</p>}
+          <div className="partner-list">
+            {visibleSponsors.map((sponsor: Sponsor) => {
+              const placement = sponsorPlacement(sponsor, placements);
+              const period = partnerPlacementPeriod(placement, currentYear);
+              const href = safeSponsorLink(sponsor.website);
+              const live = publication.partners.some(partner => partner.id === sponsor.id);
+              return <article className="partner-record" key={sponsor.id}>
+                <div className="partner-record-main"><SponsorLogo src={sanitizeUrl?.(sponsor.logo) || sponsor.logo} name={sponsor.name} /><div className="partner-record-info"><div><h4>{sponsor.name}</h4><span className={`partner-edition ${period === 'current' ? 'is-current' : ''}`}>{period === 'current' ? currentYear : placement?.edition_year || 'Previous'}</span></div><p>{sponsor.category}<span>·</span>Order {sponsor.order_position || 1}</p>{href && <a href={href} target="_blank" rel="noopener noreferrer">{new URL(href).hostname.replace(/^www\./,'')}<ArrowTopRightIcon /></a>}</div><div className="partner-record-actions"><button type="button" className={`partner-icon partner-home-toggle${sponsor.featured ? ' is-selected' : ''}`} disabled={featureBusy || publicationBusy || approvalLoading} aria-pressed={sponsor.featured === true} aria-label={`${sponsor.featured ? 'Hide' : 'Show'} ${sponsor.name} ${sponsor.featured ? 'from' : 'on'} homepage`} title={sponsor.featured ? 'Selected for homepage' : 'Show on homepage'} onClick={() => void handleToggleFeatured(sponsor.id)}>{sponsor.featured ? <StarFilledIcon /> : <StarIcon />}</button><button type="button" className="partner-icon" aria-label={`Edit ${sponsor.name}`} title="Edit sponsor" onClick={() => { setIsAdding(false); setSponsorError(''); startEditing(sponsor); }}><Pencil1Icon /></button><button type="button" className="partner-icon partner-delete" disabled={approvalLoading} aria-label={`Delete ${sponsor.name}`} title="Delete sponsor" onClick={() => { setSponsorError(''); setDeleteTarget(sponsor); }}><TrashIcon /></button></div></div>
+                <div className="partner-record-footer"><span className={live ? 'partner-live' : 'partner-muted'}><span />{placement?.enabled === false ? 'Hidden from website' : live ? 'Live on Sponsors' : 'Saved for another edition'}{live && sponsor.featured && homepageSettings?.featured_partners_enabled !== false ? ' + Home' : ''}</span><details><summary>Display settings<ChevronDownIcon /></summary><SponsorEditionControls sponsor={sponsor} placements={placements} busy={publicationBusy} locked={requiresApproval || approvalLoading} currentYear={currentYear} onChange={patch => void changePlacement(sponsor,patch)} /></details></div>
+              </article>;
+            })}
+            {!visibleSponsors.length && <div className="partner-empty"><span className="partner-empty-symbol"><StarIcon /></span><h4>{sponsors.length ? 'No matching sponsors' : 'Your next partnership starts here.'}</h4><p>{sponsors.length ? 'Try another name, edition or sponsorship tier.' : 'Add a brand, choose its tier and upload a logo.'}</p><button className="partner-button" type="button" onClick={sponsors.length ? () => { setSearch(''); setTierFilter('all'); setEditionFilter('all'); } : openNewSponsor}>{sponsors.length ? 'Clear filters' : 'Add your first sponsor'}</button></div>}
           </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-        <div>
-          <h2 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
-            <div className="w-2 h-10 bg-gradient-to-b from-amber-500 to-orange-600 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.5)]" />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/70">Partnerships</span>
-            <div className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-400 tracking-widest uppercase ml-2">v3.0</div>
-          </h2>
-          <p className="text-gray-400 mt-2 font-medium flex items-center gap-2">
-            <Medal size={14} className="text-amber-400" />
-            Manage each sponsor once. Home follows the featured selection here.
-          </p>
-        </div>
-        <div className="w-full max-w-md">
-          <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 px-1">Sponsors page title</label>
-          <div className="relative group/input">
-            <div className="absolute inset-0 bg-amber-500/5 rounded-xl blur-lg opacity-0 group-focus-within/input:opacity-100 transition-opacity"></div>
-            <input
-              type="text"
-              value={settingsForm.page_title}
-              onChange={(e) => setSettingsForm(prev => ({ ...prev, page_title: e.target.value }))}
-              placeholder="OUR SPONSORS"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-white placeholder-gray-600 transition-all relative z-10"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Sub Navigation */}
-      <div className="rico-glass-card rounded-2xl p-2 border-white/5 shadow-xl">
-        <div className="flex flex-wrap gap-1">
-          <button
-            onClick={() => setActiveSubTab('sponsors')}
-            className={`px-6 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 ${
-              activeSubTab === 'sponsors'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/25 translate-z-10'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            Sponsors
-          </button>
-          <button
-            onClick={() => setActiveSubTab('packages')}
-            className={`px-6 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 ${
-              activeSubTab === 'packages'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/25 translate-z-10'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            Sponsorship packages
-          </button>
-          <button
-            onClick={() => setActiveSubTab('settings')}
-            className={`px-6 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 ${
-              activeSubTab === 'settings'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/25 translate-z-10'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            Page settings
-          </button>
-        </div>
-      </div>
-
-      {/* Sponsors Tab */}
-      {activeSubTab === 'sponsors' && (
-        <div className="space-y-6">
-          <div className="studio-auto-notice"><strong>One sponsor directory → Sponsors page + Home</strong><p>Choose Previous or Current on each sponsor. A complete, visible Current sponsor publishes the current edition; otherwise Previous partners stay live. Switch on Show on homepage for logos you want on Home. Names, logos, websites and order come from the same sponsor record.</p><label className="flex items-center gap-2 text-sm"><input type="checkbox" aria-label="Show partner section on homepage" checked={homepageSettings?.featured_partners_enabled !== false} disabled={publicationBusy||requiresApproval||approvalLoading} onChange={event=>void savePublication({featured_partners_enabled:event.target.checked}).catch(()=>{})}/>Show partner section on homepage</label><p><strong>Live edition: {publication.period}</strong> · {publication.partners.length} on Sponsors · {homepagePublication.partners.length} selected for Home{homepageSettings?.featured_partners_enabled===false ? ' · Homepage section is switched off' : ''}</p>{publicationMessage&&<p role="status">{publicationMessage}</p>}<div className="studio-profile-actions">{(['all','current','previous'] as const).map(period=><button type="button" className="studio-button studio-button-secondary" aria-pressed={editionFilter===period} key={period} onClick={()=>setEditionFilter(period)}>{period==='all'?'All sponsors':period==='current'?'Current partners':'Previous partners'}</button>)}</div></div>
-          <LegacySponsorArchive sponsors={sponsors} placements={placements} busy={publicationBusy} locked={requiresApproval||approvalLoading} currentYear={currentYear} onSave={savePlacements}/>
-
-          {/* Add Sponsor Button */}
-          <div className="flex justify-between items-center bg-white/5 border border-white/10 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full translate-x-1/2 -translate-y-1/2 blur-[60px] group-hover:bg-amber-500/20 transition-colors"></div>
-            <div>
-              <h3 className="text-xl font-black text-white tracking-tight">Sponsor directory</h3>
-              <p className="text-gray-400 text-xs font-medium mt-1">{sponsors.length} sponsor records · edit logos and homepage selection here</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowSponsorScanner(true)}
-              className="rico-premium-button-amber group/btn relative overflow-hidden px-6 py-3 rounded-2xl flex items-center transition-all active:scale-95 mr-3"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-amber-500 group-hover/btn:opacity-90 transition-opacity"></div>
-              <Sparkles size={18} className="mr-2 relative z-10 text-white" />
-              <span className="font-black text-[11px] uppercase tracking-widest relative z-10 text-white">AI Scan</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsAdding(true);
-                resetForm();
-              }}
-              className="rico-premium-button-amber group/btn relative overflow-hidden px-8 py-3 rounded-2xl flex items-center transition-all active:scale-95"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-600 group-hover/btn:opacity-90 transition-opacity"></div>
-              <Plus size={18} className="mr-2 relative z-10 text-white" />
-              <span className="font-black text-[11px] uppercase tracking-widest relative z-10 text-white">Add sponsor</span>
-            </button>
-          </div>
-
-          {isAdding&&<div className="sponsor-publication-controls"><label>New sponsor edition<select aria-label="New sponsor edition" value={newEdition} disabled={requiresApproval||approvalLoading||savingSponsor} onChange={event=>setNewEdition(event.target.value as 'previous'|'current')}><option value="current">Current partner</option><option value="previous">Previous partner</option></select></label>{requiresApproval&&<small>After approval, an owner can select this sponsor’s edition on its card.</small>}</div>}
-          {/* Package Categories Info */}
-          {sponsorshipPackages.filter((p: SponsorshipPackage) => p.enabled).length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-blue-900 mb-2">Available Sponsorship Categories</h3>
-              <div className="flex flex-wrap gap-2">
-                {availableCategories.map((category) => (
-                  <span
-                    key={category}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border"
-                    style={{ 
-                      backgroundColor: `${getCategoryColor(category)}20`,
-                      borderColor: `${getCategoryColor(category)}40`,
-                      color: getCategoryColor(category)
-                    }}
-                  >
-                    <span 
-                      className="w-2 h-2 rounded-full mr-2"
-                      style={{ backgroundColor: getCategoryColor(category) }}
-                    ></span>
-                    {category}
-                  </span>
-                ))}
-              </div>
-              <p className="text-xs text-blue-700 mt-2">
-                Categories are automatically updated based on your sponsorship packages. 
-                Manage packages in the "Packages" tab to add or remove categories.
-              </p>
-            </div>
-          )}
-
-<p className="studio-auto-notice">Current edition: {currentYear}. Changing the brand year archives current partners under their saved year. Publishing a returning brand keeps its earlier edition in the archive.</p>
-
-          {/* Add Sponsor Form */}
-          {isAdding && (
-            <div className="rico-glass-card rounded-[2.5rem] p-8 md:p-10 border-amber-500/20 animate-in slide-in-from-top-4 duration-500 shadow-[0_0_50px_rgba(245,158,11,0.1)] relative overflow-hidden mb-8">
-              <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[100px]"></div>
-              <h3 className="text-2xl font-black text-white tracking-tight mb-8">Onboard New Partner</h3>
-
-              <div className="grid lg:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Sponsor Name *</label>
-                    <input
-                      type="text"
-                      value={form.name}
-                      onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Company or organization name"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-                    <select
-                      value={form.category}
-                      onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    >
-                      <option value="">Select sponsorship category</option>
-                      {allCategories.map(category => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                    {allCategories.length === 0 && (
-                      <p className="text-xs text-red-600 mt-1">
-                        No sponsorship categories available. Please add sponsorship packages first.
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-medium text-gray-700">Description</label>
-                      <InlineDescriptionAI
-                        contextName={form.name}
-                        contextType="sponsor"
-                        onDescriptionGenerated={(desc) => setForm(prev => ({ ...prev, description: desc }))}
-                      />
-                    </div>
-                    <textarea
-                      value={form.description}
-                      onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Brief description about the sponsor"
-                      rows={4}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Website (Optional)</label>
-                    <input
-                      type="url"
-                      value={form.website}
-                      onChange={(e) => setForm(prev => ({ ...prev, website: e.target.value }))}
-                      placeholder="https://sponsor-website.com"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
-                      <input
-                        type="number"
-                        value={form.order_position}
-                        onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                        min="1"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={form.featured}
-                          onChange={(e) => setForm(prev => ({ ...prev, featured: e.target.checked }))}
-                          className="mr-2"
-                        />
-                        <span className="text-sm font-medium text-gray-700">Show on homepage</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Sponsor Logo *</label>
-                    <ImageUpload
-                      onImageSelect={(url) => setForm(prev => ({ ...prev, logo: url }))}
-                      currentImage={form.logo}
-                      bucket="sponsor-logos"
-                      folder="sponsors"
-                      preserveExistingMedia
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAdding(false);
-                    resetForm();
-                  }}
-                  className="w-full sm:w-auto px-6 py-2 text-gray-600 hover:text-gray-800 flex items-center justify-center"
-                >
-                  <X size={16} className="mr-1" />
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAdd}
-                  disabled={availableCategories.length === 0 || savingSponsor || approvalLoading}
-                  className="w-full sm:w-auto px-6 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Save size={16} className="mr-1" />
-                  {savingSponsor ? 'Saving…' : 'Add Sponsor'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Sponsors by Category */}
-          {allCategories.map((category) => {
-            const categorySponsors = groupedSponsors[category] || [];
-            if (categorySponsors.length === 0 && !isAdding && editing === null) return null;
-
-            return (
-              <div key={category} className="space-y-6">
-                <div className="flex items-center space-x-4 bg-white/5 border border-white/10 rounded-2xl px-6 py-4">
-                  <div 
-                    className="w-3 h-10 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.3)]"
-                    style={{ backgroundColor: getCategoryColor(category) }}
-                  ></div>
-                  <div>
-                    <h3 className="text-xl font-black text-white tracking-tight leading-none">{category}</h3>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1 block">Strategic Tier • {categorySponsors.length} Partners</span>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {categorySponsors.map((sponsor: Sponsor) => (
-                    <div key={sponsor.id} className="rico-glass-card rounded-[2.5rem] overflow-hidden group hover:border-amber-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-900/20 tilt-3d relative">
-                      <div className="absolute inset-0 bg-gradient-to-b from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-                      {editing === sponsor.id ? (
-                        /* Edit handled by modal below */
-                        <div className="p-6 text-center">
-                          <div className="w-12 h-12 mx-auto rounded-full bg-amber-500/20 flex items-center justify-center mb-3">
-                            <Edit size={20} className="text-amber-400" />
-                          </div>
-                          <p className="text-white font-bold">Editing in modal…</p>
-                          <button onClick={() => { setEditing(null); resetForm(); }} className="mt-3 text-sm text-gray-400 hover:text-white transition-colors">
-                            Close Editor
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="relative h-32 bg-black rounded-md overflow-hidden">
-                            <div className="relative h-full flex items-center justify-center p-4 logo-no-bg">
-                              <img
-                                src={(() => {
-                                  const sanitized = sanitizeUrl?.(sponsor.logo) || sponsor.logo;
-                                  return sanitized;
-                                })()}
-                                alt={sponsor.name}
-                                className="max-h-full max-w-full object-contain"
-                              />
-                            </div>
-                            <div className="absolute top-2 left-2 flex space-x-1">
-                              {sponsor.featured && (
-                                <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                              )}
-                            </div>
-                            <div className="absolute top-2 right-2">
-                              <span className="bg-black/70 text-white px-2 py-1 rounded text-xs">
-                                #{sponsor.order_position || 1}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div className="p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <h3 className="font-bold text-lg text-gray-900">{sponsor.name}</h3>
-                              <span 
-                                className="inline-block px-2 py-1 rounded-full text-xs font-medium text-white"
-                                style={{ backgroundColor: getCategoryColor(sponsor.category) }}
-                              >
-                                {sponsor.category}
-                              </span>
-                            </div>
-                            {sponsor.description && sponsor.description.trim().length > 0 && (
-                              <p className="text-gray-600 text-sm mb-4 line-clamp-3">{sponsor.description}</p>
-                            )}
-                            
-                            {sponsor.website && (
-                              <div className="mb-4">
-                                <a
-                                  href={sponsor.website}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-                                >
-                                  <ExternalLink size={14} className="mr-1" />
-                                  Visit Website
-                                </a>
-                              </div>
-                            )}
-                            
-                            <SponsorEditionControls sponsor={sponsor} placements={placements} busy={publicationBusy} locked={requiresApproval||approvalLoading} currentYear={currentYear} onChange={patch=>void changePlacement(sponsor,patch)} />
-                            <div className="flex justify-between items-center">
-                              <button
-                                type="button"
-                                disabled={featureBusy||publicationBusy||approvalLoading}
-                                aria-pressed={sponsor.featured===true}
-                                onClick={() => handleToggleFeatured(sponsor.id)}
-                                className={`p-1 rounded transition-colors ${
-                                  sponsor.featured 
-                                    ? 'bg-yellow-100 text-yellow-600' 
-                                    : 'bg-gray-100 text-gray-600'
-                                } hover:bg-yellow-200`}
-                                aria-label={`${sponsor.featured ? 'Hide' : 'Show'} ${sponsor.name} ${sponsor.featured ? 'from' : 'on'} homepage`} title={sponsor.featured ? 'Hide from homepage' : 'Show on homepage'}
-                              >
-                                <Star size={14} className={sponsor.featured ? 'fill-current' : ''} /><span className="ml-1 text-xs">Show on homepage</span>
-                              </button>
-                              
-                              <div className="flex space-x-1">
-                                <button
-                                  type="button"
-                                  onClick={() => startEditing(sponsor)}
-                                  className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition-colors"
-                                  title="Edit sponsor"
-                                >
-                                  <Edit size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDelete(sponsor.id)}
-                                  className="bg-red-600 text-white p-1 rounded hover:bg-red-500 transition-colors"
-                                  title="Delete sponsor"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-
-          {/* No Sponsors Message */}
-          {sponsors.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-lg shadow-md">
-              <Building size={64} className="mx-auto mb-4 text-gray-400" />
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">No Sponsors Yet</h3>
-              <p className="text-gray-500 mb-4">Start by adding your first sponsor</p>
-              {availableCategories.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAdding(true);
-                    resetForm();
-                  }}
-                  className="bg-yellow-400 text-black px-6 py-2 rounded-lg hover:bg-yellow-300 transition-colors"
-                >
-                  Add First Sponsor
-                </button>
-              ) : (
-                <div className="text-center">
-                  <p className="text-red-600 mb-2">No sponsorship categories available</p>
-                  <p className="text-sm text-gray-500">Please add sponsorship packages first to create categories</p>
-                  <button
-                    onClick={() => setActiveSubTab('packages')}
-                    className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 transition-colors"
-                  >
-                    Manage Packages
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* No Categories Warning */}
-          {availableCategories.length === 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-              <div className="flex items-center">
-                <Building className="w-6 h-6 text-yellow-600 mr-3" />
-                <div>
-                  <h3 className="text-lg font-semibold text-yellow-800">No Sponsorship Categories Available</h3>
-                  <p className="text-yellow-700 mt-1">
-                    You need to create sponsorship packages first. The sponsor categories are automatically 
-                    generated from your sponsorship package tiers.
-                  </p>
-                  <button
-                    onClick={() => setActiveSubTab('packages')}
-                    className="mt-3 bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-500 transition-colors"
-                  >
-                    Create Sponsorship Packages
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Stats */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="grid md:grid-cols-4 gap-6 text-center">
-              <div>
-                <div className="text-2xl font-bold text-yellow-500 mb-1">{sponsors.length}</div>
-                <div className="text-gray-600 text-sm">Total Sponsors</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-yellow-500 mb-1">
-                  {sponsors.filter((s: Sponsor) => s.featured).length}
-                </div>
-                <div className="text-gray-600 text-sm">Shown on homepage</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-yellow-500 mb-1">{availableCategories.length}</div>
-                <div className="text-gray-600 text-sm">Available Categories</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-yellow-500 mb-1">{sponsorshipPackages.length}</div>
-                <div className="text-gray-600 text-sm">Sponsorship Packages</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+          <LegacySponsorArchive sponsors={sponsors} placements={placements} busy={publicationBusy} locked={requiresApproval || approvalLoading} currentYear={currentYear} onSave={savePlacements} />
+        </section>
+        <aside className="partner-publishing" aria-label="Website display preview">
+          <div className="partner-live-panel"><span className="partner-eyebrow"><CheckCircledIcon />ON YOUR WEBSITE</span><h3>{publication.period === 'current' ? `${currentYear} partners` : 'Previous partners'}</h3><p>{publication.period === 'current' ? 'Your current edition is live.' : 'Earlier partners stay visible until a complete current partner is published.'}</p><div className="partner-wall">{publication.partners.slice(0,6).map((partner,index) => <SponsorLogo key={`${partner.id}-${index}`} src={partner.logo} name={partner.name} />)}{!publication.partners.length && <span>No published sponsors yet</span>}</div><div className="partner-publication-count"><strong>{publication.partners.length}</strong><span>on Sponsors</span><a href="/sponsors" target="_blank" rel="noopener noreferrer" aria-label="Preview public Sponsors page"><ArrowTopRightIcon /></a></div></div>
+          <div className="partner-home-panel"><div><h4>On the homepage</h4><span>{homepagePublication.partners.length} selected</span></div><label className="partner-home-switch"><span>Show partner section</span><input type="checkbox" role="switch" aria-label="Show partner section on homepage" checked={homepageSettings?.featured_partners_enabled !== false} disabled={publicationBusy || requiresApproval || approvalLoading} onChange={event => void savePublication({featured_partners_enabled:event.target.checked}).catch(() => {})} /></label><p>{homepageSettings?.featured_partners_enabled === false ? 'Homepage section is switched off' : 'Star a sponsor to include its logo when that edition is live.'}</p><small>Live edition: {publication.period}</small></div>
+          <div className="partner-quick-settings"><FileTextIcon /><div><strong>Ready for your next partner?</strong><p>Keep your packages, brochure and contact details up to date.</p><button type="button" className="partner-text-button" onClick={() => setActiveSubTab('settings')}>Open page settings<ArrowTopRightIcon /></button></div></div>
+        </aside>
+      </div>}
 
       {/* Packages Tab */}
       {activeSubTab === 'packages' && (
-        <div className="space-y-6">
+        <div className="partner-secondary partner-packages space-y-6">
           {/* Add Package Button */}
           <div className="flex justify-between items-center">
             <div>
@@ -1683,12 +1061,11 @@ export const SponsorsManagement: React.FC = () => {
           )}
 
           {/* Packages List */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="partner-package-list">
             {sortedPackages.map((pkg: SponsorshipPackage, index: number) => {
               const IconComponent = getIconComponent(pkg.icon);
               return (
-                <div key={pkg.id} className="rico-glass-card rounded-[2.5rem] overflow-hidden group hover:border-amber-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-900/20 tilt-3d relative">
-                  <div className="absolute inset-0 bg-gradient-to-b from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                <div key={pkg.id} className="partner-package-record">
                   {editingPackage === pkg.id ? (
                     <div className="p-6 space-y-4">
                       <input
@@ -1819,96 +1196,11 @@ export const SponsorsManagement: React.FC = () => {
                       </div>
                     </div>
                   ) : (
-                    <>
-                      <div className={`bg-gradient-to-r ${pkg.color} p-6 text-center rounded-t-lg`}>
-                        <IconComponent className="w-12 h-12 mx-auto mb-4 text-white" />
-                        <h3 className="text-xl font-bold text-white mb-2">{pkg.tier}</h3>
-                        <div className="text-2xl font-black text-white">{pkg.price}</div>
-                        {!pkg.enabled && (
-                          <span className="inline-block bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium mt-2">
-                            Disabled
-                          </span>
-                        )}
-                      </div>
-                      <div className="p-6">
-                        <div className="mb-4">
-                          <span className="text-xs text-gray-500">Order: {pkg.order_position}</span>
-                        </div>
-                        <ul className="space-y-2 mb-4">
-                          {pkg.benefits.slice(0, 3).map((benefit: string, index: number) => (
-                            <li key={index} className="flex items-start text-sm">
-                              <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                              <span className="text-gray-700">{benefit}</span>
-                            </li>
-                          ))}
-                          {pkg.benefits.length > 3 && (
-                            <li className="text-sm text-gray-500">
-                              +{pkg.benefits.length - 3} more benefits
-                            </li>
-                          )}
-                        </ul>
-                        
-                        <div className="flex justify-between items-center">
-                          <div className="flex space-x-1 mr-2">
-                            <button
-                              type="button"
-                              onClick={() => handleMovePackage(pkg.id, 'up')}
-                              disabled={packageBusy||approvalLoading||index === 0}
-                              className={`p-1 rounded transition-colors ${
-                                index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                              title="Move Up" aria-label={`Move ${pkg.tier} up`}
-                            >
-                              <ArrowUp size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMovePackage(pkg.id, 'down')}
-                              disabled={packageBusy||approvalLoading||index === sortedPackages.length - 1}
-                              className={`p-1 rounded transition-colors ${
-                                index === sortedPackages.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                              title="Move Down" aria-label={`Move ${pkg.tier} down`}
-                            >
-                              <ArrowDown size={14} />
-                            </button>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => handleTogglePackageEnabled(pkg.id)}
-                            disabled={packageBusy||approvalLoading}
-                            className={`p-1 rounded transition-colors ${
-                              pkg.enabled 
-                                ? 'bg-green-100 text-green-600' 
-                                : 'bg-red-100 text-red-600'
-                            } hover:bg-green-200`}
-                            title={pkg.enabled ? 'Disable package' : 'Enable package'}
-                          >
-                            {pkg.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
-                          </button>
-                          
-                          <div className="flex space-x-1">
-                            <button
-                              type="button"
-                              onClick={() => startEditingPackage(pkg)}
-                              className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition-colors"
-                              title="Edit package"
-                            >
-                              <Edit size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePackage(pkg.id)}
-                              className="bg-red-600 text-white p-1 rounded hover:bg-red-500 transition-colors"
-                              title="Delete package"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </>
+                    <div className="partner-package-row">
+                      <div className="partner-package-identity"><span className="partner-package-symbol"><IconComponent /></span><div><span className="partner-eyebrow">TIER {String(index + 1).padStart(2,'0')}</span><h3>{pkg.tier}</h3><p>{pkg.price}</p></div></div>
+                      <details className="partner-package-benefits"><summary>{pkg.benefits.length} benefits<ChevronDownIcon /></summary><ul>{pkg.benefits.map((benefit: string,i: number) => <li key={i}>{benefit}</li>)}</ul></details>
+                      <div className="partner-package-actions"><button type="button" className={`partner-package-visibility${pkg.enabled ? ' is-enabled' : ''}`} aria-label={`${pkg.enabled ? 'Disable' : 'Enable'} ${pkg.tier}`} aria-pressed={pkg.enabled} disabled={packageBusy || approvalLoading} onClick={() => void handleTogglePackageEnabled(pkg.id)}>{pkg.enabled ? <Eye /> : <EyeOff />}{pkg.enabled ? 'Visible' : 'Hidden'}</button><div><button type="button" className="partner-icon" aria-label={`Move ${pkg.tier} up`} disabled={packageBusy || approvalLoading || index === 0} onClick={() => void handleMovePackage(pkg.id,'up')}><ArrowUp /></button><button type="button" className="partner-icon" aria-label={`Move ${pkg.tier} down`} disabled={packageBusy || approvalLoading || index === sortedPackages.length - 1} onClick={() => void handleMovePackage(pkg.id,'down')}><ArrowDown /></button><button type="button" className="partner-icon" aria-label={`Edit ${pkg.tier} package`} disabled={packageBusy || approvalLoading} onClick={() => startEditingPackage(pkg)}><Pencil1Icon /></button><button type="button" className="partner-icon partner-delete" aria-label={`Delete ${pkg.tier} package`} disabled={packageBusy || approvalLoading} onClick={() => void handleDeletePackage(pkg.id)}><TrashIcon /></button></div></div>
+                    </div>
                   )}
                 </div>
               );
@@ -1938,7 +1230,7 @@ export const SponsorsManagement: React.FC = () => {
 
       {/* Settings Tab */}
       {activeSubTab === 'settings' && (
-        <div className="space-y-6">
+        <div className="partner-secondary partner-settings space-y-6">
           {/* Settings Header */}
           <div className="flex justify-between items-center">
             <div>
@@ -1967,7 +1259,7 @@ export const SponsorsManagement: React.FC = () => {
           {/* Settings Form */}
           <div className="bg-white rounded-lg shadow-md p-6">
             {isEditingSettings ? (
-              <div className="space-y-6">
+              <div className="partner-settings-form">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Page Title</label>
                   <input
@@ -2094,52 +1386,9 @@ export const SponsorsManagement: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="space-y-6">
-                <div className="studio-auto-notice"><strong>Connected to Rico Family</strong><p>Enabled Sponsorship team members and PR heads supply the public enquiry names, phone numbers and emails. Update those people in Rico Family to keep this section current. Additional office contacts below remain editable here.</p><p>{linkedContacts.length ? linkedContacts.map(person=>person.name).join(' · ') : 'No enabled Sponsorship members or PR heads have been added yet.'}</p></div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Page Title</h4>
-                  <div className="p-3 bg-gray-50 rounded-lg border">
-                    <p className="text-gray-700">{(sponsorshipSettings as any)?.page_title || 'OUR SPONSORS'}</p>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Intro Text</h4>
-                  <div className="p-3 bg-gray-50 rounded-lg border">
-                    <p className="text-gray-700">{sponsorshipSettings?.intro_text}</p>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Call to Action Text</h4>
-                  <div className="p-3 bg-gray-50 rounded-lg border">
-                    <p className="text-gray-700">{sponsorshipSettings?.call_to_action_text}</p>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Brochure Settings</h4>
-                  <div className="p-3 bg-gray-50 rounded-lg border space-y-2">
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Download Button Text:</span>
-                      <p className="text-gray-700">{sponsorshipSettings?.brochure_title}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Brochure File:</span>
-                      {sponsorshipSettings?.brochure_url ? (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-green-600 text-sm">✓ Uploaded</span>
-                          <button
-                            onClick={handleBrochureDownload}
-                            className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-                          >
-                            <Download size={14} className="mr-1" />
-                            Download
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-red-600 text-sm">No file uploaded</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+              <div className="partner-settings-overview">
+                <section><span className="partner-eyebrow">PUBLIC PAGE CONTENT</span><h4>{sponsorshipSettings?.page_title || 'OUR SPONSORS'}</h4><p>{sponsorshipSettings?.intro_text || 'Add an introduction to your sponsors page.'}</p><dl><div><dt>Enquiry heading</dt><dd>{sponsorshipSettings?.call_to_action_text || 'Not set'}</dd></div><div><dt>Team contacts</dt><dd>{linkedContacts.length ? linkedContacts.map(person => person.name).join(' · ') : 'No enabled team contacts yet'}</dd></div></dl><p className="partner-settings-help">Sponsorship members and PR heads come from Rico Family. Additional office contacts are managed below.</p></section>
+                <aside className="partner-brochure-preview"><FileTextIcon /><span className="partner-eyebrow">SPONSORSHIP BROCHURE</span><strong>{sponsorshipSettings?.brochure_title || 'Download Sponsorship Brochure'}</strong><p>{sponsorshipSettings?.brochure_url ? 'A brochure is linked to the public download button.' : 'Add a PDF or a link so potential partners can explore your offer.'}</p>{sponsorshipSettings?.brochure_url ? <button type="button" className="partner-button" onClick={handleBrochureDownload}><Download />Download</button> : <button type="button" className="partner-button" onClick={() => setIsEditingSettings(true)}>Add a brochure<PlusIcon /></button>}</aside>
               </div>
             )}
           </div>

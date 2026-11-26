@@ -1,4 +1,4 @@
-import { prepareBrandAsset } from '../utils/brandAsset';
+import { uploadPdfBrandAsset, removePdfBrandAsset } from './pdfBranding';
 import { supabase } from '../lib/supabase';
 import { generateRegistrationReceiptPDF } from '../utils/pdfExport';
 import type { Registration } from '../types/data';
@@ -63,52 +63,12 @@ export const adminDataService = {
    * Uploads a watermark or stamp to Supabase storage.
    */
   async uploadBrandAsset(file: File, type: 'watermark' | 'stamp'): Promise<{ success: boolean; url?: string; message: string }> {
-    if (!file.type.includes('png') && !file.type.includes('svg')) {
-      return { success: false, message: `Please upload a PNG or SVG file for the ${type}.` };
-    }
-
-    try {
-      file = await prepareBrandAsset(file);
-      const ext = 'png';
-      const fileName = `${type}.${ext}`;
-      
-      const { error } = await supabase.storage
-        .from('pdf-watermarks')
-        .upload(fileName, file, { 
-          cacheControl: '0',
-          upsert: true 
-        });
-      
-      if (error) throw error;
-      
-      const { data } = await supabase.storage
-        .from('pdf-watermarks')
-        .getPublicUrl(fileName);
-      
-      if (data?.publicUrl) {
-        const urlWithCacheBuster = `${data.publicUrl}?t=${Date.now()}`;
-        return { success: true, url: urlWithCacheBuster, message: `${type.charAt(0).toUpperCase() + type.slice(1)} uploaded successfully!` };
-      }
-      return { success: false, message: 'Failed to retrieve public URL.' };
-    } catch (error: any) {
-      console.error(`${type} upload failed:`, error);
-      return { success: false, message: error.message || `Failed to upload ${type}.` };
-    }
+    try { const asset = await uploadPdfBrandAsset(type, file); return { success: true, url: asset.url, message: `${type} uploaded.` }; }
+    catch (error) { return { success: false, message: error instanceof Error ? error.message : 'The branding asset could not upload.' }; }
   },
-
-  /**
-   * Deletes a brand asset from storage.
-   */
   async deleteBrandAsset(type: 'watermark' | 'stamp'): Promise<{ success: boolean; message: string }> {
-    try {
-      await supabase.storage
-        .from('pdf-watermarks')
-        .remove([`${type}.png`, `${type}.svg`]);
-      return { success: true, message: `${type.charAt(0).toUpperCase() + type.slice(1)} removed.` };
-    } catch (error: any) {
-      console.error(`Failed to delete ${type}:`, error);
-      return { success: false, message: error.message || `Failed to delete ${type}.` };
-    }
+    try { await removePdfBrandAsset(type); return { success: true, message: `${type} removed.` }; }
+    catch (error) { return { success: false, message: error instanceof Error ? error.message : 'The branding asset could not be removed.' }; }
   },
 
   /**
@@ -133,7 +93,7 @@ export const adminDataService = {
       const token = sessionData.data.session?.access_token;
       if (!token) return { success: false, error: 'Authorization token not found' };
 
-      const event = events.find(e => e.id === registration.event_id);
+      const event = events.find(e => String(e.id) === String(registration.event_id));
 
       // 1. Generate PDF Receipt
       onProgress?.({ pct: 20, stage: 'Generating Receipt PDF...' });
@@ -185,7 +145,7 @@ export const adminDataService = {
           eventVenue: event?.venue || 'TBA',
           provider: emailProvider,
           coordinators: eventCoordinators
-            .filter(c => c.event_id === registration.event_id)
+            .filter(c => String(c.event_id) === String(registration.event_id))
             .map(c => `${c.name}${c.phone ? ` (${c.phone})` : ''}`)
             .join(', '),
           teamMembers: safeTeamMembers(registration),

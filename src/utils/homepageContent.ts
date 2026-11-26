@@ -99,10 +99,10 @@ export function eventDayKey(value: unknown): string | null {
   const date = new Date(text);
   return Number.isNaN(date.getTime()) ? null : indiaDayKey(date);
 }
-/** Today's events first, then upcoming dates. Registration count breaks same-day ties. */
+/** Events featured in Events management, ordered by date and same-day registrations. */
 export function selectHomepageEvents(events: Event[], now = new Date(), limit = 6): Event[] {
   const today = indiaDayKey(now);
-  return (Array.isArray(events) ? events : []).filter(event => event && event.visible !== false).map(event => ({ event, day: eventDayKey(event.date) })).filter(({ day }) => day == null || day >= today).sort((a,b) => {
+  return (Array.isArray(events) ? events : []).filter(event => event && event.featured === true && event.visible !== false).map(event => ({ event, day: eventDayKey(event.date) })).filter(({ day }) => day == null || day >= today).sort((a,b) => {
     const dayOrder = (a.day || '9999-12-31').localeCompare(b.day || '9999-12-31');
     return dayOrder || Math.max(0, Number(b.event.current_registrations) || 0) - Math.max(0, Number(a.event.current_registrations) || 0) || a.event.id - b.event.id;
   }).slice(0, Math.max(0, limit)).map(({ event }) => event);

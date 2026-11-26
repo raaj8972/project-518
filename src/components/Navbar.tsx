@@ -12,8 +12,10 @@ import { CartButton } from './CartDrawer';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { DoomNavigationDrawer } from './navigation/DoomNavigationDrawer';
 import { PortalBrand } from './PortalBrand';
+import { resolveBrandLogoUrl } from '../utils/brandLogo';
 import { isFestivalRoute } from '../utils/portalRoutes';
 import '../styles/Homebound.css';
+import '../styles/Schedule.css';
 
 
 interface NavItem {
@@ -35,9 +37,10 @@ export const Navbar = React.memo(function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const isArenaRoute = location.pathname === '/events';
+  const isScheduleRoute = location.pathname === '/schedule';
   const isHomeboundRoute = location.pathname === '/home-bound' || location.pathname.startsWith('/home-bound/');
   const isAccessRoute = !isFestivalRoute(location.pathname);
-  const isCinematicMenu = theme === 'spiderman' || isArenaRoute || isHomeboundRoute;
+  const isCinematicMenu = theme === 'spiderman' || isArenaRoute || isHomeboundRoute || isScheduleRoute;
   const reduceMotion = useReducedMotion();
   const menuToggleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { setIsOpen(false); }, [location.pathname]);
@@ -83,24 +86,10 @@ export const Navbar = React.memo(function Navbar() {
 
 
 
-  const logoSrc = useMemo(() => {
-    const hs = homepageSettings as Record<string, any>;
-    const raw = hs?.brand_logo_url;
-
-    // Explicitly fallback to favicon.svg if no custom logo is provided
-    if (!raw) return '/favicon.svg';
-
-    let u = String(raw).trim();
-    if (!u) return '/favicon.svg';
-
-    if (u.startsWith('//')) u = 'https:' + u;
-    if (u.startsWith('http://')) u = 'https://' + u.slice(7);
-
-    // Cache-busting using updated_at or default version
-    const ver = hs?.updated_at || hs?.brand_logo_size_px || '1';
-    const sep = u.includes('?') ? '&' : '?';
-    return `${u}${sep}v=${encodeURIComponent(String(ver))}`;
-  }, [homepageSettings?.brand_logo_url, (homepageSettings as any)?.updated_at]);
+  const logoSrc = useMemo(
+    () => resolveBrandLogoUrl(homepageSettings, { allowCachedWhileLoading: true }),
+    [homepageSettings?.brand_logo_url, (homepageSettings as any)?.updated_at]
+  );
 
   const hs = homepageSettings as Record<string, any>;
   const logoSize = Math.max(8, Number(hs?.brand_logo_size_px) || 36);
@@ -201,8 +190,22 @@ export const Navbar = React.memo(function Navbar() {
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isSecurityRoute = location.pathname.startsWith('/security-');
   const isCoordinatorRoute = location.pathname.startsWith('/coordinator/dashboard');
+  const isCrDashboardRoute = location.pathname.startsWith('/cr/dashboard');
   const isDashboardRoute = location.pathname.startsWith('/dashboard');
-  if (isAdminRoute || isSecurityRoute || isCoordinatorRoute || isDashboardRoute) return null;
+  if (isAdminRoute || isSecurityRoute || isCoordinatorRoute || isCrDashboardRoute || isDashboardRoute) return null;
+
+  if (isScheduleRoute) return (
+    <header className="rico-schedule-nav">
+      <div className="rico-schedule-nav__inner">
+        <Link to="/" onClick={handleNavClick} className="rico-schedule-brand" aria-label="Ricorrenza home"><small>IQ CITY MEDICAL COLLEGE, DURGAPUR</small><strong>RICORRENZA</strong><em>{homepageSettings?.brand_year ?? BRAND_YEAR}</em></Link>
+        <nav className="rico-schedule-nav__links" aria-label="Festival navigation">
+          {navItems.filter(item => ['/', '/events', '/schedule', '/home-bound', '/sponsors'].includes(item.path)).map(item => <Link key={item.path} to={item.path} aria-current={isActive(item.path) ? 'page' : undefined} onClick={handleNavClick} onMouseEnter={item.onHover}>{item.name}</Link>)}
+          <button ref={menuToggleRef} type="button" onClick={() => setIsOpen(!isOpen)} aria-label="Toggle menu" aria-expanded={isOpen} aria-controls="festival-mobile-menu">{isOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}</button>
+        </nav>
+      </div>
+      <DoomNavigationDrawer open={isOpen} items={navItems} onClose={() => { setIsOpen(false); menuToggleRef.current?.focus(); }} onNavigate={handleNavClick} socialMediaSettings={socialMediaSettings} />
+    </header>
+  );
 
   if (isHomeboundRoute) return (
     <header className={`hb-site-header${scrolled ? ' is-scrolled' : ''}`}>

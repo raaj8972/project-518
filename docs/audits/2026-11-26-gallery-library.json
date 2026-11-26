@@ -1,0 +1,37 @@
+{
+  "database": {
+    "realtime": true,
+    "galleryRls": true,
+    "faceCascade": true,
+    "queueColumns": true,
+    "noOrphanFaces": true,
+    "searchFunction": true,
+    "pageWriteGuards": true,
+    "sourceUniqueness": true,
+    "privateDescriptors": true,
+    "atomicResultFunction": true
+  },
+  "counts": {
+    "faces": 8,
+    "albums": 20,
+    "failed": 0,
+    "photos": 2545,
+    "scanned": 1
+  },
+  "publicApi": {
+    "photoReads": true,
+    "rawFaceDescriptorsPrivate": true
+  },
+  "roles": {
+    "galleryAdminCrud": true,
+    "ownerCrud": true,
+    "unrelatedAdminDenied": true,
+    "anonymousWritesDenied": true,
+    "studentWritesDenied": true,
+    "publicFaceMatch": true,
+    "rawDescriptorsPrivate": true,
+    "faceCascade": true,
+    "rolledBack": true
+  },
+  "ok": true
+}

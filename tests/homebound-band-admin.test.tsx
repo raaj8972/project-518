@@ -47,7 +47,7 @@ async function change(suffix: string, value: string) {
   const prototype = target.tagName === 'SELECT' ? HTMLSelectElement.prototype : target.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
   await act(async () => { Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(target, value); target.dispatchEvent(new Event(target.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); });
 }
-async function newBeatboxer() { await click('Add artist'); await change('name', 'Ritvik S.'); await change('role', 'Beatboxer'); await change('category', 'beatboxing'); }
+async function newBeatboxer() { await click('New band member'); await change('name', 'Ritvik S.'); await change('role', 'Beatboxer'); await change('category', 'beatboxing'); }
 
 it('saves arbitrary configured categories and lets an artist be added without optional photo or biography', async () => {
   await render(); await newBeatboxer();

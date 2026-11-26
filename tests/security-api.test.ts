@@ -31,8 +31,8 @@ beforeEach(()=>{
  });
 });
 afterEach(()=>{vi.unstubAllEnvs();vi.unstubAllGlobals();});
-it('rejects anonymous bulk email, heartbeat and face indexing before executing their implementations',async()=>{
- for(const name of ['notify-event-update','heartbeat','index-faces-batch']){
+it('rejects anonymous bulk email and heartbeat before executing their implementations',async()=>{
+ for(const name of ['notify-event-update','heartbeat']){
   const sideEffect=vi.fn();const result=await run(secureEvent(name,sideEffect));expect(result.statusCode).toBe(401);expect(sideEffect).not.toHaveBeenCalled();
  }
 });
@@ -129,4 +129,10 @@ it('restricts manual scheduled email to registration access and accepts only the
  vi.stubEnv('CRON_SECRET','server-fixture-cron');
  const scheduled=await handler(new Request('https://ricorrenza.fun/api/broadcast-schedule',{headers:{authorization:'Bearer server-fixture-cron'}}));
  expect(scheduled.status).toBe(200);expect(send).toHaveBeenCalledTimes(1);
+});
+
+it('protects read-only provider checks with participant page access and rejects delivery methods on that route', async () => {
+ const implementation = vi.fn(async () => ({ statusCode: 200, body: '{}' })); const route = secureEvent('email-provider-status', implementation);
+ expect((await run(route, {}, {}, 'GET')).statusCode).toBe(401); expect((await run(route, {}, { authorization: token() }, 'GET')).statusCode).toBe(403); expect(implementation).not.toHaveBeenCalled();
+ expect((await run(route, {}, { authorization: token() }, 'POST')).statusCode).toBe(405);
 });

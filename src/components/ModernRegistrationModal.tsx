@@ -15,6 +15,7 @@ import {
   Users
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { PrivateMediaImage } from './PrivateMedia';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import { useAnnualSports } from '../context/AnnualSportsContext';
 import { useSportsData } from '../context/SportsContext';
@@ -27,22 +28,43 @@ import gsap from 'gsap';
 
 // --- Utility Functions ---
 
-const compressImage = (file: File): Promise<string> => {
+const MAX_PHOTO_BYTES = 80 * 1024; // ~80 KB target so 1,200 registrations stay under 100 MB
+
+const canvasToWebpBlob = (canvas: HTMLCanvasElement, quality: number): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('Failed to compress image'))),
+      'image/webp',
+      quality
+    );
+  });
+
+const compressImage = (file: File): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (loaderEv) => {
       const img = new Image();
       img.src = loaderEv.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 600;
-        const scaleSize = MAX_WIDTH / img.width;
-        canvas.width = MAX_WIDTH;
-        canvas.height = img.height * scaleSize;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/webp', 0.7));
+      img.onload = async () => {
+        try {
+          const MAX_DIM = 512;
+          const scale = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          let blob = await canvasToWebpBlob(canvas, 0.72);
+          for (const q of [0.6, 0.48]) {
+            if (blob.size <= MAX_PHOTO_BYTES) break;
+            blob = await canvasToWebpBlob(canvas, q);
+          }
+          resolve(blob);
+        } catch (err) {
+          reject(err);
+        }
       };
       img.onerror = reject;
     };
@@ -167,11 +189,7 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
     try {
       setIsSubmitting(true);
       if (!user) throw new Error('Sign in before uploading your registration photo.');
-      const compressed = await compressImage(file);
-      
-      // Convert data URL to Blob for reliable upload
-      const response = await fetch(compressed);
-      const blob = await response.blob();
+      const blob = await compressImage(file);
       
     const fileName = `${user.id}/${crypto.randomUUID()}.webp`;
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -202,7 +220,6 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
       if (!formData.fullName.trim()) newErrors.fullName = 'Full Name is required';
       if (!formData.email.trim()) newErrors.email = 'Email is required';
       if (!formData.phone.trim()) newErrors.phone = 'Phone Number is required';
-      if (!formData.college.trim()) newErrors.college = 'College is required';
       
       const isPhotoRequired = siteSettings?.annual_registration_config?.photo_required !== false;
       if (isPhotoRequired && !formData.photoUrl) {
@@ -426,14 +443,14 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
                   <div className="relative group">
                     <div className="w-24 h-24 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden group-hover:border-gold-500/50 transition-all">
                       {formData.photoUrl ? (
-                        <img src={formData.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                        <PrivateMediaImage src={formData.photoUrl} alt="Preview" className="w-full h-full object-cover" />
                       ) : (
                         <Camera className="text-white/20" size={32} />
                       )}
                     </div>
                     <label className="absolute -right-2 -bottom-2 p-2 bg-gold-500 rounded-xl cursor-pointer hover:scale-110 transition-transform shadow-lg">
                       <Upload size={14} className="text-black" />
-                      <input type="file" className="hidden" accept="image/*" onChange={(ev) => ev.target.files?.[0] && handleImageUpload(ev.target.files[0])} />
+                      <input type="file" className="hidden" accept="image/*,.heic,.heif" onChange={(ev) => ev.target.files?.[0] && handleImageUpload(ev.target.files[0])} />
                     </label>
                   </div>
                   <span className="text-[10px] text-white/30 mt-3 uppercase tracking-tighter">
@@ -713,7 +730,11 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
                 <div className="p-6 bg-gradient-to-br from-white/[0.03] to-transparent rounded-[2rem] border border-white/10">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gold-500/30">
-                      <img src={formData.photoUrl || 'https://via.placeholder.com/150'} alt="Profile" className="w-full h-full object-cover" />
+                      {formData.photoUrl ? (
+                        <PrivateMediaImage src={formData.photoUrl} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <img src="https://via.placeholder.com/150" alt="Profile" className="w-full h-full object-cover" />
+                      )}
                     </div>
                     <div>
                       <h4 className="text-xl font-bold text-white">{formData.fullName}</h4>

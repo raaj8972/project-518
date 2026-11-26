@@ -1,7 +1,7 @@
 import { SITE_FEATURES, isSportsContent } from '../constants/siteFeatures';
 import { useDomainRealtime } from '../hooks/useDomainRealtime';
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { dualInsert, dualUpdate, dualDelete, dualUpsert, dualRead } from '../lib/dualDb';
+import { dualInsert, dualUpdate, dualDelete, dualUpsert, dualRead, invalidateTableCache } from '../lib/dualDb';
 import { 
   Event, EventCoordinator, EventCategory, ScheduleDay, ScheduleEvent, 
   RoadmapMilestone
@@ -9,6 +9,7 @@ import {
 import { useCoreData } from './CoreDataContext';
 import { useAuth } from './AuthContext';
 import { fetchAllEvents } from '../utils/dataUtils';
+import { scheduleDayType, sortSchedule } from '../utils/schedulePresentation';
 
 interface EventsContextType {
   events: Event[];
@@ -20,9 +21,11 @@ interface EventsContextType {
   roadmapMilestones: RoadmapMilestone[];
   loading: boolean;
   isLoaded: boolean;
+  scheduleError: string | null;
+  eventsError: string | null;
   
   addEvent: (event: Partial<Event>) => Promise<void>;
-  addEventWithCoordinators: (event: Partial<Event>, coordinators: any[]) => Promise<void>;
+  addEventWithCoordinators: (event: Partial<Event>, coordinators: any[]) => Promise<Event | undefined>;
   updateEvent: (id: number, event: Partial<Event>) => Promise<void>;
   deleteEvent: (id: number) => Promise<void>;
   reorderEvents: (orderedIds: number[]) => Promise<boolean>;
@@ -40,7 +43,7 @@ interface EventsContextType {
   updateEventCategory: (id: number, patch: Partial<EventCategory>) => Promise<void>;
   deleteEventCategory: (id: number) => Promise<void>;
   
-  addEventCoordinator: (coord: Partial<EventCoordinator>) => Promise<void>;
+  addEventCoordinator: (coord: Partial<EventCoordinator>) => Promise<EventCoordinator | undefined>;
   updateEventCoordinator: (id: number, patch: Partial<EventCoordinator>) => Promise<void>;
   deleteEventCoordinator: (id: number) => Promise<void>;
   
@@ -84,6 +87,8 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
   const [roadmapMilestones, setRoadmapMilestones] = useState<RoadmapMilestone[]>([]);
   const [loading, setLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [eventsError, setEventsError] = useState<string | null>(null);
 
   const fetchEventsData = useCallback(async () => {
     if (!enabled) return;
@@ -93,7 +98,7 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
     const start = Date.now();
     try {
       const results = await Promise.allSettled([
-        fetchAllEvents().then(r => { console.log('✔ events'); return r; }),
+        fetchAllEvents().then(r => { if (r.error) throw r.error; console.log('✔ events'); return r; }),
         dualRead({ table: 'event_coordinators' }).then(r => { console.log('✔ event_coordinators'); return r; }),
         dualRead({ table: 'event_categories' }).then(r => { console.log('✔ event_categories'); return r; }),
         dualRead({ table: 'schedule_days' }).then(r => { console.log('✔ schedule_days'); return r; }),
@@ -103,13 +108,15 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
         dualRead({ table: 'notifications' })
       ]);
 
-      const [eventsRes, coordinatorsRes, categoriesRes, scheduleRes, roadmapRes, scheduleEventsRes, winnersRes, notifyRes] = results.map(result => result.status === 'fulfilled' ? result.value : { data: [] });
+      const [eventsRes, coordinatorsRes, categoriesRes, scheduleRes, roadmapRes, scheduleEventsRes, winnersRes, notifyRes] = results.map(result => result.status === 'fulfilled' ? result.value : { data: null });
+      setEventsError(results[0].status === 'rejected' ? 'Events could not load. Check your connection and retry.' : null);
+      setScheduleError(results[3].status === 'rejected' || results[5].status === 'rejected' ? 'The schedule could not load completely. Check your connection and retry.' : null);
 
       if (eventsRes.data) setEvents(eventsRes.data || []);
       if (coordinatorsRes.data) setEventCoordinators(coordinatorsRes.data || []);
       if (categoriesRes.data) setEventCategories(categoriesRes.data || []);
       
-      if (scheduleRes.data) {
+      if (scheduleRes.data && scheduleEventsRes.data) {
         const days = scheduleRes.data || [];
         const allScheduleEvents = scheduleEventsRes.data || [];
         console.log('✔ schedule_events');
@@ -117,18 +124,14 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
         const mappedSchedule = days.map((day: any) => {
           const dayEvents = (allScheduleEvents || []).filter((e: any) => e.schedule_day_id === day.id);
           
-          let scheduleType = 'prelims';
-          if (day.title?.includes('[MAINS]')) scheduleType = 'mains';
-          else if (day.title?.includes('[PRELIMS]')) scheduleType = 'prelims';
-          
           return {
             ...day,
             events: dayEvents,
-            schedule_type: scheduleType
+            schedule_type: scheduleDayType(day)
           };
-        }).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        });
         
-        setSchedule(mappedSchedule);
+        setSchedule(sortSchedule(mappedSchedule));
       }
       
       if (roadmapRes.data) {
@@ -207,15 +210,17 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
     const insertedEvent = Array.isArray(result) ? result[0] : result;
     
     if (insertedEvent && insertedEvent.id && coordinators && coordinators.length > 0) {
-      const coordsToInsert = coordinators.map(c => ({
+      const coordsToInsert = coordinators.map((c, index) => ({
         event_id: insertedEvent.id,
         name: c.name,
-        phone: c.phone || null
+        phone: c.phone || null,
+        order_position: index + 1
       }));
       await dualInsert('event_coordinators', coordsToInsert);
     }
     
     await fetchEventsData();
+    return insertedEvent as Event | undefined;
   };
 
   const updateEvent = async (id: number, event: Partial<Event>) => {
@@ -304,8 +309,9 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
   };
 
   const addEventCoordinator = async (coord: Partial<EventCoordinator>) => {
-    await dualInsert('event_coordinators', coord);
+    const result = await dualInsert('event_coordinators', coord);
     await fetchEventsData();
+    return (Array.isArray(result) ? result[0] : result) as EventCoordinator | undefined;
   };
 
   const updateEventCoordinator = async (id: number, patch: Partial<EventCoordinator>) => {
@@ -341,36 +347,47 @@ export function EventsProvider({ children, enabled = true }: { children: ReactNo
 
   const addScheduleDay = async (day: Partial<ScheduleDay>): Promise<any> => {
     const result = await dualInsert('schedule_days', day);
+    if (!result?.id) throw new Error('The schedule day was not saved. Please retry.');
+    setSchedule(previous => sortSchedule([...previous.filter(row => row.id !== result.id), { ...result, events: [] }]));
     await fetchEventsData();
     return result;
   };
 
   const updateScheduleDay = async (id: number, patch: Partial<ScheduleDay>) => {
-    await dualUpdate('schedule_days', id, patch);
+    const [saved] = await dualUpdate('schedule_days', id, patch);
+    setSchedule(previous => sortSchedule(previous.map(day => day.id === id ? { ...day, ...saved, events: day.events } : day)));
     await fetchEventsData();
   };
 
   const deleteScheduleDay = async (id: number) => {
     await dualDelete('schedule_days', id);
+    invalidateTableCache('schedule_events');
+    setSchedule(previous => previous.filter(day => day.id !== id));
     await fetchEventsData();
   };
 
   const addScheduleEvent = async (dayId: number, evt: Partial<ScheduleEvent>) => {
-    await dualInsert('schedule_events', { ...evt, schedule_day_id: dayId });
+    const saved = await dualInsert('schedule_events', { ...evt, schedule_day_id: dayId });
+    if (!saved?.id) throw new Error('The schedule entry was not saved. Please retry.');
+    setSchedule(previous => sortSchedule(previous.map(day => day.id === dayId ? { ...day, events: [...day.events.filter(row => row.id !== saved.id), saved] } : day)));
     await fetchEventsData();
   };
 
   const updateScheduleEvent = async (id: number, patch: Partial<ScheduleEvent>) => {
-    await dualUpdate('schedule_events', id, patch);
+    const [saved] = await dualUpdate('schedule_events', id, patch);
+    setSchedule(previous => sortSchedule(previous.map(day => ({ ...day, events: [...day.events.filter(row => row.id !== id), ...(day.id === saved.schedule_day_id ? [saved] : [])] }))));
     await fetchEventsData();
   };
 
   const deleteScheduleEvent = async (id: number) => {
     await dualDelete('schedule_events', id);
+    setSchedule(previous => previous.map(day => ({ ...day, events: day.events.filter(row => row.id !== id) })));
     await fetchEventsData();
   };
 
   const value: EventsContextType = {
+    scheduleError,
+    eventsError,
     events: SITE_FEATURES.sports ? events : events.filter(event => !isSportsContent(event.category)),
     eventCoordinators,
     eventCategories: SITE_FEATURES.sports ? eventCategories : eventCategories.filter(category => !isSportsContent(category.name)),

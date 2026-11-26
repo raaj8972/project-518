@@ -5,7 +5,6 @@ import { Shield } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import type { FacultyHead } from '../types/data';
 
-import { MembershipModal } from '../components/MembershipModal';
 import { SEO } from '../components/SEO';
 import { BRAND_NAME, BRAND_YEAR, DESIGNER_INSTAGRAM_URL } from '../constants/brand';
 
@@ -22,7 +21,7 @@ const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfil
 // FounderCard extracted to separate component
 
 export const RicoFamily: React.FC = () => {
-  const { facultyHeads, coreCommittees, coreTeamMembers, bandMembers, formSettings, loading } = useData();
+  const { facultyHeads, coreCommittees, coreTeamMembers, bandMembers, loading } = useData();
   // Refined developer role detection: only show cyan styling for lead developer tier
   const isLeadWebDevRole = (role?: string | null, committeeName?: string) => {
     const rl = String(role || '').toLowerCase();
@@ -41,7 +40,6 @@ export const RicoFamily: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const [membershipModal, setMembershipModal] = useState(false);
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
   const [selectedFaculty, setSelectedFaculty] = useState<FacultyHead | null>(null);
   const [facultyPaused, setFacultyPaused] = useState(false);
@@ -341,14 +339,6 @@ export const RicoFamily: React.FC = () => {
         }
 
       `}</style>
-
-      {/* Membership Modal */}
-      {formSettings?.membership_form_enabled && (
-        <MembershipModal
-          isOpen={membershipModal}
-          onClose={() => startTransition(() => setMembershipModal(false))}
-        />
-      )}
 
       {/* Faculty Profile Modal */}
       <FacultyProfileModal

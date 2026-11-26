@@ -1,0 +1,39 @@
+{
+  "database": {
+    "realtime": true,
+    "dayCascade": true,
+    "eventUnlink": true,
+    "rowSecurity": true,
+    "editionColumn": true,
+    "noOrphanSlots": true,
+    "textEventLink": true,
+    "deliveryLogPrivacy": true,
+    "noInvalidEventLinks": true,
+    "defaultEditionColumn": true
+  },
+  "counts": {
+    "days": 11,
+    "slots": 35,
+    "events": 3,
+    "legacyDatesWithoutYear": 0
+  },
+  "publicApi": {
+    "events": true,
+    "schedule_days": true,
+    "schedule_events": true,
+    "site_settings": true,
+    "deliveryAddressesPrivate": true
+  },
+  "roleChecks": {
+    "ownerCrud": true,
+    "scheduleAdminCrud": true,
+    "eventsAdminCrud": true,
+    "studentWritesDenied": true,
+    "unrelatedAdminWritesDenied": true,
+    "pageScopesEnforced": true,
+    "dayCascade": true,
+    "textEventLink": true,
+    "rolledBack": true
+  },
+  "ok": true
+}

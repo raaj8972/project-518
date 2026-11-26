@@ -14,6 +14,13 @@ import { useSystemStatus } from './CombinedDataProvider';
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+/** Scope unsaved studio values to the public components inside a preview. */
+export function DataPreviewProvider({ overrides, children }: { overrides: Partial<DataContextType>; children: React.ReactNode }) {
+  const live = useData();
+  const value = useMemo(() => ({ ...live, ...overrides }), [live, overrides]);
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+}
+
 export const useData = () => {
   const context = useContext(DataContext);
   if (!context) {
@@ -75,6 +82,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     eventCoordinators: events.eventCoordinators,
     eventCategories: events.eventCategories,
     schedule: events.schedule,
+    scheduleError: events.scheduleError,
+    eventsError: events.eventsError,
     eventWinners: events.eventWinners,
     notifications: events.notifications,
     addEvent: events.addEvent,
@@ -108,6 +117,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Gallery Domain
     galleryImages: gallery.galleryImages,
+    galleryLoading: gallery.loading,
+    galleryError: gallery.galleryError,
     gallerySettings: gallery.gallerySettings,
     addGalleryImage: gallery.addGalleryImage,
     updateGalleryImage: gallery.updateGalleryImage,
@@ -121,7 +132,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateGallerySettings: gallery.updateGallerySettings,
     loadGalleryImages: gallery.loadGalleryImages,
     prefetchGalleryImages: gallery.prefetchGalleryImages,
-    indexGalleryImageFaces: gallery.indexGalleryImageFaces,
 
     // Sports Domain
     sportsRegistrations: sports.sportsRegistrations,
@@ -187,6 +197,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sponsors: management.sponsors,
     sponsorshipPackages: management.sponsorshipPackages,
     sponsorshipSettings: management.sponsorshipSettings,
+    sponsorshipError: management.sponsorshipError,
+    refreshSponsorship: management.refreshSponsorship,
+    auditionsError: management.auditionsError,
+    auditionsLoading: management.auditionsLoading,
+    refreshAuditions: management.refreshAuditions,
     registrations: management.registrations,
     auditions: management.auditions,
     memberships: management.memberships,

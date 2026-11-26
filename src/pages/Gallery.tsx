@@ -1,3 +1,4 @@
+import { galleryImageUrl } from '../../shared/galleryMedia';
 import { SITE_FEATURES, isSportsContent } from '../constants/siteFeatures';
 import React, { useEffect, useMemo } from 'react';
 import { useData } from '../context/DataContext';
@@ -127,7 +128,7 @@ const ProfileSelection = ({ onSelect }: { onSelect: (category: string | null) =>
 };
 
 export const Gallery: React.FC = () => {
-  const { galleryImages, loading, sanitizeUrl, loadGalleryImages } = useData() as any;
+  const { galleryImages, galleryLoading: loading, galleryError, sanitizeUrl, loadGalleryImages } = useData() as any;
   const [selectedCategory, setSelectedCategory] = React.useState<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -161,7 +162,7 @@ export const Gallery: React.FC = () => {
     return { 
       id: img.id,
       src: s, 
-      thumbnail: getOptimized(s),
+      thumbnail: galleryImageUrl(img.src, 640),
       optimizedSrc: getOptimized(s),
       alt: (img.title as string) || '',
       category: img.category,
@@ -186,6 +187,7 @@ export const Gallery: React.FC = () => {
         canonical="https://ricorrenza.fun/gallery" 
       />
 
+      {galleryError && <div className="mx-auto my-6 max-w-xl rounded-lg border border-amber-300/30 p-5 text-amber-100" role="alert"><p>{galleryError}</p><button type="button" onClick={() => void loadGalleryImages(true)}>Try again</button></div>}
       {loading && (
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">

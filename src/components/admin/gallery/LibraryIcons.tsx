@@ -1,0 +1,1 @@
+export const FolderIcon = () => <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true"><path d="M1.8 5.1V3.3c0-.7.5-1.2 1.2-1.2h3L7.7 4H13c.7 0 1.2.5 1.2 1.2v7.3c0 .7-.5 1.2-1.2 1.2H3c-.7 0-1.2-.5-1.2-1.2V5.1Zm0 .4h12.4" /></svg>;

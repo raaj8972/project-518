@@ -2444,6 +2444,7 @@ export type Database = {
           date: string
           day: string
           id: number
+          schedule_type: "prelims" | "mains"
           title: string
           updated_at: string | null
         }
@@ -2452,6 +2453,7 @@ export type Database = {
           date: string
           day: string
           id?: number
+          schedule_type?: "prelims" | "mains"
           title: string
           updated_at?: string | null
         }
@@ -2460,6 +2462,7 @@ export type Database = {
           date?: string
           day?: string
           id?: number
+          schedule_type?: "prelims" | "mains"
           title?: string
           updated_at?: string | null
         }
@@ -2671,6 +2674,7 @@ export type Database = {
       }
       site_settings: {
         Row: {
+          default_schedule_type: "prelims" | "mains"
           _synced_at: string | null
           annual_sports_mode_enabled: boolean
           batch_options: Json | null
@@ -2697,6 +2701,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          default_schedule_type?: "prelims" | "mains"
           _synced_at?: string | null
           annual_sports_mode_enabled?: boolean
           batch_options?: Json | null
@@ -2723,6 +2728,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          default_schedule_type?: "prelims" | "mains"
           _synced_at?: string | null
           annual_sports_mode_enabled?: boolean
           batch_options?: Json | null

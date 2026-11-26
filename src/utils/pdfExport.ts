@@ -1,6 +1,21 @@
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { fitPdfBranding } from './pdfBrandingLayout';
+
+function renderFittedTable(doc: jsPDF, options: Parameters<typeof autoTable>[1]) {
+  const columns = { ...options.columnStyles };
+  const widths = Object.values(columns).map(column => column.cellWidth);
+  if (widths.length && widths.every(width => typeof width === 'number')) {
+    const margin = options.margin;
+    const left = typeof margin === 'object' && !Array.isArray(margin) ? margin.left ?? 14 : typeof margin === 'number' ? margin : 14;
+    const right = typeof margin === 'object' && !Array.isArray(margin) ? margin.right ?? 14 : typeof margin === 'number' ? margin : 14;
+    const total = (widths as number[]).reduce((sum, width) => sum + width, 0);
+    const factor = (doc.internal.pageSize.getWidth() - left - right) / total;
+    for (const index of Object.keys(columns)) columns[Number(index)] = { ...columns[Number(index)], cellWidth: Number(columns[Number(index)].cellWidth) * factor };
+  }
+  return autoTable(doc, { ...options, columnStyles: columns });
+}
 
 // Local type definitions (previously imported from DataContext)
 interface Audition {
@@ -51,6 +66,7 @@ export const preloadWatermark = async (url: string): Promise<string | null> => {
   
   try {
     const response = await fetch(url);
+    if (!response.ok) throw new Error('Branding image could not be downloaded.');
     const blob = await response.blob();
     
     return new Promise((resolve) => {
@@ -80,8 +96,7 @@ const addWatermarkToPage = (doc: jsPDF, watermarkDataUrl: string | null) => {
   const pageHeight = doc.internal.pageSize.getHeight();
   
   // Large watermark - 60% of page, centered
-  const wmWidth = pageWidth * 0.6;
-  const wmHeight = pageHeight * 0.6;
+  const { width: wmWidth, height: wmHeight } = fitPdfBranding(doc.getImageProperties(watermarkDataUrl), pageWidth * 0.6, pageHeight * 0.6);
   const x = (pageWidth - wmWidth) / 2;
   const y = (pageHeight - wmHeight) / 2;
   
@@ -91,7 +106,7 @@ const addWatermarkToPage = (doc: jsPDF, watermarkDataUrl: string | null) => {
     // @ts-ignore - GState exists but types may not include it
     const gState = new (doc as any).GState({ opacity: 0.12 }); // 12% opacity for readability
     doc.setGState(gState);
-    doc.addImage(watermarkDataUrl, 'PNG', x, y, wmWidth, wmHeight);
+    doc.addImage(watermarkDataUrl, 'PNG', x, y, wmWidth, wmHeight, undefined, 'FAST');
     doc.restoreGraphicsState();
   } catch (error) {
     console.error('Failed to add watermark:', error);
@@ -102,7 +117,7 @@ const addWatermarkToPage = (doc: jsPDF, watermarkDataUrl: string | null) => {
  * Add stamp to bottom right corner of a PDF page
  * Stamp is fully opaque and sized appropriately
  */
-const addStampToPage = (doc: jsPDF, stampDataUrl: string | null, size: number = 70) => {
+const addStampToPage = (doc: jsPDF, stampDataUrl: string | null, size: number = 32) => {
   if (!stampDataUrl) return;
   
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -111,11 +126,12 @@ const addStampToPage = (doc: jsPDF, stampDataUrl: string | null, size: number = 
   // Stamp at bottom right - size configurable (default 70mm)
   const stampSize = size;
   const margin = 10;
-  const x = pageWidth - stampSize - margin;
-  const y = pageHeight - stampSize - margin;
+  const dimensions = fitPdfBranding(doc.getImageProperties(stampDataUrl), stampSize, stampSize);
+  const x = pageWidth - dimensions.width - margin;
+  const y = pageHeight - dimensions.height - margin;
   
   try {
-    doc.addImage(stampDataUrl, 'PNG', x, y, stampSize, stampSize);
+    doc.addImage(stampDataUrl, 'PNG', x, y, dimensions.width, dimensions.height, undefined, 'FAST');
   } catch (error) {
     console.error('Failed to add stamp:', error);
   }
@@ -150,7 +166,7 @@ export const exportAuditionsToPDF = (
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
-    format: 'a4'
+    format: 'a4', compress: true
   });
 
   // Page dimensions
@@ -199,7 +215,7 @@ export const exportAuditionsToPDF = (
   ]);
 
   // Create main table
-  autoTable(doc, {
+  renderFittedTable(doc, {
     startY: 35,
     head: [['Name', 'Batch', 'Instrument/Role', 'Email', 'Phone', 'Status', 'Date']],
     body: tableData,
@@ -261,7 +277,7 @@ export const exportAuditionsToPDF = (
         );
       }
     },
-    margin: { left: 10, right: 10 },
+    margin: { left: 10, right: 10, bottom: stampDataUrl ? 46 : 15 },
 
     // Decorations applied in post-processing loop
   });
@@ -411,7 +427,7 @@ export const exportAuditionsByStatus = (auditions: Audition[], watermarkDataUrl?
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
-    format: 'a4'
+    format: 'a4', compress: true
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -473,7 +489,7 @@ export const exportAuditionsByStatus = (auditions: Audition[], watermarkDataUrl?
       })
     ]);
 
-    autoTable(doc, {
+    renderFittedTable(doc, {
       startY: 40,
       head: [['Name', 'Batch', 'Instrument/Role', 'Email', 'Phone', 'Date']],
       body: tableData,
@@ -500,7 +516,7 @@ export const exportAuditionsByStatus = (auditions: Audition[], watermarkDataUrl?
         4: { cellWidth: 35 },
         5: { cellWidth: 25, halign: 'center' }
       },
-      margin: { left: 10, right: 10 },
+      margin: { left: 10, right: 10, bottom: stampDataUrl ? 46 : 15 },
       // Decorations applied in post-processing loop
     });
   });
@@ -583,7 +599,7 @@ export const exportRegistrationsToPDF = (
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
-    format: 'a4'
+    format: 'a4', compress: true
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -645,7 +661,7 @@ export const exportRegistrationsToPDF = (
   });
 
   // Create main table
-  autoTable(doc, {
+  renderFittedTable(doc, {
     startY: 35,
     head: [['S.No', 'Reg No', 'Name', 'Event', 'Email', 'Phone', 'College', 'Amount', 'Ref', 'Status']],
     body: tableData,
@@ -710,7 +726,7 @@ export const exportRegistrationsToPDF = (
         );
       }
     },
-    margin: { left: 10, right: 10 },
+    margin: { left: 10, right: 10, bottom: stampDataUrl ? 46 : 15 },
 
     // didDrawPage removed - we will apply decorations to all pages at the end
   });
@@ -863,7 +879,7 @@ export const exportRegistrationsByEvent = (registrations: Registration[], waterm
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
-    format: 'a4'
+    format: 'a4', compress: true
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -927,7 +943,7 @@ export const exportRegistrationsByEvent = (registrations: Registration[], waterm
       })
     ]);
 
-    autoTable(doc, {
+    renderFittedTable(doc, {
       startY: 40,
       head: [['Name', 'Batch', 'Team/Individual', 'Email', 'Phone', 'College', 'Status', 'Date']],
       body: tableData,
@@ -956,7 +972,7 @@ export const exportRegistrationsByEvent = (registrations: Registration[], waterm
         6: { cellWidth: 20, halign: 'center' },
         7: { cellWidth: 20, halign: 'center' }
       },
-      margin: { left: 10, right: 10 },
+      margin: { left: 10, right: 10, bottom: stampDataUrl ? 46 : 15 },
       didDrawPage: (data) => {
         // Add watermark
         addWatermarkToPage(doc, watermarkDataUrl || null);
@@ -987,7 +1003,7 @@ export const exportRegistrationsByStatus = (registrations: Registration[], water
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
-    format: 'a4'
+    format: 'a4', compress: true
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -1055,7 +1071,7 @@ export const exportRegistrationsByStatus = (registrations: Registration[], water
       })
     ]);
 
-    autoTable(doc, {
+    renderFittedTable(doc, {
       startY: 40,
       head: [['Name', 'Batch', 'Event', 'Team/Individual', 'Email', 'Phone', 'College', 'Date']],
       body: tableData,
@@ -1084,7 +1100,7 @@ export const exportRegistrationsByStatus = (registrations: Registration[], water
         6: { cellWidth: 35 },
         7: { cellWidth: 24, halign: 'center' }
       },
-      margin: { left: 10, right: 10 },
+      margin: { left: 10, right: 10, bottom: stampDataUrl ? 46 : 15 },
       didDrawPage: (data) => {
         // Add watermark
         addWatermarkToPage(doc, watermarkDataUrl || null);
@@ -1120,7 +1136,7 @@ export const generateRegistrationReceiptPDF = async (
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: 'a4'
+    format: 'a4', compress: true
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -1282,38 +1298,8 @@ export const generateRegistrationReceiptPDF = async (
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
     
-    // Add watermark
-    if (watermarkDataUrl) {
-      try {
-        const pW = doc.internal.pageSize.getWidth();
-        const pH = doc.internal.pageSize.getHeight();
-        const wmW = pW * 0.6;
-        const wmH = pH * 0.6;
-        const x = (pW - wmW) / 2;
-        const y = (pH - wmH) / 2;
-        doc.saveGraphicsState();
-        const gState = new (doc as any).GState({ opacity: 0.12 });
-        doc.setGState(gState);
-        doc.addImage(watermarkDataUrl, 'PNG', x, y, wmW, wmH, undefined, 'FAST');
-        doc.restoreGraphicsState();
-      } catch (e) {
-        console.error('Watermark failed:', e);
-      }
-    }
-
-    // Add stamp at bottom right
-    if (stampDataUrl) {
-      try {
-        const pW = doc.internal.pageSize.getWidth();
-        const pH = doc.internal.pageSize.getHeight();
-        const stampSize = 50;
-        const x = pW - stampSize - 15;
-        const y = pH - stampSize - 15;
-        doc.addImage(stampDataUrl, 'PNG', x, y, stampSize, stampSize, undefined, 'FAST');
-      } catch (e) {
-        console.error('Stamp failed:', e);
-      }
-    }
+    addWatermarkToPage(doc, watermarkDataUrl || null);
+    addStampToPage(doc, stampDataUrl || null, 40);
 
     // Footer
     doc.setFontSize(8);
@@ -1352,7 +1338,7 @@ export const exportEventSummaryPDF = (
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: 'a4'
+    format: 'a4', compress: true
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -1417,7 +1403,7 @@ export const exportEventSummaryPDF = (
   doc.text(`Total Events: ${uniqueEvents} | Total Registrations: ${totalRegistrations}`, pageWidth / 2, 35, { align: 'center' });
 
   // Render Table
-  autoTable(doc, {
+  renderFittedTable(doc, {
     startY: 45,
     head: [['S.No', 'Event Name', 'Total', 'Batch Breakdown']],
     body: rows,
@@ -1444,7 +1430,7 @@ export const exportEventSummaryPDF = (
       2: { cellWidth: 25, halign: 'center' },
       3: { cellWidth: 'auto' }
     },
-    margin: { left: 15, right: 15 },
+    margin: { left: 15, right: 15, bottom: stampDataUrl ? 54 : 15 },
     didDrawPage: (data) => {
         // Add watermark
         addWatermarkToPage(doc, watermarkDataUrl || null);
@@ -1477,7 +1463,7 @@ export const exportCoordinatorRegistrationsToPDF = (
 ) => {
   const { filename = 'participants.pdf', title = 'Participants Report' } = options;
 
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
 
   // Title
@@ -1523,7 +1509,7 @@ export const exportCoordinatorRegistrationsToPDF = (
     ];
   });
 
-  autoTable(doc, {
+  renderFittedTable(doc, {
     startY: 35,
     head: [['S.No', 'Reg No', 'Name', 'Type', 'Email', 'Phone']],
     body: tableData,

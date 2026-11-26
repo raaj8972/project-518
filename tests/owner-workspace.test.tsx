@@ -51,7 +51,7 @@ it('finds collapsed sections by their clear names and navigates from search', as
   expect(results).toHaveLength(1);
   await act(async () => results[0].click());
   expect(container.querySelector('dialog')?.open).toBe(false);
-  expect(container.querySelector('[aria-current="page"]')?.textContent).toContain('Event registrations');
+  expect(container.querySelector('[aria-current="page"]')?.textContent).toContain('Registrations & auditions');
   expect(container.querySelector('#owner-nav-registrations')?.hasAttribute('hidden')).toBe(false);
 });
 it('closes mobile navigation after selection and preserves sign-out', async () => {
@@ -74,7 +74,7 @@ it('uses global registration totals, shows actionable queues and defers diagnost
 });
 it('distinguishes loading and empty states from zero pending applications', async () => {
   await act(async () => root.render(<MemoryRouter><OwnerOverview {...overviewProps} loading registrations={[]} /></MemoryRouter>));
-  expect(container.querySelector('.owner-table-loading')).not.toBeNull();
+  expect(container.querySelector('[aria-label="Loading recent registrations"]')).not.toBeNull();
   expect(container.querySelectorAll('.owner-metrics strong')[1].textContent).toBe('—');
   await act(async () => root.render(<MemoryRouter><OwnerOverview {...overviewProps} registrations={[]} stats={{total:0,approved:0,pending:0}} pendingAuditions={0} pendingMemberships={0} /></MemoryRouter>));
   expect(container.querySelector('.owner-empty')?.textContent).toContain('No registrations yet');

@@ -14,11 +14,13 @@ interface ComingSoonProps {
     coming_soon_title?: string | null;
     coming_soon_message?: string | null;
     coming_soon_ended_text?: string | null;
+    locked_pages?: Record<string, boolean>;
   };
   isMaintenance?: boolean;
+  isPreview?: boolean;
 }
 
-export const ComingSoon: React.FC<ComingSoonProps> = React.memo(({ previewSettings, isMaintenance }) => {
+export const ComingSoon: React.FC<ComingSoonProps> = React.memo(({ previewSettings, isMaintenance, isPreview }) => {
   const { siteSettings: globalSettings, isAdmin } = useData();
   const [isWrap, setIsWrap] = useState(false);
   
@@ -50,11 +52,13 @@ export const ComingSoon: React.FC<ComingSoonProps> = React.memo(({ previewSettin
 
   if (isMaintenance) {
     return (
-      <div className="min-h-screen bg-[#030303] text-white flex flex-col items-center justify-center relative overflow-hidden font-mono select-none" style={{ perspective: '1200px' }}>
-        <SEO 
-          title={isWrap ? "Neural Link Established | Ricorrenza" : "System Patching | Maintenance Mode"} 
-          description={csMessage || "Ricorrenza neural interface is currently under construction. Please wait for the uplink."}
-        />
+      <div className={`${isPreview ? 'min-h-[610px]' : 'min-h-screen'} bg-[#030303] text-white flex flex-col items-center justify-center relative overflow-hidden font-mono select-none`} style={{ perspective: '1200px' }}>
+        {!isPreview && (
+          <SEO 
+            title={isWrap ? "Neural Link Established | Ricorrenza" : "System Patching | Maintenance Mode"} 
+            description={csMessage || "Ricorrenza neural interface is currently under construction. Please wait for the uplink."}
+          />
+        )}
         
         <AnimatePresence mode="wait">
           {!isWrap ? (
@@ -208,11 +212,13 @@ export const ComingSoon: React.FC<ComingSoonProps> = React.memo(({ previewSettin
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center relative overflow-hidden font-mono">
-      <SEO 
-        title="Access Denied | Ricorrenza" 
-        description={csMessage || "Neural link offline. Re-establishing connection."}
-      />
+    <div className={`${isPreview ? 'min-h-[610px] py-12' : 'min-h-screen'} bg-black text-white flex flex-col items-center justify-center relative overflow-hidden font-mono`}>
+      {!isPreview && (
+        <SEO 
+          title="Access Denied | Ricorrenza" 
+          description={csMessage || "Neural link offline. Re-establishing connection."}
+        />
+      )}
       {/* Cyber grid + glow backdrop */}
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(closest-side,rgba(34,211,238,0.1),transparent_60%)]" />
       <div className="absolute -top-40 -left-32 w-[28rem] h-[28rem] rounded-full bg-indigo-500/10 blur-3xl opacity-30" />

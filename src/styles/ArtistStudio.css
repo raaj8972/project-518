@@ -49,3 +49,78 @@ body[data-dashboard-theme=dark] .artist-ui {--art-bg:#111c22;--art-panel:#18262d
  .artist-editor-body[data-mobile-view=preview] .artist-live-preview{display:block;border-left:0;}
  .artist-draft-stage{max-width:430px;margin:auto;}
 }
+
+/* Artist management: roster first, with the actual website stage beside it. */
+.artist-manager { --art-text:#2e4035;--art-muted:#6f7e72;--art-line:#dfe6dc;--art-accent:#426b52;--art-tint:#eff4e9; }
+.artist-manager-heading { display:flex;align-items:center;justify-content:space-between;gap:24px;margin:3px 0 25px; }
+.artist-manager-eyebrow { display:block;color:#73846c;font-size:9px;font-weight:550;letter-spacing:.12em;margin-bottom:8px; }
+.artist-manager-heading h2 { font-size:25px;font-weight:600;letter-spacing:-.045em;line-height:1.25; }
+.artist-manager-heading p { color:#73816f;font-size:12px;margin-top:8px;line-height:1.7; }
+.artist-manager-heading > button { flex-shrink:0; }
+.artist-manager-grid { display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,.7fr);gap:22px;align-items:start; }
+.artist-manager-main,.artist-manager-aside { min-width:0; }
+.artist-manager-roster { border:1px solid var(--art-line);border-radius:13px;background:#fff;overflow:hidden; }
+.artist-manager-roster > header { display:flex;align-items:center;justify-content:space-between;gap:15px;padding:21px 22px;border-bottom:1px solid #e9eee5; }
+.artist-manager-roster > header h3 { font-size:15px;font-weight:550;letter-spacing:-.025em;display:flex;align-items:center;gap:9px; }
+.artist-manager-roster > header h3 > span { background:#eff4e9;border:1px solid #e2eadb;border-radius:5px;min-width:23px;padding:2px 6px;text-align:center;font-size:10px;color:#5a7551; }
+.artist-manager-roster > header p { font-size:10px;color:#75846d;margin-top:5px; }
+.artist-manager-roster > header p > span { margin-inline:6px; }
+.artist-manager-roster > header p strong { font-weight:500; }
+.artist-manager-edition { color:#77896b;font:9px/1.5 ui-monospace,monospace;letter-spacing:.08em;white-space:nowrap; }
+.artist-manager .artist-roster-toolbar { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:18px 21px;margin:0;border-bottom:1px solid #edf1e8;align-items:center; }
+.artist-manager .artist-search { min-width:0;grid-column:1/-1;grid-row:1;min-height:39px;background:#fbfcf9;border-radius:7px; }
+.artist-manager .artist-search input { background:transparent!important;min-height:0!important; }
+.artist-manager .artist-filter-group { grid-column:1;grid-row:2;border:0;padding:0;gap:3px;border-radius:0;flex-wrap:wrap; }
+.artist-manager .artist-filter-group button { padding:7px 9px;font-size:10px;white-space:nowrap; }
+.artist-manager .artist-year-filter { grid-column:2;grid-row:2;flex-direction:row;align-items:center;gap:8px;font-size:9px; }
+.artist-manager .artist-year-filter select { font-size:10px;min-height:32px;padding:6px 22px 6px 8px; }
+.artist-manager .artist-roster { grid-template-columns:1fr;gap:0; }
+.artist-manager .artist-roster-card { grid-template-columns:97px minmax(0,1fr);padding:18px 21px;gap:16px;border:0;border-radius:0;border-bottom:1px solid #edf1e8; }
+.artist-manager .artist-roster-card:hover { background:#fcfdf9; }
+.artist-manager .artist-roster-portrait { border:1px solid #e2e9dc;border-radius:8px;min-height:147px;height:100%; }
+.artist-manager .artist-roster-info { padding:1px 0 0; }
+.artist-manager .artist-roster-status { margin-bottom:9px;gap:5px; }
+.artist-manager .artist-roster-status > span { font-size:8px; }
+.artist-manager .artist-roster-info h3 { font-size:19px; }
+.artist-manager .artist-roster-info > small { margin:7px 0; }
+.artist-manager .artist-roster-media { margin-top:1px;margin-bottom:10px;font-size:9px; }
+.artist-manager .artist-card-actions { border-top:0;padding-top:3px; }
+.artist-manager .artist-edit-button { font-size:11px!important; }
+.artist-manager-empty.artist-empty { display:flex;flex-direction:column;align-items:center;text-align:center;justify-content:center;min-height:340px;padding:40px 30px;border:0;border-radius:0;gap:0; }
+.artist-manager-empty-icon { display:grid;place-items:center;width:55px;height:55px;background:#f0f5e9;color:#728f5f;border:1px solid #e2ead8;border-radius:15px;margin-bottom:20px; }
+.artist-manager-empty-icon svg { width:24px;height:24px; }
+.artist-manager-empty h3 { font-size:21px;font-weight:550;letter-spacing:-.035em; }
+.artist-manager-empty p { font-size:12px;line-height:1.8;color:#74816e;max-width:310px;margin:10px 0 21px; }
+.artist-manager-empty > small { font-size:10px;color:#78856e;margin-top:13px;line-height:1.7; }
+.artist-manager-roster-footer { display:flex;align-items:center;gap:7px;color:#7b8872;background:#fafcf7;border-top:1px solid #e9eee3;padding:13px 20px;font-size:10px;line-height:1.6; }
+.artist-manager-roster-footer svg { width:13px;height:13px;color:#859d72; }
+.artist-manager-aside { display:grid;gap:16px; }
+.artist-manager-stage { background:#fff;border:1px solid var(--art-line);border-radius:12px;overflow:hidden;padding:19px; }
+.artist-manager-stage > header { display:flex;align-items:center;justify-content:space-between;gap:10px; }
+.artist-manager-stage > header span { font-size:8px;letter-spacing:.12em;color:#7a8b70; }
+.artist-manager-stage h3 { font-size:15px;font-weight:550;letter-spacing:-.025em;margin-top:3px; }
+.artist-manager-stage > p { font-size:10px;color:#7a8773;line-height:1.7;margin:9px 0 15px; }
+.artist-manager-stage .admin-public-preview { border-radius:8px; }
+.artist-manager-stage .admin-public-preview > header { padding:10px; }
+.artist-manager-stage .admin-public-preview > header small { display:none; }
+.artist-manager-stage .admin-preview-canvas { padding:8px; }
+.artist-manager-stage .admin-public-preview > footer { font-size:8px;padding:9px 10px; }
+.artist-manager .artist-stage-settings { margin:0;border-radius:12px; }
+.artist-manager .artist-stage-settings > summary { flex-direction:column;gap:5px;font-size:12px;padding:18px 19px; }
+.artist-manager .artist-stage-settings > summary > span { font-size:10px; }
+.artist-manager .artist-stage-settings .artist-field-pair { grid-template-columns:1fr; }
+.artist-manager .artist-stage-add-year { gap:8px; }
+.artist-manager .artist-stage-year-choices { gap:6px; }
+.artist-manager .artist-stage-year-choices label { font-size:10px;padding:8px; }
+.artist-manager-help { display:flex;gap:11px;padding:1px 5px;color:#7b8b70; }
+.artist-manager-help > svg { width:16px;height:16px;margin-top:2px; }
+.artist-manager-help strong { font-size:10px;font-weight:500; }
+.artist-manager-help p { font-size:10px;line-height:1.8;margin-top:4px; }
+body[data-admin-workspace=light] .artist-dialog { width:min(1160px,calc(100% - 36px));border-radius:14px; }
+body[data-admin-workspace=light] .artist-dialog .artist-dialog-header { background:#fbfcf9;padding:18px 23px; }
+body[data-admin-workspace=light] .artist-dialog .artist-form-tabs { background:#fff; }
+body[data-admin-workspace=light] .artist-dialog .artist-form-footer { background:#fbfcf9; }
+@media(min-width:1450px) { .artist-manager-grid { grid-template-columns:minmax(0,1fr) 370px; } }
+@media(max-width:1120px) { .artist-manager-grid { grid-template-columns:minmax(0,1fr) 290px;gap:16px; } .artist-manager .artist-roster-toolbar { grid-template-columns:1fr; } .artist-manager .artist-year-filter { grid-column:1;grid-row:3; } }
+@media(max-width:780px) { .artist-manager-grid { grid-template-columns:1fr; } .artist-manager-heading { gap:15px; } .artist-manager-heading h2 { font-size:22px; } .artist-manager-heading p { font-size:11px; } .artist-manager-heading > button { font-size:11px!important;padding:10px 12px; } .artist-manager .artist-roster-toolbar { grid-template-columns:1fr auto; } .artist-manager .artist-year-filter { grid-column:2;grid-row:2; } .artist-manager-aside { grid-template-columns:1fr; } .artist-manager-stage { order:2; } }
+@media(max-width:480px) { .artist-manager-heading { align-items:flex-start;flex-direction:column;gap:15px;margin-bottom:19px; } .artist-manager-roster > header { padding:18px; } .artist-manager .artist-roster-toolbar { padding:15px 17px;gap:10px;grid-template-columns:1fr; } .artist-manager .artist-year-filter { grid-column:1;grid-row:3; } .artist-manager .artist-roster-card { padding:17px;grid-template-columns:77px minmax(0,1fr);gap:12px; } .artist-manager .artist-roster-portrait { min-height:154px; } .artist-manager .artist-roster-status > span:last-child { display:none; } .artist-manager-empty.artist-empty { min-height:310px;padding:30px 23px; } .artist-manager-empty h3 { font-size:20px; } }

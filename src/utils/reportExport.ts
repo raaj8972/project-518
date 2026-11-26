@@ -1,3 +1,4 @@
+import { fitPdfBranding } from './pdfBrandingLayout';
 // Centralized report export utility (Excel, PDF, CSV) with column presets and splitting
 import { Registration } from '../types/data';
 import { supabase, SUPABASE_HOST } from '../lib/supabase';
@@ -143,20 +144,21 @@ export interface PdfExportOptions {
 }
 
 export const exportPdf = async (rows: Registration[], columns: RegistrationColumnKey[], opts: PdfExportOptions = {}) => {
-  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+  const [{ jsPDF }, { default: autoTable }] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable')
   ]);
   // If both Team Members and Team Member Phones are selected, drop the separate phones column
   // because PDF now shows phone below each member name inside Team Members column.
   const pdfColumns: RegistrationColumnKey[] = (() => {
-    const base = columns.filter(c => c !== 'college');
+    const base = [...columns];
     if (base.includes('team_members') && base.includes('team_phones')) {
       return base.filter(c => c !== 'team_phones');
     }
     return base;
   })();
 
+  const EXTRA_COLS = 1;
   const { headers, body } = buildMatrix({ rows, columns: pdfColumns });
   const selectedDefs = pdfColumns.map(k => REGISTRATION_COLUMNS.find(c => c.key === k)!).filter(Boolean);
   const photoCols = selectedDefs
@@ -210,15 +212,9 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     });
   }
   
-  // Inject S.No and Reg No (Short ID) at the beginning
-  const EXTRA_COLS = 2;
-  printableHeaders.unshift('S.No', 'Reg No');
-  body.forEach((row, i) => {
-    // Reg No (Short)
-    row.unshift(rows[i].id.substring(0, 8).toUpperCase());
-    // S.No
-    row.unshift((i + 1).toString());
-  });
+  // Number the visible rows; registration ID is included only when selected.
+  printableHeaders.unshift('S.No');
+  body.forEach((row, index) => row.unshift((index + 1).toString()));
 
   const split = opts.splitThreshold && opts.splitThreshold > 0 ? opts.splitThreshold : null;
   const landscape = opts.landscape !== false; // default landscape
@@ -226,7 +222,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   const colsCount = selectedDefs.length;
   const autoFont = colsCount <= 6 ? 9 : colsCount <= 10 ? 8 : 7.5;
   const fontSize = opts.fontSize || autoFont;
-  const base = opts.baseFileName || 'registrations';
+  const base = (opts.baseFileName || 'registrations').replace(/\.pdf$/i, '');
   const thumbPx = Math.max(10, Math.min(opts.photoThumbSize || 16, 64));
   const hasPhotos = photoCols.length > 0;
 
@@ -293,7 +289,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   };
 
   const saveDoc = async (sliceBody: any[][], sliceRows: Registration[], index: number, total: number) => {
-    const doc = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait' });
+    const doc = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait', compress: true });
     // Preload photos for this slice
     const preloadedImages = new Map<number, Array<{ dataUrl: string; format: 'PNG' | 'JPEG'; w: number; h: number } | null>>();
 
@@ -318,8 +314,8 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     // Compute sensible column widths based on importance with min/max clamps
   const pageWidth = (doc as any).internal.pageSize.getWidth();
   // Give a little extra breathing room on the right when Team Members column is visible
-  const margin = { top: 10, bottom: 8, left: 7, right: teamMembersColIndex >= 0 ? 10 : 7 };
-    const availableWidth = pageWidth - margin.left - margin.right;
+  const margin = { top: 14, bottom: opts.stampDataUrl ? 40 : 12, left: 7, right: teamMembersColIndex >= 0 ? 10 : 7 };
+    const availableWidth = pageWidth - margin.left - margin.right - 12;
 
     // Importance weights and min/max widths (mm)
     const weights: Partial<Record<RegistrationColumnKey, number>> = {
@@ -414,7 +410,6 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     });
     // Add styles for injected columns
     columnStyles[0] = { cellWidth: 12, halign: 'center' }; // S.No
-    columnStyles[1] = { cellWidth: 22, fontStyle: 'bold' }; // Reg No
 
     // Ensure minimum for photo columns tied to thumb size
     photoCols.forEach(c => {
@@ -465,14 +460,13 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
           try {
             const pW = (doc as any).internal.pageSize.getWidth();
             const pH = (doc as any).internal.pageSize.getHeight();
-            const wmW = pW * 0.6;
-            const wmH = pH * 0.6;
+            const { width: wmW, height: wmH } = fitPdfBranding(doc.getImageProperties(opts.watermarkDataUrl), pW * 0.6, pH * 0.6);
             const x = (pW - wmW) / 2;
             const y = (pH - wmH) / 2;
             doc.saveGraphicsState();
             const gState = new (doc as any).GState({ opacity: 0.12 });
             doc.setGState(gState);
-            doc.addImage(opts.watermarkDataUrl, 'PNG', x, y, wmW, wmH);
+            doc.addImage(opts.watermarkDataUrl, 'PNG', x, y, wmW, wmH, undefined, 'FAST');
             doc.restoreGraphicsState();
           } catch (e) { console.error('Watermark failed:', e); }
         }
@@ -481,11 +475,8 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
           try {
             const pW = (doc as any).internal.pageSize.getWidth();
             const pH = (doc as any).internal.pageSize.getHeight();
-            const stampSize = 60;
-            const marginRight = -15; // Shifted further right
-            const x = pW - stampSize - marginRight;
-            const y = (pH - stampSize) / 2; // Vertically centered
-            doc.addImage(opts.stampDataUrl, 'PNG', x, y, stampSize, stampSize);
+            const size = fitPdfBranding(doc.getImageProperties(opts.stampDataUrl), 30, 30);
+            doc.addImage(opts.stampDataUrl, 'PNG', pW - size.width - 10, pH - size.height - 8, size.width, size.height, undefined, 'FAST');
           } catch (e) { console.error('Stamp failed:', e); }
         }
         doc.setFontSize(9);

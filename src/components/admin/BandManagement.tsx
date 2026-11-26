@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Edit, Trash2, Save, X, Music, Star, Eye, EyeOff, Instagram, Youtube, Music2, Award, Users, Wand2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Music, Star, Eye, EyeOff, Instagram, Youtube, Wand2, Search, ArrowUpRight } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { BandMember } from '../../types/data';
@@ -48,6 +48,9 @@ export const BandManagement = () => {
   const [requiresApproval, setRequiresApproval] = useState(true);
   const [approvalReady, setApprovalReady] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [query, setQuery] = useState('');
+  const [visibility, setVisibility] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [isBulkImporting, setIsBulkImporting] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -135,7 +138,7 @@ export const BandManagement = () => {
     else if (field === 'enabled') await toggleBandMemberEnabled(member.id);
     else await toggleBandMemberFeatured(member.id);
   }, field === 'enabled' ? `${member.name} is now ${member.enabled ? 'hidden' : 'visible'}.` : `${member.name}'s featured status was updated.`);
-  const members = [...bandMembers].sort((a, b) => (a.order_position ?? Number.MAX_SAFE_INTEGER) - (b.order_position ?? Number.MAX_SAFE_INTEGER));
+  const members = [...bandMembers].sort((a, b) => Number(b.is_featured) - Number(a.is_featured) || (a.order_position ?? Number.MAX_SAFE_INTEGER) - (b.order_position ?? Number.MAX_SAFE_INTEGER)).filter(member => `${member.name} ${member.role} ${member.specialty}`.toLowerCase().includes(query.trim().toLowerCase()) && (visibility === 'all' || (visibility === 'visible' ? member.enabled : !member.enabled)) && (categoryFilter === 'all' || getHomeboundMemberCategory(member, content.categories) === categoryFilter));
 
   const renderForm = (mode: 'add' | 'edit', memberId?: number) => {
     const prefix = `band-${mode}-${memberId ?? 'new'}`;
@@ -143,7 +146,7 @@ export const BandManagement = () => {
       <label className={labelCls} htmlFor={`${prefix}-${key}`}>{label}{required && <span className="text-rose-400"> *</span>}</label>
       <input id={`${prefix}-${key}`} value={form[key]} onChange={event => updateForm({ [key]: event.target.value })} required={required} aria-invalid={fieldErrors.includes(key)} className={inputCls} />
     </div>;
-    return <fieldset disabled={busy !== null} className="space-y-5 min-w-0" aria-label={mode === 'add' ? 'New artist details' : 'Edit artist details'}>
+    return <fieldset disabled={busy !== null} className="band-profile-form space-y-5 min-w-0" aria-label={mode === 'add' ? 'New artist details' : 'Edit artist details'}>
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="space-y-4">
           {textField('name', 'Full name', true)}
@@ -178,31 +181,28 @@ export const BandManagement = () => {
     </fieldset>;
   };
 
-  return <div className="space-y-6">
+  return <div className="band-admin">
     {!isAuthenticated && <p role="alert" className="rounded-xl bg-amber-500/10 p-4 text-amber-300">An admin session is required to manage the band.</p>}
     {status && <p role={status.error ? 'alert' : 'status'} className={`rounded-xl border p-4 text-sm ${status.error ? 'border-rose-500/30 bg-rose-500/10 text-rose-200' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'}`}>{status.text}</p>}
-    <div className="rounded-2xl border border-white/10 bg-amber-500/[0.06] p-6 flex flex-col md:flex-row md:items-center justify-between gap-5"><div><p className="flex items-center gap-2 text-xs uppercase tracking-widest text-amber-300"><Music2 size={15} />Homebound artists</p><h2 className="mt-2 text-2xl font-bold text-white">Manage the band</h2><p className="mt-2 text-sm text-gray-400">Add artists, update photos and biographies, assign any category, and control what appears on the public lineup.</p><Link to="/admin/homebound?edit=categories" className="inline-block mt-3 text-sm text-amber-300 underline underline-offset-4">Manage categories and page content</Link></div><div className="flex flex-wrap gap-3"><button type="button" className={actionCls} disabled={blocked} onClick={() => setIsBulkImporting(true)}><Wand2 size={16} />AI bulk import</button><button type="button" className={`${actionCls} !bg-amber-500 !text-black`} disabled={blocked} onClick={beginAdd}><Plus size={16} />Add artist</button></div></div>
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[
-      { value: bandMembers.length, label: 'Total artists', icon: Users },
-      { value: bandMembers.filter(member => member.is_featured).length, label: 'Featured', icon: Star },
-      { value: bandMembers.filter(member => member.enabled).length, label: 'Visible', icon: Eye },
-      { value: bandMembers.reduce((total, member) => total + (member.achievements?.length ?? 0), 0), label: 'Achievements', icon: Award },
-    ].map(({ value, label, icon: Icon }) => <div key={label} className="rounded-xl border border-white/10 p-4"><strong className="text-2xl text-white">{value}</strong><p className="mt-1 flex items-center gap-2 text-xs text-gray-400"><Icon size={14} />{label}</p></div>)}</div>
+    <header className="admin-content-toolbar"><div><h2>Band profiles</h2><p>The musicians on your Home Bound page, in the same order visitors see them.</p></div><div><details className="admin-import-menu"><summary><Wand2 size={14} />Import</summary><button type="button" disabled={blocked} onClick={() => setIsBulkImporting(true)}>AI bulk import</button></details><button type="button" className="admin-primary-button" disabled={blocked} onClick={beginAdd}><Plus size={15} />New band member</button></div></header>
+    <div className="admin-roster-summary"><span><strong>{bandMembers.length}</strong>Members</span><span><strong>{bandMembers.filter(member => member.enabled).length}</strong>On the page</span><span><strong>{bandMembers.filter(member => member.is_featured).length}</strong>Featured first</span><Link to="/admin/homebound?edit=categories">Edit categories<ArrowUpRight size={13} /></Link></div>
+    <div className="admin-roster-filters"><label className="admin-roster-search"><Search size={15} /><span className="sr-only">Search band members</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search a name, role or instrument…" /></label><label><span className="sr-only">Filter band visibility</span><select aria-label="Filter band visibility" value={visibility} onChange={event => setVisibility(event.target.value)}><option value="all">All profiles</option><option value="visible">On the page</option><option value="hidden">Hidden</option></select></label><label><span className="sr-only">Filter band category</span><select aria-label="Filter band category" value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}><option value="all">All categories</option>{content.categories.map(category => <option value={category.id} key={category.id}>{category.label}</option>)}</select></label></div>
     {isBulkImporting && <AIHomeBoundImport onCancel={() => setIsBulkImporting(false)} onCreateMember={async member => { if (!approvalReady || !isAuthenticated) throw new Error('Publishing access is not ready. Please try again.'); if (requiresApproval) await approval('create', member); else await addBandMember(member); }} onSaved={() => { setIsBulkImporting(false); setStatus({ error: false, text: requiresApproval ? 'Artist import requests submitted for approval.' : 'Artists imported. The lineup will refresh with the saved records.' }); }} />}
-    {isAdding && <section className="rounded-2xl border border-amber-500/30 p-6"><h3 className="mb-5 text-lg font-bold text-white">Add new artist</h3>{renderForm('add')}</section>}
-    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">{members.map(member => {
+    {isAdding && <section className="band-profile-editor"><h3 className="mb-5 text-lg font-bold text-white">Add new artist</h3>{renderForm('add')}</section>}
+    <div className="band-roster">{members.map(member => {
       const links = getHomeboundSocialLinks(member);
       const categoryId = getHomeboundMemberCategory(member, content.categories);
       const category = content.categories.find(item => item.id === categoryId);
-      return <article key={member.id} className={`rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden ${editing === member.id ? 'md:col-span-2 xl:col-span-3' : ''}`}>
+      return <article key={member.id} className={`band-profile-card${editing === member.id ? ' is-editing' : ''}`}>
         {editing === member.id ? <div className="p-6"><h3 className="mb-5 text-lg font-bold text-white">Edit {member.name}</h3>{renderForm('edit', member.id)}</div> : <>
-          <div className="relative h-52 bg-[#0a2118] flex items-center justify-center">{imageUrl(member.image || '') ? <img src={imageUrl(member.image)!} alt={member.name} className="h-full w-full object-cover" /> : <Music size={45} className="text-emerald-300/50" />}<span className="absolute right-3 top-3 rounded-lg bg-black/60 px-2 py-1 text-xs text-white">#{member.order_position ?? '—'}</span>{!member.enabled && <span className="absolute left-3 top-3 rounded-lg bg-rose-950/90 px-2 py-1 text-xs text-rose-200">Hidden</span>}</div>
-          <div className="p-4 space-y-3"><div><h3 className="text-lg font-bold text-white">{member.name}</h3><p className="text-sm text-amber-300">{member.role}</p></div><p className="text-xs text-gray-400">{category?.label || member.category}{category && !category.enabled ? ' · category hidden' : !category ? ' · unlisted category' : ''}{member.specialty ? ` · ${member.specialty}` : ''}</p>{member.description && <p className="line-clamp-2 text-sm text-gray-400">{member.description}</p>}<div className="flex flex-wrap gap-3">{links.instagram && <a href={links.instagram} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on Instagram`} className="text-pink-300"><Instagram size={18} /></a>}{links.youtube && <a href={links.youtube} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on YouTube`} className="text-red-300"><Youtube size={18} /></a>}{links.spotify && <a href={links.spotify} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on Spotify`} className="text-emerald-300">Spotify</a>}</div>
-            <div className="flex flex-wrap gap-2 border-t border-white/10 pt-3"><button type="button" className={actionCls} disabled={blocked} aria-label={`${member.enabled ? 'Hide' : 'Show'} ${member.name}`} onClick={() => toggleMember(member, 'enabled')}>{member.enabled ? <Eye size={14} /> : <EyeOff size={14} />}{member.enabled ? 'Hide' : 'Show'}</button><button type="button" className={actionCls} disabled={blocked} aria-label={`${member.is_featured ? 'Unfeature' : 'Feature'} ${member.name}`} onClick={() => toggleMember(member, 'is_featured')}><Star size={14} fill={member.is_featured ? 'currentColor' : 'none'} /></button><button type="button" className={actionCls} disabled={blocked} aria-label={`Edit ${member.name}`} onClick={() => startEditing(member)}><Edit size={14} />Edit</button><button type="button" className={`${actionCls} !text-rose-300`} disabled={blocked} aria-label={`Delete ${member.name}`} onClick={() => removeMember(member)}><Trash2 size={14} /></button></div>
+          <div className="band-profile-portrait">{imageUrl(member.image || '') ? <img src={imageUrl(member.image)!} alt={member.name} className="h-full w-full object-cover" /> : <Music size={45} className="text-emerald-300/50" />}<span className="absolute right-3 top-3 rounded-lg bg-black/60 px-2 py-1 text-xs text-white">#{member.order_position ?? '—'}</span>{!member.enabled && <span className="absolute left-3 top-3 rounded-lg bg-rose-950/90 px-2 py-1 text-xs text-rose-200">Hidden</span>}</div>
+          <div className="band-profile-info"><div><h3 className="text-lg font-bold text-white">{member.name}</h3><p className="text-sm text-amber-300">{member.role}</p></div><p className="text-xs text-gray-400">{category?.label || member.category}{category && !category.enabled ? ' · category hidden' : !category ? ' · unlisted category' : ''}{member.specialty ? ` · ${member.specialty}` : ''}</p>{member.description && <p className="line-clamp-2 text-sm text-gray-400">{member.description}</p>}<div className="flex flex-wrap gap-3">{links.instagram && <a href={links.instagram} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on Instagram`} className="text-pink-300"><Instagram size={18} /></a>}{links.youtube && <a href={links.youtube} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on YouTube`} className="text-red-300"><Youtube size={18} /></a>}{links.spotify && <a href={links.spotify} target="_blank" rel="noopener noreferrer" aria-label={`${member.name} on Spotify`} className="text-emerald-300">Spotify</a>}</div>
+            <div className="band-profile-actions"><button type="button" className={actionCls} disabled={blocked} aria-label={`${member.enabled ? 'Hide' : 'Show'} ${member.name}`} onClick={() => toggleMember(member, 'enabled')}>{member.enabled ? <Eye size={14} /> : <EyeOff size={14} />}{member.enabled ? 'Hide' : 'Show'}</button><button type="button" className={actionCls} disabled={blocked} aria-label={`${member.is_featured ? 'Unfeature' : 'Feature'} ${member.name}`} onClick={() => toggleMember(member, 'is_featured')}><Star size={14} fill={member.is_featured ? 'currentColor' : 'none'} /></button><button type="button" className={actionCls} disabled={blocked} aria-label={`Edit ${member.name}`} onClick={() => startEditing(member)}><Edit size={14} />Edit</button><button type="button" className={`${actionCls} !text-rose-300`} disabled={blocked} aria-label={`Delete ${member.name}`} onClick={() => removeMember(member)}><Trash2 size={14} /></button></div>
           </div>
         </>}
       </article>;
     })}</div>
-    {members.length === 0 && !isAdding && <div className="rounded-xl border border-dashed border-white/15 p-10 text-center"><Music size={35} className="mx-auto text-gray-500" /><h3 className="mt-4 text-lg text-white">No artists yet</h3><p className="my-3 text-sm text-gray-400">Add a singer, guitarist, beatboxer, or anyone in the band.</p><button type="button" className={actionCls} disabled={blocked} onClick={beginAdd}>Add first artist</button></div>}
+    {members.length === 0 && bandMembers.length > 0 && <div className="admin-roster-empty"><Search size={25} /><h3>No band members match</h3><p>Try another name or change your filters.</p><button type="button" onClick={() => { setQuery(''); setVisibility('all'); setCategoryFilter('all'); }}>Clear filters</button></div>}
+    {bandMembers.length === 0 && !isAdding && <div className="rounded-xl border border-dashed border-white/15 p-10 text-center"><Music size={35} className="mx-auto text-gray-500" /><h3 className="mt-4 text-lg text-white">No artists yet</h3><p className="my-3 text-sm text-gray-400">Add a singer, guitarist, beatboxer, or anyone in the band.</p><button type="button" className={actionCls} disabled={blocked} onClick={beginAdd}>Add first artist</button></div>}
   </div>;
 };

@@ -3,14 +3,14 @@ import type { Database } from '../lib/supabase';
 // Define types for your data based on Supabase schema
 export type Event = Database['public']['Tables']['events']['Row'];
 export type EventCoordinator = Database['public']['Tables']['event_coordinators']['Row'];
-export type GalleryImage = Database['public']['Tables']['gallery_images']['Row'] & { 
+export type GalleryImage = Database['public']['Tables']['gallery_images']['Row'] & {
   daily_views?: number;
   last_view_date?: string;
 };
 export type Sponsor = Database['public']['Tables']['sponsors']['Row'];
 export type ScheduleDay = Database['public']['Tables']['schedule_days']['Row'] & { events: ScheduleEvent[], schedule_type?: 'prelims' | 'mains' };
 export type ScheduleEvent = Database['public']['Tables']['schedule_events']['Row'];
-export type Registration = Database['public']['Tables']['registrations']['Row'] & { 
+export type Registration = Database['public']['Tables']['registrations']['Row'] & {
   deleted_at?: string | null;
   is_active?: boolean | null;
   user_id?: string | null;
@@ -38,7 +38,7 @@ export type SportsSeason = Database['public']['Tables']['sports_seasons']['Row']
 };
 export type SportsTeam = Database['public']['Tables']['sports_teams']['Row'] & { annual_event_id?: string | null };
 export type SportsPlayer = Database['public']['Tables']['sports_players']['Row'] & { annual_event_id?: string | null };
-export type SportsRegistration = Database['public']['Tables']['sports_registrations']['Row'] & { 
+export type SportsRegistration = Database['public']['Tables']['sports_registrations']['Row'] & {
   metadata?: any;
   user_id?: string | null;
   registration_date?: string | null;
@@ -263,9 +263,18 @@ export interface DataContextType {
   events: Event[];
   eventCoordinators: EventCoordinator[];
   galleryImages: GalleryImage[];
-  sponsors: Sponsor[];  
+  galleryLoading?: boolean;
+  galleryError?: string | null;
+  sponsors: Sponsor[];
   schedule: ScheduleDay[];
+  scheduleError?: string | null;
+  eventsError?: string | null;
   sponsorshipSettings: SponsorshipSettings | null;
+  sponsorshipError?: string | null;
+  refreshSponsorship?: () => Promise<void>;
+  auditionsError?: string | null;
+  auditionsLoading?: boolean;
+  refreshAuditions?: () => Promise<void>;
   eventCategories: EventCategory[];
   facultyHeads: FacultyHead[];
   coreCommittees: CoreCommittee[];
@@ -304,7 +313,7 @@ export interface DataContextType {
   addEventWithCoordinators: (
     event: Partial<Event>,
     coordinators: Array<{ name: string; phone?: string | null }>
-  ) => Promise<void>;
+  ) => Promise<Event | undefined>;
   eventWinners?: Array<any>;
   addEventWinner?: (winner: { event_id?: number | null; category?: string | null; position?: number; name: string; year?: string | null; photo_url?: string | null; registration_id?: string | null }) => Promise<void>;
   updateEventWinner?: (id: number, patch: Partial<any>) => Promise<void>;
@@ -319,7 +328,7 @@ export interface DataContextType {
   reorderEvents: (orderedIds: number[]) => Promise<boolean>;
   reorderEventCategories: (orderedIds: number[]) => Promise<boolean>;
   deleteEvent: (id: number) => Promise<void>;
-  addEventCoordinator: (coordinator: Omit<EventCoordinator, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  addEventCoordinator: (coordinator: Omit<EventCoordinator, 'id' | 'created_at' | 'updated_at'>) => Promise<EventCoordinator | undefined>;
   updateEventCoordinator: (id: number, patch: Partial<EventCoordinator>) => Promise<void>;
   deleteEventCoordinator: (id: number) => Promise<void>;
   toggleEventFeatured: (id: number) => Promise<void>;
@@ -335,7 +344,7 @@ export interface DataContextType {
   updateSponsor: (id: number, sponsor: Partial<Sponsor>) => Promise<void>;
   deleteSponsor: (id: number) => Promise<void>;
   toggleSponsorFeatured: (id: number) => Promise<void>;
-  addScheduleDay: (day: Partial<ScheduleDay>) => Promise<void>;
+  addScheduleDay: (day: Partial<ScheduleDay>) => Promise<ScheduleDay>;
   updateScheduleDay: (id: number, day: Partial<ScheduleDay>) => Promise<void>;
   deleteScheduleDay: (id: number) => Promise<void>;
   addScheduleEvent: (dayId: number, event: Partial<ScheduleEvent>) => Promise<void>;
@@ -351,7 +360,7 @@ export interface DataContextType {
   permanentDeleteRegistration: (id: string) => Promise<void>;
   bulkRestoreRegistrations: (ids: string[]) => Promise<void>;
   bulkPermanentDeleteRegistrations: (ids: string[]) => Promise<void>;
-  
+
   // Contact Sections
   addContactSection: (section: Partial<ContactSection>) => Promise<void>;
   updateContactSection: (id: number, section: Partial<ContactSection>) => Promise<void>;
@@ -415,7 +424,7 @@ export interface DataContextType {
 
   updateAboutSettings: (settings: Partial<AboutSettings>) => Promise<void>;
   updateGallerySettings: (settings: Partial<GallerySettings>) => Promise<void>;
-  loadGalleryImages: () => Promise<void>;
+  loadGalleryImages: (force?: boolean) => Promise<void>;
   prefetchEvents?: () => Promise<void>;
   prefetchGalleryImages?: () => Promise<void>;
   addRoadmapMilestone: (m: Partial<RoadmapMilestone>) => Promise<void>;
@@ -449,12 +458,11 @@ export interface DataContextType {
   urlsEqual?: (a: string | null | undefined, b: string | null | undefined) => boolean;
   deleteStorageFileByPublicUrl?: (url: string) => Promise<void>;
   isUrlReferencedSomewhere?: (target: string, options?: any) => boolean;
-  indexGalleryImageFaces?: (imageId: number, url: string) => Promise<void>;
-  adminUsers?: Array<{ 
-    user_id: string; 
-    email: string; 
-    created_at: string; 
-    role?: 'owner' | 'admin'; 
+  adminUsers?: Array<{
+    user_id: string;
+    email: string;
+    created_at: string;
+    role?: 'owner' | 'admin';
     is_primary?: boolean;
     permissions?: AdminPermission;
   }>;

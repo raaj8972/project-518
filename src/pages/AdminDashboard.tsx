@@ -1,14 +1,14 @@
-import ParticipationVerification from '../components/shared/ParticipationVerification';
+import { SITE_FEATURES } from '../constants/siteFeatures';
 import { getAdminSections } from '../constants/adminSections';
 import { legacyAccessSections } from '../utils/adminAccessRoutes';
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AdminLayout, TabType } from '../components/admin/layout/AdminLayout';
-import { Shield, PartyPopper, AlertTriangle } from 'lucide-react';
+import { PartyPopper } from 'lucide-react';
+import { AdminAccessState } from '../components/admin/layout/AdminAccessState';
 import { supabase } from '../lib/supabase';
 import { AnnouncementsPanel } from '../components/shared/AnnouncementsPanel';
 import { useSupportUnread } from '../hooks/useSupportUnread';
-import { ChatPanel } from '../components/shared/ChatPanel';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -38,7 +38,6 @@ const GuestArtistManagement = React.lazy(() => import('../components/admin/Guest
 const ChiefGuestManagement = React.lazy(() => import('../components/admin/ChiefGuestManagement').then(m => ({ default: m.ChiefGuestManagement })));
 const HomepageManagement = React.lazy(() => import('../components/admin/HomepageManagement').then(m => ({ default: m.HomepageManagement })));
 const AuditionManagement = React.lazy(() => import('../components/admin/AuditionManagement').then(m => ({ default: m.AuditionManagement })));
-const MembershipManagement = React.lazy(() => import('../components/admin/MembershipManagement').then(m => ({ default: m.MembershipManagement })));
 const FormSettingsManagement = React.lazy(() => import('../components/admin/FormSettingsManagement').then(m => ({ default: m.FormSettingsManagement })));
 const RegistrationModalSettings = React.lazy(() => import('../components/admin/RegistrationModalSettings'));
 const HomeBoundSettings = React.lazy(() => import('../components/admin/HomeBoundSettings').then(m => ({ default: m.HomeBoundSettings })));
@@ -47,20 +46,15 @@ const HeroMediaManagement = React.lazy(() => import('../components/admin/HeroMed
 const AboutSettings = React.lazy(() => import('../components/admin/AboutSettings').then(m => ({ default: m.AboutSettings })));
 const NotificationsManagement = React.lazy(() => import('../components/admin/NotificationsManagement').then(m => ({ default: m.NotificationsManagement })));
 const ShoutoutManagement = React.lazy(() => import('../components/admin/ShoutoutManagement'));
-const StudentPassManagement = React.lazy(() => import('../components/admin/StudentPassManagement').then(m => ({ default: m.StudentPassManagement })));
+const EntryPassManagement = React.lazy(() => import('../components/admin/EntryPassManagement').then(m => ({ default: m.EntryPassManagement })));
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useRegistrations } from '../hooks/useRegistrations';
 import { OwnerOverview } from '../components/admin/dashboard/OwnerOverview';
-import { WelcomeSplash } from '../components/admin/dashboard/WelcomeSplash';
 const StorageOverview = React.lazy(() => import('../components/admin/StorageOverview').then(m => ({ default: m.StorageOverview })));
-const RegistrationPhotosPanel = React.lazy(() => import('../components/admin/RegistrationPhotosPanel'));
 const SiteSettingsPanel = React.lazy(() => import('../components/admin/SiteSettingsPanel').then(m => ({ default: m.SiteSettingsPanel })));
 const ConnectionOverview = React.lazy(() => import('../components/admin/ConnectionOverview').then(m => ({ default: m.ConnectionOverview })));
 const PasswordsAccessCenter = React.lazy(() => import('../components/admin/PasswordsAccessCenter').then(module => ({ default: module.PasswordsAccessCenter })));
-const SecurityManagement = React.lazy(() => import('../components/admin/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
-const AuditLogPanel = React.lazy(() => import('../components/admin/AuditLogPanel').then(m => ({ default: m.AuditLogPanel })));
-const GalleryFaceIndexer = React.lazy(() => import('../components/admin/GalleryFaceIndexer').then(m => ({ default: m.GalleryFaceIndexer })));
-const ProtectionCenter = React.lazy(() => import('../components/admin/ProtectionCenter').then(m => ({ default: m.ProtectionCenter })));
+const TechnicalSupportWorkspace = React.lazy(() => import('../components/admin/TechnicalSupportWorkspace').then(m => ({ default: m.TechnicalSupportWorkspace })));
 
 
 
@@ -70,6 +64,7 @@ export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user, isLoggingOut } = useAuth();
   const {
     events,
+    loading: dataLoading,
     // registrations removed - use hook
     galleryImages,
     sponsors,
@@ -78,7 +73,6 @@ export const AdminDashboard: React.FC = () => {
     bandMembers,
     guestArtists,
     auditions,
-    memberships,
 
     myPermissions,
     adminUsers,
@@ -90,11 +84,13 @@ export const AdminDashboard: React.FC = () => {
   const location = useLocation();
   const activeTab: TabType = useMemo(() => {
     const path = location.pathname.replace(/^\/admin\/?/, '').replace(/\/$/, '');
-    return (legacyAccessSections[path] ? 'security' : path || 'overview') as TabType;
+    return (path === 'face-indexing' ? 'gallery' : path === 'protection-center' ? 'overview' : legacyAccessSections[path] ? 'security' : path || 'overview') as TabType;
   }, [location.pathname]);
 
   useEffect(() => {
     const oldTab=location.pathname.replace(/^\/admin\/?/, '').replace(/\/$/, '');
+    if(oldTab === 'face-indexing') { navigate('/admin/gallery', { replace:true }); return; }
+    if(oldTab === 'protection-center') { navigate('/admin', { replace:true }); return; }
     if(legacyAccessSections[oldTab]) navigate(`/admin/security?section=${legacyAccessSections[oldTab]}`, { replace:true });
   }, [location.pathname,navigate]);
 
@@ -106,7 +102,6 @@ export const AdminDashboard: React.FC = () => {
   const [autoLogoutEnabled, setAutoLogoutEnabled] = useLocalStorage<boolean>('admin_auto_logout', false);
   const [authGrace, setAuthGrace] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
   const [stuckLoading, setStuckLoading] = useState(false);
 
   // Failsafe for stuck loading
@@ -120,16 +115,6 @@ export const AdminDashboard: React.FC = () => {
       setStuckLoading(false);
     }
   }, [authLoading, user]);
-
-  // Handle splash screen timeout — start timer as soon as we have auth context
-  useEffect(() => {
-    if (isAuthenticated || authGrace) {
-      const timer = setTimeout(() => {
-        setShowSplash(false);
-      }, 2500); // Show splash for 2.5 seconds for premium feel
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthenticated, authGrace]);
 
   // Determine if current user is the OWNER
 
@@ -323,7 +308,7 @@ export const AdminDashboard: React.FC = () => {
 
   const integratedHomepageAlias = ['hero-media','about','social','roadmap'].includes(activeTab) && (isOwner || (!!(myPermissions as any)?.page_access_configured && ((myPermissions as any)?.allowed_pages || []).includes('homepage') && ((myPermissions as any)?.allowed_pages || []).includes(activeTab)));
   useEffect(() => {
-    if (integratedHomepageAlias) { navigate(`/admin/homepage?edit=${activeTab === 'hero-media' ? 'media' : activeTab}`, { replace: true }); return; }
+    if (integratedHomepageAlias) { navigate(`/admin/homepage?edit=${activeTab === 'hero-media' ? (SITE_FEATURES.homepageBackgroundEditor ? 'media' : 'content') : activeTab}`, { replace: true }); return; }
     if (!isOwner) return;
     if (activeTab === 'faculty' || activeTab === 'core-team') {
       navigate(`/admin/rico-family?section=${activeTab === 'faculty' ? 'faculty' : 'members'}`, { replace: true });
@@ -378,10 +363,12 @@ export const AdminDashboard: React.FC = () => {
       allowedIds.add('student-system');
     }
     if (myPermissions?.can_guest_artists) allowedIds.add('guest-artists');
-    if (myPermissions?.can_chief_guests) allowedIds.add('chief-guests');
+    if (SITE_FEATURES.chiefGuests && myPermissions?.can_chief_guests) allowedIds.add('chief-guests');
     if (myPermissions?.can_homebound) allowedIds.add('homebound');
-    if (myPermissions?.can_security_passes) allowedIds.add('security-passes');
-    if (myPermissions?.can_registration_photos) allowedIds.add('reg-photos');
+    if (myPermissions?.can_security_passes) {
+      allowedIds.add('security-passes');
+      allowedIds.add('student-passes');
+    }
     if (myPermissions?.can_faculty || myPermissions?.can_core_team) allowedIds.add('rico-family');
     if (myPermissions?.can_sports || (isCouncil && user?.email?.toLowerCase().includes('sports'))) {
       allowedIds.add('sports-team');
@@ -399,8 +386,9 @@ export const AdminDashboard: React.FC = () => {
     }
 
     if (isCouncil) {
+       allowedIds.add('student-passes');
        const forbiddenForCouncil: TabType[] = [
-         'events', 'schedule', 'gallery', 'sponsors', 'registrations', 'reg-photos', 'rico-family', 'homebound', 'band', 'announcements'
+         'events', 'schedule', 'gallery', 'sponsors', 'registrations', 'rico-family', 'homebound', 'band', 'announcements'
        ];
        forbiddenForCouncil.forEach(id => allowedIds.delete(id));
     }
@@ -413,7 +401,9 @@ export const AdminDashboard: React.FC = () => {
 
   // Ensure activeTab is always one of the visible tabs for current user
   useEffect(() => {
-    if (authLoading || !isAuthenticated || !user) return;
+    if (authLoading || dataLoading || !isAuthenticated || !user) return;
+    // Role and page permissions can resolve after the session. Preserve the requested URL until then.
+    if (!isOwner && (!isAdmin || myPermissions == null)) return;
     const ids = new Set(visibleTabs.map((t) => t.id));
     // If non-owner has no tabs, leave activeTab as-is; main content will show a guidance panel
     if (!isOwner && visibleTabs.length === 0) return;
@@ -421,94 +411,16 @@ export const AdminDashboard: React.FC = () => {
     if (!ids.has(activeTab)) {
       setActiveTab(visibleTabs[0]?.id || 'overview');
     }
-  }, [authLoading, isAuthenticated, user, myPermissions, isOwner, visibleTabs, activeTab, setActiveTab]);
+  }, [authLoading, dataLoading, isAuthenticated, user, myPermissions, isOwner, isAdmin, visibleTabs, activeTab, setActiveTab]);
 
 
 
-  // Instant logout overlay — hides admin content immediately on logout
-  if (isLoggingOut) {
-    return (
-      <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center animate-fade-in">
-        <div className="text-center">
-          <div className="w-16 h-16 border-t-4 border-indigo-400/60 rounded-full animate-spin mx-auto mb-6" />
-          <p className="text-white/40 text-xs font-bold tracking-[0.3em] uppercase">Signing out...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Failsafe UI for hung initialization
-  if (stuckLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-6 text-center">
-        <div className="max-w-md w-full animate-in fade-in zoom-in duration-500">
-          <div className="w-20 h-20 bg-indigo-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-indigo-500/20">
-            <AlertTriangle className="w-10 h-10 text-indigo-500 animate-pulse" />
-          </div>
-          <h2 className="text-2xl font-black text-white mb-2 tracking-tighter uppercase">Security Handshake Timeout</h2>
-          <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-            The admin node is taking longer than expected to verify your security clearance. This could be due to a network interruption or heavy traffic.
-          </p>
-          <div className="space-y-4">
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-400 transition-all active:scale-95"
-            >
-              Reboot Terminal
-            </button>
-            <button
-              onClick={() => navigate('/login')}
-              className="w-full py-4 bg-white/5 text-white/60 font-black uppercase tracking-widest rounded-2xl hover:bg-white/10 transition-all"
-            >
-              Emergency Exit
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show Splash (only if we have a user to welcome and NOT logging out)
-  if (!isOwner && showSplash && (isAuthenticated || authGrace) && user && !isLoggingOut) {
-    return <WelcomeSplash user={user} onComplete={() => setShowSplash(false)} />;
-  }
-
-  // Fallback Loading if auth is still pending (without a user yet)
-  if (authLoading && !user && !isLoggingOut) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="text-center animate-in fade-in duration-1000">
-          <div className="w-24 h-24 mb-8 mx-auto relative">
-            <div className="absolute inset-0 bg-indigo-400/20 rounded-full animate-ping"></div>
-            <div className="relative w-24 h-24 border-t-4 border-r-4 border-indigo-500 rounded-full animate-spin shadow-lg shadow-indigo-400/20"></div>
-            <Shield className="absolute inset-0 m-auto w-10 h-10 text-cyan-400 animate-pulse" />
-          </div>
-          <p className="text-white/60 font-black tracking-widest uppercase text-xs mb-2">Connecting to Admin Node...</p>
-          <p className="text-white/20 text-[10px] uppercase tracking-[0.2em]">Verifying Security Clearances</p>
-        </div>
-      </div>
-    );
-  }
-
-
-  // If user is not authenticated yet and grace is not active
-  if (!isAuthenticated && !authGrace) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="text-center animate-in fade-in duration-1000">
-          <div className="w-20 h-20 border-t-4 border-r-4 border-indigo-500 rounded-full animate-spin mx-auto mb-8 shadow-lg shadow-indigo-400/20"></div>
-          <p className="text-white/60 font-black tracking-widest uppercase text-xs">Authenticating Access...</p>
-        </div>
-      </div>
-    );
-  }
-
-
-
+  if (isLoggingOut) return <AdminAccessState state="logout" />;
+  if (stuckLoading) return <AdminAccessState state="timeout" />;
+  if ((authLoading && !user) || (!isAuthenticated && !authGrace)) return <AdminAccessState state="loading" />;
 
   const pendingRegistrations = registrationStats.pending;
   const pendingAuditions = auditions.filter(a => a.status === 'pending').length;
-  const pendingMemberships = memberships.filter(m => m.status === 'pending').length;
 
   // loading already handled above
 
@@ -516,8 +428,7 @@ export const AdminDashboard: React.FC = () => {
   const badges = {
     'support-chat': supportUnread,
     registrations: pendingRegistrations,
-    auditions: pendingAuditions,
-    memberships: pendingMemberships
+    auditions: pendingAuditions
   };
 
   return (
@@ -540,11 +451,8 @@ export const AdminDashboard: React.FC = () => {
       homepageSettings={homepageSettings}
     >
 
-      {(!visibleTabs.some(tab => tab.id === activeTab) || integratedHomepageAlias) ? <div className="owner-panel p-6" role="status">{isOwner || integratedHomepageAlias ? <p>Opening workspace…</p> : <><h2>Page access not assigned</h2><p>Your owner has not granted access to this section. Contact the owner to update your page permissions.</p></>}</div> : <React.Suspense fallback={
-        <div className="flex flex-col items-center justify-center min-h-[50vh] text-gray-500">
-               <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-               <p>Loading panel...</p>
-            </div>
+      {(!visibleTabs.some(tab => tab.id === activeTab) || integratedHomepageAlias) ? <div className="owner-panel p-6" role="status">{dataLoading || isOwner || integratedHomepageAlias ? <p>Opening workspace…</p> : <><h2>Page access not assigned</h2><p>Your owner has not granted access to this section. Contact the owner to update your page permissions.</p></>}</div> : <React.Suspense fallback={
+        <div className="admin-panel-skeleton" role="status" aria-label="Loading management panel"><span /><div>{[0,1].map(index => <article key={index}><i /><i /><i /></article>)}</div></div>
           }>
             {!isOwner && visibleTabs.length === 0 && (
               <div className="bg-white rounded-lg shadow-sm p-8 text-center">
@@ -554,11 +462,12 @@ export const AdminDashboard: React.FC = () => {
             )}
             {isOwner && activeTab === 'overview' && <OwnerOverview
               name={user?.user_metadata?.full_name}
+              navigationOrder={siteSettings?.navigation_order}
+              festivalYear={homepageSettings?.brand_year || undefined}
               eventsCount={events.length}
               registrations={registrations}
               stats={registrationStats}
               pendingAuditions={pendingAuditions}
-              pendingMemberships={pendingMemberships}
               loading={registrationsLoading}
               error={registrationsError}
               refresh={refreshRegistrations}
@@ -604,8 +513,8 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'annual-registrations' && <AnnualRegistrationsManagement />}
             {activeTab === 'annual-registration-model' && <AnnualRegistrationModalSettings />}
             {activeTab === 'security-passes' && (
-              <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Security Pass Management...</div>}>
-                <SecurityManagement />
+              <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Entry Pass...</div>}>
+                <EntryPassManagement />
               </React.Suspense>
             )}
             {activeTab === 'site-settings' && (
@@ -623,32 +532,24 @@ export const AdminDashboard: React.FC = () => {
             )}
 
             {activeTab === 'support-chat' && (
-              <div className="h-[750px]">
-                <ChatPanel mode="admin" themeAccent="indigo" />
-              </div>
+              <TechnicalSupportWorkspace />
             )}
 
-            {activeTab === 'protection-center' && (
-              <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Protection Center...</div>}>
-                <ProtectionCenter />
-              </React.Suspense>
-            )}
             {activeTab === 'homepage' && <HomepageManagement />}
             {activeTab === 'shoutouts' && <ShoutoutManagement />}
             {activeTab === 'notifications' && isOwner && <NotificationsManagement />}
-            {activeTab === 'events' && (new URLSearchParams(location.search).get('edit') === 'background' ? (visibleTabs.some(tab => tab.id === 'hero-media') ? <HeroMediaManagement pageKey="events" /> : <div className="owner-notice" role="alert">Background editing requires Hero Media page access.</div>) : <EventsManagement />)}
+            {activeTab === 'events' && <EventsManagement />}
             {activeTab === 'homebound' && <HomeBoundSettings />}
             {activeTab === 'schedule' && <ScheduleManagement />}
             {activeTab === 'gallery' && <GalleryManagement />}
             {activeTab === 'sponsors' && <SponsorsManagement />}
-            { activeTab === 'registrations' && <><ParticipationVerification /><RegistrationManagement /></>}
+            { activeTab === 'registrations' && <RegistrationManagement />}
             { activeTab === 'student-passes' && (
-              <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Pass Management...</div>}>
-                <StudentPassManagement />
+              <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Entry Pass...</div>}>
+                <EntryPassManagement />
               </React.Suspense>
             )}
             { activeTab === 'student-system' && <StudentManagement />}
-            {activeTab === 'reg-photos' && <RegistrationPhotosPanel />}
             {activeTab === 'registration-modal' && <RegistrationModalSettings />}
             {activeTab === 'categories' && <EventCategoriesManagement />}
             {activeTab === 'social' && <SocialMediaManagement />}
@@ -658,13 +559,10 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'core-team' && <RicoFamilyManagement />}
             {activeTab === 'band' && <BandManagement />}
             {activeTab === 'guest-artists' && <GuestArtistManagement />}
-            {activeTab === 'chief-guests' && <ChiefGuestManagement />}
+            {SITE_FEATURES.chiefGuests && activeTab === 'chief-guests' && <ChiefGuestManagement />}
             {activeTab === 'auditions' && <AuditionManagement />}
-            {activeTab === 'memberships' && <MembershipManagement />}
             {activeTab === 'form-settings' && <FormSettingsManagement />}
             {activeTab === 'security' && <PasswordsAccessCenter />}
-            {activeTab === 'audit-logs' && isOwner && <AuditLogPanel />}
-            {activeTab === 'face-indexing' && isOwner && <GalleryFaceIndexer />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
   {activeTab === 'about' && <AboutSettings />}

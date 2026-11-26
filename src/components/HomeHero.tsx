@@ -8,7 +8,7 @@ const CyberpunkHeroContent = React.lazy(() => import('./ui/CyberpunkHeroContent'
 
 
 
-export const HomeHero: React.FC = React.memo(() => {
+export const HomeHero = React.memo(({ previewMobile }: { previewMobile?: boolean } = {}) => {
   const { theme } = useTheme();
   const [media, setMedia] = useState<HeroMediaV2 | null>(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
@@ -49,7 +49,7 @@ export const HomeHero: React.FC = React.memo(() => {
     }
   }, [media, isMobile]);
 
-  if (theme === 'spiderman') return <SpiderHeroContent media={media} mobile={isMobile} />;
+  if (theme === 'spiderman') return <SpiderHeroContent media={media} mobile={previewMobile ?? isMobile} />;
 
   const renderBackground = () => {
     if (!media || !media.enabled) return null;

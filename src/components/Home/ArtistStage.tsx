@@ -19,6 +19,7 @@ interface Props {
   paused?: boolean;
   loading?: boolean;
   onArtistDetails?: (artist: GuestArtist) => void;
+  viewport?: 'phone' | 'desktop';
 }
 
 
@@ -27,7 +28,7 @@ function ArtistPeek({artist,side,onSelect}:{artist?:GuestArtist;side:'previous'|
   return artist?<button type="button" className={className} data-artist-kind={getArtistKind(artist)} aria-label={`Show ${side} artist: ${artist.name}`} onClick={()=>onSelect(artist)}><ArtistStageImage src={artist.image} alt=""/><span><strong>{artist.name}</strong><small>{artist.title}</small></span></button>:<div className={`${className} is-coming`} aria-hidden="true"><span><strong>More artists<br/>coming soon</strong><small>STAY TUNED</small></span></div>;
 }
 
-export default function ArtistStage({artists, settings, currentYear = Number(BRAND_YEAR), demo = false, paused = false, loading = false, onArtistDetails}: Props) {
+export default function ArtistStage({artists, settings, currentYear = Number(BRAND_YEAR), demo = false, paused = false, loading = false, onArtistDetails, viewport}: Props) {
   const [year, setYear] = useState(currentYear);
   const [selected, setSelected] = useState<number | null>(null);
   const [localDetails,setLocalDetails]=useState<GuestArtist|null>(null);
@@ -87,7 +88,7 @@ export default function ArtistStage({artists, settings, currentYear = Number(BRA
         <div className="artist-concert-screens" aria-label="Artist showcase" aria-roledescription="carousel">
           <ArtistPeek artist={previous} side="previous" onSelect={selectArtist}/>
           <ArtistPeek artist={next} side="next" onSelect={selectArtist}/>
-          <ArtistStageVisual key={`${year}-${active.id}-${active.stage_media_mode}-${artistPhotos(active).join('|')}-${artistStageClips(active).join('|')}-${active.desktop_gallery_images?.join('|')}-${active.desktop_stage_clip_urls?.join('|')}-${active.detail_music_url}`} artist={active} suspended={!visible || paused || !!localDetails} motionPaused={motionPaused} onDetails={openDetails} beatSync={configuration.beat_sync}/>
+          <ArtistStageVisual key={`${year}-${active.id}-${active.stage_media_mode}-${artistPhotos(active).join('|')}-${artistStageClips(active).join('|')}-${active.desktop_gallery_images?.join('|')}-${active.desktop_stage_clip_urls?.join('|')}-${active.detail_music_url}`} artist={active} viewport={viewport} suspended={!visible || paused || !!localDetails} motionPaused={motionPaused} onDetails={openDetails} beatSync={configuration.beat_sync}/>
 
         <button type="button" className="artist-concert-arrow artist-concert-arrow-left" onClick={() => move(-1)} disabled={lineup.length < 2} aria-label="Previous artist"><svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="27"/><path d="M34 20L24 30L34 40"/></svg></button>
         <button type="button" className="artist-concert-arrow artist-concert-arrow-right" onClick={() => move(1)} disabled={lineup.length < 2} aria-label="Next artist"><svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="27"/><path d="M26 20L36 30L26 40"/></svg></button>

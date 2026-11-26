@@ -6,6 +6,7 @@ import { SEO } from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
+import { DEFAULT_BRAND_LOGO, resolveBrandLogoUrl } from '../utils/brandLogo';
 import { isMasterOwner, MASTER_OWNER_EMAILS } from '../constants/owners';
 import { AdminService, type AdminUser } from '../lib/adminService';
 import '../styles/StaffLogin.css';
@@ -42,9 +43,8 @@ export const Login: React.FC = () => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const isMasterActive = new URLSearchParams(window.location.search).get('mode') === 'master'
     && !!sessionStorage.getItem('rico_master_gate_access')?.startsWith('vault_v2_');
-  const rawLogo = homepageSettings?.brand_logo_url?.trim();
   // A stable URL keeps typing and pointer movement from reloading the logo.
-  const logo = rawLogo?.startsWith('//') ? `https:${rawLogo}` : rawLogo;
+  const logo = resolveBrandLogoUrl(homepageSettings, { allowCachedWhileLoading: true });
 
   useEffect(() => {
     if (step !== 'credentials') return;
@@ -144,9 +144,9 @@ export const Login: React.FC = () => {
     finally { setRepairLoading(false); }
   };
 
-  const brandMark = (size: number) => logo
+  const brandMark = (size: number) => logo !== DEFAULT_BRAND_LOGO
     ? <BrandLogo3D src={logo} size={size} glowStrength={0} animated={false} alt={`${BRAND_NAME} emblem`} />
-    : <img src="/favicon.svg" width={size} height={size} alt={`${BRAND_NAME} emblem`} />;
+    : <img src={DEFAULT_BRAND_LOGO} width={size} height={size} alt={`${BRAND_NAME} emblem`} />;
 
   return (
     <div className="staff-login">

@@ -9,6 +9,8 @@ interface VideoUploadProps {
   bucket: string;
   folder?: string;
   maxSizeMB?: number;
+  preserveExistingMedia?: boolean;
+  onProcessingChange?: (busy: boolean) => void;
 }
 
 export const VideoUpload: React.FC<VideoUploadProps> = ({
@@ -16,7 +18,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   currentVideo,
   bucket,
   folder = '',
-  maxSizeMB = 50
+  maxSizeMB = 50,
+  preserveExistingMedia = false,
+  onProcessingChange
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showTrimmer, setShowTrimmer] = useState(false);
@@ -29,10 +33,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
   // Sync local preview when currentVideo prop changes (e.g. when editing loads async)
   useEffect(() => {
-    if (currentVideo && currentVideo !== localPreview) {
-      setLocalPreview(currentVideo);
-    }
-  }, [currentVideo]);
+    if (!selectedFile) setLocalPreview(currentVideo || '');
+  }, [currentVideo, selectedFile]);
 
   // Use the hook for R2 routing
   const {
@@ -49,9 +51,17 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     onImageSelect: (url) => {
         onVideoSelect(url);
         setLocalPreview(url);
+        setSelectedFile(null);
     },
-    maxImageBytes: maxSizeMB * 1024 * 1024
+    maxImageBytes: maxSizeMB * 1024 * 1024,
+    preserveExistingMedia
   });
+
+  useEffect(() => {
+    onProcessingChange?.(uploading || showTrimmer);
+    return () => onProcessingChange?.(false);
+  }, [uploading, showTrimmer, onProcessingChange]);
+  useEffect(() => () => { if (localPreview.startsWith('blob:')) URL.revokeObjectURL(localPreview); }, [localPreview]);
 
   const handleFileSelect = async (file: File) => {
     // Validate file type
@@ -125,7 +135,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   const confirmDelete = async () => {
     setShowDeleteConfirm(false);
     try {
-      if (localPreview) {
+      if (localPreview && !preserveExistingMedia && !localPreview.startsWith('blob:')) {
           await deleteFromStorageByPublicUrl(localPreview);
       }
       setLocalPreview('');
@@ -244,8 +254,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete this video?</h3>
-            <p className="text-gray-600 text-sm mb-4">This action cannot be undone.</p>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">{preserveExistingMedia ? 'Remove video from draft?' : 'Delete this video?'}</h3>
+            <p className="text-gray-600 text-sm mb-4">{preserveExistingMedia ? 'The saved video stays available until you save this event.' : 'This action cannot be undone.'}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}

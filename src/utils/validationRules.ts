@@ -44,8 +44,14 @@ export async function evaluateRules(
     .sort((a, b) => b.priority - a.priority);
 
   for (const rule of activeRules) {
-    // Skip if rule doesn't apply to this pass type
-    if (rule.pass_type && rule.pass_type !== pass.pass_type) {
+    // Skip if rule doesn't apply to this pass type (treat non-VIP passes like 'General Admission' as student)
+    if (rule.pass_type === 'vip' && pass.pass_type !== 'vip') {
+      continue;
+    }
+    if (rule.pass_type === 'student' && pass.pass_type === 'vip') {
+      continue;
+    }
+    if (rule.pass_type && rule.pass_type !== 'vip' && rule.pass_type !== 'student' && rule.pass_type !== pass.pass_type) {
       continue;
     }
 

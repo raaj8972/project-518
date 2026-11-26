@@ -620,6 +620,7 @@ export interface Database {
       schedule_days: {
         Row: {
           id: number
+          schedule_type?: 'prelims' | 'mains'
           date: string
           day: string
           title: string
@@ -627,6 +628,7 @@ export interface Database {
         }
         Insert: {
           id?: number
+          schedule_type?: 'prelims' | 'mains'
           date: string
           day: string
           title: string
@@ -634,6 +636,7 @@ export interface Database {
         }
         Update: {
           id?: number
+          schedule_type?: 'prelims' | 'mains'
           date?: string
           day?: string
           title?: string
@@ -650,7 +653,7 @@ export interface Database {
           type: string
           duration: string
           created_at: string
-          event_id?: number | null
+          event_id?: string | number | null
           guest_artist_id?: number | null
         }
         Insert: {
@@ -662,7 +665,7 @@ export interface Database {
           type: string
           duration: string
           created_at?: string
-          event_id?: number | null
+          event_id?: string | number | null
           guest_artist_id?: number | null
         }
         Update: {
@@ -674,7 +677,7 @@ export interface Database {
           type?: string
           duration?: string
           created_at?: string
-          event_id?: number | null
+          event_id?: string | number | null
           guest_artist_id?: number | null
         }
       }

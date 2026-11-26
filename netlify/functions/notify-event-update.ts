@@ -1,6 +1,7 @@
 import { secureRequest } from './lib/api-security';
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from './lib/email';
+import { escapeEmailHtml, renderEventUpdateEmail } from '../../shared/eventUpdateEmail';
 
 const implementation = async (req: Request) => {
   if (!['POST', 'OPTIONS'].includes(req.method)) return Response.json({ error: 'Method not allowed' }, { status: 405, headers: { Allow: 'POST, OPTIONS' } });
@@ -33,7 +34,7 @@ const implementation = async (req: Request) => {
     
     // Helper to find file
     const findFileUrl = async (prefix: string) => {
-        const file = bucketFiles?.find((f: any) => f.name === `${prefix}.png` || f.name === `${prefix}.svg`);
+        const file = [`${prefix}.png`, `${prefix}.svg`].map(name => bucketFiles?.find((item: any) => item.name === name)).find(Boolean);
         if (file) {
             // Use signed URL to ensure access even if bucket is private (10 years expiry)
             const { data } = await supabaseAdmin.storage.from('pdf-watermarks').createSignedUrl(file.name, 315360000);
@@ -53,15 +54,23 @@ const implementation = async (req: Request) => {
     // Parse Body
     const { eventId, eventTitle, newDetails, provider = 'smtp', updateType = 'schedule', message, rules } = await req.json();
 
+    if (!eventId || typeof eventTitle !== 'string' || !eventTitle.trim() || !['schedule', 'rules', 'combined'].includes(updateType) || !['smtp', 'resend'].includes(provider) || (rules !== undefined && !Array.isArray(rules))) return Response.json({ error: 'Invalid event update' }, { status: 400, headers });
+
+    const { data: branding } = await supabaseAdmin.from('homepage_settings').select('brand_logo_url, brand_year').limit(1).maybeSingle();
+    let logoUrl = '';
+    try { logoUrl = new URL(branding?.brand_logo_url || '/favicon-96x96.png', process.env.SITE_URL || 'https://ricorrenza.fun').href; } catch { /* The email still includes its text masthead. */ }
+
     // Fetch Registrants
-    const { data: registrations } = await supabaseAdmin
+    const { data: registrations, error: registrationsError } = await supabaseAdmin
         .from('registrations')
         .select('email, full_name, id, team_members')
         .eq('event_id', eventId)
         .eq('status', 'approved');
 
+    if (registrationsError) throw new Error('Approved registrations could not be loaded. No update was sent.');
+
     if (!registrations || registrations.length === 0) {
-        return new Response(JSON.stringify({ success: true, message: 'No participants' }), { status: 200, headers });
+        return new Response(JSON.stringify({ success: true, message: 'No participants', total: 0, sent: 0, failed: 0 }), { status: 200, headers });
     }
 
     const { data: coordinators } = await supabaseAdmin
@@ -72,194 +81,7 @@ const implementation = async (req: Request) => {
     // Send Emails (Parallel Batches of 5)
 
 
-    // Helper to generate email body
-    const getEmailBody = (reg: any) => {
-        let teamMembersHtml = '';
-        if (reg.team_members && Array.isArray(reg.team_members) && reg.team_members.length > 0) {
-            teamMembersHtml = `
-                <div style="background-color: #fce7f3; padding: 10px; border-radius: 6px; margin: 10px 0; border: 1px solid #fbcfe8;">
-                    <p style="margin: 0; font-weight: bold; color: #be185d; font-size: 13px;">Team Members:</p>
-                    <ul style="margin: 5px 0 0 0; padding-left: 20px; color: #831843;">
-                        ${reg.team_members.map((m: any) => `<li>${m.name || m}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
-
-        let coordinatorsHtml = '';
-        if (coordinators && coordinators.length > 0) {
-            coordinatorsHtml = `
-                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
-                    <p style="margin: 0; font-weight: bold; color: #555;">Event Coordinators:</p>
-                    <ul style="margin: 5px 0 0 0; padding-left: 0; list-style: none;">
-                        ${coordinators.map((c: any) => `<li style="color: #666;">${c.name}: <a href="tel:${c.phone}" style="color: #2563eb; text-decoration: none;">${c.phone}</a></li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
-
-        let emailHtmlTemplate = '';
-        let emailSubject = '';
-
-        if (updateType === 'rules') {
-            emailSubject = `Important: Rules Update for ${eventTitle}`;
-            emailHtmlTemplate = `
-              <div class="email-container" style="font-family: sans-serif; line-height: 1.5; color: #333333 !important; position: relative; overflow: hidden; padding: 20px; background-color: #ffffff !important;">
-                <style>
-                    :root { color-scheme: light; supported-color-schemes: light; }
-                    @media only screen and (max-width: 600px) {
-                        .stamp-img { width: 350px !important; max-width: 100% !important; }
-                        .stamp-wrapper { margin-top: -175px !important; margin-bottom: 20px !important; }
-                    }
-                    /* Force Light Mode */
-                    .email-container {
-                        background-color: #ffffff !important;
-                        color: #333333 !important;
-                    }
-                </style>
-                <!-- Watermark Removed -->
-
-                <div style="position: relative; z-index: 1;">
-                    <h2 style="color: #ea580c;">Rules & Regulations Update</h2>
-                    <p>Dear Participant,</p>
-                    <p><strong>Registration ID: ${reg.id}</strong></p>
-                    ${teamMembersHtml}
-                    <p>The rules for <strong>${eventTitle}</strong> have been updated.</p>
-                    
-                    <div style="background: rgba(255, 247, 237, 0.9); border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                        <h3 style="margin-top: 0; color: #c2410c;">Current Rules</h3>
-                        ${rules && Array.isArray(rules) && rules.length > 0 ? `
-                            <div style="margin-top: 15px; color: #333;">
-                                ${rules.map((r: any) => {
-                                    let text = typeof r === 'string' ? r : r.text;
-                                    const isNew = typeof r === 'object' && r.highlight;
-                                    const badge = isNew ? '<span style="color: #ca8a04; font-size: 10px; text-transform: uppercase; margin-right: 5px; vertical-align: middle;">[NEW]</span>' : '';
-                                    const highlightStyle = isNew ? "background-color: #fef08a; padding: 2px 5px; border-radius: 4px;" : "";
-
-                                    // Handle Structured Rules (__SR__)
-                                    if (text.startsWith('__SR__')) {
-                                        try {
-                                            const json = JSON.parse(text.substring(6)); // Remove __SR__
-                                            if (json.sections) {
-                                                return json.sections.map((sec: any) => `
-                                                    <div style="margin-bottom: 15px; ${highlightStyle}">
-                                                        ${sec.heading ? `<p style="font-weight: bold; margin: 10px 0 5px 0; color: #ea580c;">${badge}${sec.heading}</p>` : (isNew ? `<p style="margin:0;">${badge}</p>` : '')}
-                                                        ${sec.blocks ? sec.blocks.map((b: any) => `
-                                                            <div style="margin-bottom: 10px;">
-                                                                ${b.title ? `<p style="font-weight: 500; margin: 0 0 5px 0; font-size: 14px;">${b.title}</p>` : ''}
-                                                                <${b.style === 'number' ? 'ol' : 'ul'} style="margin: 0; padding-left: 20px;">
-                                                                    ${b.items.map((item: string) => `<li style="margin-bottom: 3px;">${item}</li>`).join('')}
-                                                                </${b.style === 'number' ? 'ol' : 'ul'} >
-                                                            </div>
-                                                        `).join('') : ''}
-                                                    </div>
-                                                `).join('');
-                                            }
-                                        } catch (e) {
-                                            console.error('Failed to parse structured rule', e);
-                                            return `<p style="color: #991b1b; ${highlightStyle}">${badge}Error rendering rule</p>`; 
-                                        }
-                                    }
-
-                                    // Classic Simple Rule
-                                    const style = isNew 
-                                        ? "margin-bottom: 5px; background-color: #fef08a; padding: 2px 5px; border-radius: 4px; font-weight: bold; color: #854d0e;" 
-                                        : "margin-bottom: 5px;";
-                                    return `<li style="${style}">${badge}${text}</li>`;
-                                }).join('')}
-                            </div>
-                        ` : '<p style="font-style:italic; color:#666;">Please check website for details.</p>'}
-
-                        ${message ? `<p style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #fed7aa; font-weight: 500; color: #c2410c;">Note: ${message}</p>` : ''}
-                    </div>
-
-                    <p>Please ensure you and your team (if applicable) are aware of these changes.</p>
-                    ${coordinatorsHtml}
-                    <div style="margin-top: 0; display: flex; align-items: flex-end; justify-content: space-between;">
-                        <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
-                        ${stampUrl ? `
-                        <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5; user-select: none; pointer-events: none;">
-                            <!-- Background Image Stamp with Overlay to prevent right-click save -->
-                            <div style="
-                                display: inline-block;
-                                width: 250px;
-                                max-width: 45%;
-                                height: 0;
-                                padding-bottom: 28%; /* Aspect ratio approx for standard stamps */
-                                background-image: url('${stampUrl}');
-                                background-size: contain;
-                                background-repeat: no-repeat;
-                                background-position: center;
-                                position: relative;
-                            ">
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png" alt="Stamp" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0;" />
-                            </div>
-                        </div>` : ''}
-                    </div>
-                </div>
-              </div>
-            `;
-        } else {
-            // Default: Schedule/Venue Update
-            const { date, time, venue } = newDetails || {};
-            emailSubject = `Update: ${eventTitle} Details Changed`;
-            emailHtmlTemplate = `
-              <div class="email-container" style="font-family: sans-serif; line-height: 1.5; color: #333333 !important; position: relative; overflow: hidden; padding: 20px; background-color: #ffffff !important;">
-                <style>
-                    :root { color-scheme: light; supported-color-schemes: light; }
-                    @media only screen and (max-width: 600px) {
-                        .stamp-img { width: 240px !important; max-width: 80% !important; }
-                        .stamp-wrapper { margin-top: -110px !important; margin-bottom: 20px !important; }
-                    }
-                    /* Force Light Mode */
-                    .email-container {
-                        background-color: #ffffff !important;
-                        color: #333333 !important;
-                    }
-                </style>
-                <!-- Watermark Removed -->
-
-                <div style="position: relative; z-index: 1;">
-                    <h2 style="color: #ea580c;">Event Update Alert</h2>
-                    <p>Dear Participant,</p>
-                    <p><strong>Registration ID: ${reg.id}</strong></p>
-                    ${teamMembersHtml}
-                    <p>There has been an update to the details for <strong>${eventTitle}</strong>.</p>
-                    <div style="background: rgba(255, 247, 237, 0.9); border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                        <h3 style="margin-top: 0; color: #c2410c;">New Schedule / Venue</h3>
-                        <p><strong>Date:</strong> ${date || 'As scheduled'}</p>
-                        <p><strong>Time:</strong> ${time || 'As scheduled'}</p>
-                        <p><strong>Venue:</strong> ${venue || 'As per details'}</p>
-                        ${message ? `<p style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #fed7aa; font-weight: 500; color: #c2410c;">Note: ${message}</p>` : ''}
-                    </div>
-                    <p>Please make a note of these changes.</p>
-                    ${coordinatorsHtml}
-                    ${stampUrl ? `
-                    <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5; user-select: none; pointer-events: none;">
-                        <div style="
-                            display: inline-block;
-                            width: 380px;
-                            max-width: 80%;
-                            height: 0;
-                            padding-bottom: 28%;
-                            background-image: url('${stampUrl}');
-                            background-size: contain;
-                            background-repeat: no-repeat;
-                            background-position: center;
-                            position: relative;
-                        ">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png" alt="Stamp" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0;" />
-                        </div>
-                    </div>` : ''}
-                    <div style="margin-top: 10px;">
-                        <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
-                    </div>
-                </div>
-              </div>
-            `;
-        }
-        return { subject: emailSubject, html: emailHtmlTemplate };
-    };
+    const getEmailBody = (reg: any) => renderEventUpdateEmail({ eventId, eventTitle, updateType, message, rules, newDetails, registration: reg, coordinators: coordinators || [], logoUrl, stampUrl, year: branding?.brand_year });
 
     const batch = registrations.slice(0, 100); // 100 limit still safe 
     console.log(`Sending update to ${batch.length} users via ${provider}`);
@@ -281,7 +103,7 @@ const implementation = async (req: Request) => {
                 const res = await sendEmail({
                     to: reg.email,
                     subject: subject,
-                    html: html.replace('Dear Participant,', `Dear <strong>${reg.full_name}</strong>,`),
+                    html,
                     provider: provider as 'smtp' | 'resend'
                 });
                 if (res.success) {
@@ -336,7 +158,7 @@ const implementation = async (req: Request) => {
                 subject: `Broadcast Summary: ${eventTitle}`,
                 html: `
                     <h3>Update Broadcast Complete</h3>
-                    <p>You successfully sent an event update for <strong>${eventTitle}</strong>.</p>
+                    <p>You successfully sent an event update for <strong>${escapeEmailHtml(eventTitle)}</strong>.</p>
                     <p><strong>Type:</strong> ${updateType}</p>
                     <ul>
                         <li><strong>Total Approved Registrants:</strong> ${registrations.length}</li>

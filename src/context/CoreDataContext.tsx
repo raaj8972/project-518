@@ -77,6 +77,9 @@ export const useCoreData = () => {
   return context;
 };
 
+/** Optional reader for shared layout components that may render outside CoreDataProvider in tests. */
+export const useOptionalCoreData = () => useContext(PrimaryCoreDataContext);
+
 export function CoreDataProvider({ children, pathname = '/' }: { children: ReactNode; pathname?: string }) {
   const { user } = useAuth();
 
@@ -232,7 +235,14 @@ export function CoreDataProvider({ children, pathname = '/' }: { children: React
   };
 
   const addAudition = async (audition: Partial<Audition>) => {
-    await dualUpsert('auditions', audition);
+    // Public applicants can insert, but cannot read private applications back.
+    const { error } = await supabase.from('auditions').insert({
+      id: audition.id, participant_type: audition.participant_type, full_name: audition.full_name,
+      email: audition.email, phone: audition.phone, instrument_role: audition.instrument_role,
+      experience_motivation: audition.experience_motivation || '', portfolio_link: audition.portfolio_link || null,
+      status: 'pending',
+    });
+    if (error) throw error;
     setRefreshTrigger(p => p + 1);
   };
 

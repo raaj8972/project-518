@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Check, type LucideIcon } from 'lucide-react';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
+import { BrandMark } from './BrandMark';
 import '../styles/StaffLogin.css';
 import '../styles/StaffPortal.css';
 
@@ -23,7 +24,7 @@ export function StaffPortalLayout({ title, eyebrow, description, icon: Icon, sto
     <div className="staff-login-background" aria-hidden="true" />
     <div className="staff-portal-layout">
       <aside className="staff-portal-story" aria-label={eyebrow}>
-        <Link className="staff-portal-brand" to="/"><img src="/favicon.svg" width="34" height="34" alt="" /><span>{BRAND_NAME}<small>{BRAND_YEAR} · IQ City</small></span></Link>
+        <Link className="staff-portal-brand" to="/"><BrandMark allowCachedWhileLoading width={34} height={34} alt="" /><span>{BRAND_NAME}<small>{BRAND_YEAR} · IQ City</small></span></Link>
         <div className="staff-portal-story-copy">
           <p className="staff-login-portal-kicker"><span />Behind every great festival</p>
           <h2>{storyTitle}</h2>

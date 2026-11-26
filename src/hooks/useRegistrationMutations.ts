@@ -12,6 +12,7 @@ export function useRegistrationMutations(onSuccess?: () => void) {
     console.error(`Error during ${action}:`, error);
     push({ type: 'error', message: `Failed to ${action}: ${error.message || 'Unknown error'}` });
     setIsMutating(false);
+    throw error instanceof Error ? error : new Error(error?.message || `Failed to ${action}`);
   };
 
   const updateStatus = useCallback(async (id: string, status: 'approved' | 'rejected' | 'pending') => {
@@ -19,19 +20,7 @@ export function useRegistrationMutations(onSuccess?: () => void) {
     try {
       await dualUpdate('registrations', id, { status, is_active: status === 'approved' });
 
-      // Search for entry pass linked to this registration
-      // Note: We'd ideally have entry_pass_id stored, but for now we search
-      const { data: passes } = await dualRead({
-        table: 'entry_passes',
-        eq: ['registration_id', id]
-      });
-
-      if (passes && passes.length > 0) {
-        for (const pass of passes) {
-          await dualUpdate('entry_passes', pass.id, { is_active: status === 'approved' });
-        }
-      }
-
+      // Linked passes are synchronized by the database in the same transaction.
       push({ type: 'success', message: `Registration ${status}` });
       onSuccess?.();
     } catch (e) { handleError(e, 'update status'); }
@@ -44,18 +33,6 @@ export function useRegistrationMutations(onSuccess?: () => void) {
       const timestamp = new Date().toISOString();
       await dualUpdate('registrations', id, { deleted_at: timestamp });
 
-      // Deactivate passes
-      const { data: passes } = await dualRead({
-        table: 'entry_passes',
-        eq: ['registration_id', id]
-      });
-
-      if (passes) {
-        for (const pass of passes) {
-          await dualUpdate('entry_passes', pass.id, { is_active: false });
-        }
-      }
-      
       push({ type: 'success', message: 'Registration moved to trash' });
       onSuccess?.();
     } catch (e) { handleError(e, 'delete registration'); }
@@ -65,19 +42,11 @@ export function useRegistrationMutations(onSuccess?: () => void) {
   const restoreRegistration = useCallback(async (id: string) => {
     setIsMutating(true);
     try {
-      await dualUpdate('registrations', id, { deleted_at: null });
+      const { data: registrations } = await dualRead({ table: 'registrations', eq: ['id', id], forceRefresh: true });
+      const registration = registrations?.[0];
+      if (!registration) throw new Error('Registration not found or access is unavailable.');
+      await dualUpdate('registrations', id, { deleted_at: null, is_active: registration.status === 'approved' });
       
-      const { data: passes } = await dualRead({
-        table: 'entry_passes',
-        eq: ['registration_id', id]
-      });
-
-      if (passes) {
-        for (const pass of passes) {
-          await dualUpdate('entry_passes', pass.id, { is_active: true });
-        }
-      }
-
       push({ type: 'success', message: 'Registration restored' });
       onSuccess?.();
     } catch (e) { handleError(e, 'restore registration'); }
@@ -102,7 +71,6 @@ export function useRegistrationMutations(onSuccess?: () => void) {
       await dualBulkUpdate('registrations', ids, { status: 'approved', is_active: true });
       
       // 2. Update all linked entry passes in one go
-      await dualBulkUpdate('entry_passes', ids, { is_active: true }, 'registration_id');
 
       push({ type: 'success', message: `Approved ${ids.length} registrations` });
       onSuccess?.();
@@ -115,7 +83,6 @@ export function useRegistrationMutations(onSuccess?: () => void) {
     setIsMutating(true);
     try {
       await dualBulkUpdate('registrations', ids, { status: 'rejected', is_active: false });
-      await dualBulkUpdate('entry_passes', ids, { is_active: false }, 'registration_id');
 
       push({ type: 'success', message: `Rejected ${ids.length} registrations` });
       onSuccess?.();
@@ -129,7 +96,6 @@ export function useRegistrationMutations(onSuccess?: () => void) {
     try {
       const timestamp = new Date().toISOString();
       await dualBulkUpdate('registrations', ids, { deleted_at: timestamp });
-      await dualBulkUpdate('entry_passes', ids, { is_active: false }, 'registration_id');
 
       push({ type: 'success', message: `Moved ${ids.length} registrations to trash` });
       onSuccess?.();
@@ -141,8 +107,14 @@ export function useRegistrationMutations(onSuccess?: () => void) {
     if (!ids.length) return;
     setIsMutating(true);
     try {
-      await dualBulkUpdate('registrations', ids, { deleted_at: null });
-      await dualBulkUpdate('entry_passes', ids, { is_active: true }, 'registration_id');
+      const { data: registrations } = await dualRead({ table: 'registrations', in: ['id', ids], forceRefresh: true });
+      if (!registrations || registrations.length !== ids.length) throw new Error('Some registrations could not be loaded. Refresh before restoring.');
+      const approved = registrations.filter((row: { status: string }) => row.status === 'approved').map((row: { id: string }) => row.id);
+      const other = ids.filter(id => !approved.includes(id));
+      for (const [group, active] of [[approved, true], [other, false]] as [string[], boolean][]) {
+        if (!group.length) continue;
+        await dualBulkUpdate('registrations', group, { deleted_at: null, is_active: active });
+      }
 
       push({ type: 'success', message: `Restored ${ids.length} registrations` });
       onSuccess?.();
@@ -154,9 +126,6 @@ export function useRegistrationMutations(onSuccess?: () => void) {
     if (!ids.length) return;
     setIsMutating(true);
     try {
-      // First delete linked passes
-      await dualBulkDelete('entry_passes', ids, 'registration_id');
-      // Then delete registrations
       await dualBulkDelete('registrations', ids);
 
       push({ type: 'success', message: `Permanently deleted ${ids.length} registrations` });

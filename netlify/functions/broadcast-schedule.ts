@@ -1,265 +1,74 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from './lib/email';
 import { secureRequest } from './lib/api-security';
+import { scheduleRecipients, renderScheduleBroadcast, type ScheduleRecipient } from '../../shared/scheduleBroadcast';
+import { BRAND_YEAR } from '../../src/constants/brand';
 
-const implementation = async (req: Request) => {
-  const headers = {
-    // 'Access-Control-Allow-Origin': '*' // Restricted by policy,
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json',
-  };
-
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers });
+// Read all recipients, including projects with more than PostgREST's 1,000-row cap.
+async function readAll<T>(query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += 500) {
+    const { data, error } = await query(from, from + 499);
+    if (error) throw new Error('The email audience could not be loaded. No batch was started.');
+    rows.push(...(data || []));
+    if (!data || data.length < 500) return rows;
   }
-
+}
+const implementation = async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204 });
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) return Response.json({ error: 'Please sign in to manage schedule email.' }, { status: 401 });
+  const scheduled = !!process.env.CRON_SECRET && req.method === 'GET' && authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  if (!scheduled && req.method !== 'POST') return Response.json({ error: 'Method not allowed' }, { status: 405 });
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return new Response(JSON.stringify({ error: 'Missing Auth' }), { status: 401, headers });
-
     const { getSupabaseClient } = await import('./lib/supabase');
-    const supabaseAdmin = getSupabaseClient(true);
-    const scheduled = !!process.env.CRON_SECRET && req.method === 'GET' && authHeader === `Bearer ${process.env.CRON_SECRET}`;
+    const admin = getSupabaseClient(true);
     if (!scheduled) {
-      if (req.method !== 'POST') return Response.json({ error: 'Method not allowed' }, { status: 405, headers });
       const { verifyAdmin } = await import('./lib/auth-verify');
-      const { isAdmin } = await verifyAdmin(authHeader, supabaseAdmin);
-      if (!isAdmin) return Response.json({ error: 'Administrator access required' }, { status: 403, headers });
+      const { isAdmin, isOwner } = await verifyAdmin(authHeader, admin);
+      if (!isAdmin) return Response.json({ error: 'Administrator access required.' }, { status: 403 });
+      if (!isOwner) {
+        const caller = createClient(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL!, process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY!, { auth: { persistSession: false }, global: { headers: { Authorization: authHeader } } });
+        const scope = await caller.rpc('admin_can_manage_pages', { p_pages: ['schedule'], p_flags: ['can_schedule'] });
+        if (scope.error || scope.data !== true) return Response.json({ error: 'Schedule management permission required.' }, { status: 403 });
+      }
     }
-    const { provider = 'smtp' } = scheduled ? {} : await req.json();
-
-    // Fetch ALL distinct emails from approved registrations
-    const { data: registrations } = await supabaseAdmin
-        .from('registrations')
-        .select('id, email, full_name')
-        .eq('status', 'approved');
-
-    if (!registrations || registrations.length === 0) {
-        return new Response(JSON.stringify({ success: true, message: 'No participants' }), { status: 200, headers });
-    }
-
-    // Dedup by email
-    const uniqueMap = new Map();
-    registrations.forEach(r => {
-        if (!uniqueMap.has(r.email)) uniqueMap.set(r.email, { name: r.full_name, id: r.id });
-    });
-
-    // Check who has already received this broadcast successfully
-    const { data: emailLogs } = await supabaseAdmin
-        .from('email_logs')
-        .select('recipient_email')
-        .eq('email_type', 'schedule_broadcast')
-        .eq('status', 'sent')
-        .gte('sent_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Last 24 hours
-
-    const alreadySent = new Set((emailLogs || []).map((log: any) => log.recipient_email.toLowerCase()));
-
-    // Filter to only send to those who haven't received it yet
-    const recipients = Array.from(uniqueMap.entries())
-        .map(([email, data]) => ({ email, name: data.name, registrationId: data.id }))
-        .filter(r => !alreadySent.has(r.email.toLowerCase()));
-
-    if (recipients.length === 0) {
-        return new Response(JSON.stringify({ 
-            success: true, 
-            message: 'All participants have already received this broadcast',
-            total: uniqueMap.size,
-            alreadySent: alreadySent.size,
-            sent: 0
-        }), { status: 200, headers });
-    }
-
-    console.log(`📧 Broadcasting to ${recipients.length} new recipients (${alreadySent.size} already sent)`);
-
-    const batch = recipients.slice(0, 100);
-    console.log(`Broadcasting schedule to ${batch.length} users via ${provider}`);
-
-    // --- Fetch Stamp ---
-    const { data: bucketFiles } = await supabaseAdmin.storage.from('pdf-watermarks').list();
-    const findFileUrl = async (prefix: string) => {
-        const file = bucketFiles?.find((f: any) => f.name === `${prefix}.png` || f.name === `${prefix}.svg`);
-        if (file) {
-            const { data } = await supabaseAdmin.storage.from('pdf-watermarks').createSignedUrl(file.name, 315360000);
-            return data?.signedUrl;
-        }
-        return null;
-    };
-    const emailStampUrl = await findFileUrl('email_stamp');
-    const defaultStampUrl = await findFileUrl('stamp');
-    const stampUrl = emailStampUrl || defaultStampUrl;
-
-    // Fetch actual schedule data
-    const { data: scheduleDays } = await supabaseAdmin
-        .from('schedule_days')
-        .select('*, schedule_type')
-        .order('date', { ascending: true });
-
-    const { data: scheduleEvents } = await supabaseAdmin
-        .from('schedule_events')
-        .select('*')
-        .order('time', { ascending: true });
-
-    // Group events by day
-    const scheduleData = (scheduleDays || []).map((day: any) => ({
-        ...day,
-        events: (scheduleEvents || []).filter((evt: any) => evt.schedule_day_id === day.id)
-    }));
-
-    // Check what schedules are available
-    const prelimsSchedule = scheduleData.filter((day: any) => (day.schedule_type || 'prelims') === 'prelims');
-    const mainsSchedule = scheduleData.filter((day: any) => day.schedule_type === 'mains');
-
-    const hasPrelims = prelimsSchedule.length > 0;
-    const hasMains = mainsSchedule.length > 0;
-
-    // Determine email content based on what's available
-    let emailSubject = '';
-    let mainMessage = '';
-    
-    if (hasPrelims && !hasMains) {
-        // Prelims released, mains pending
-        emailSubject = '📅 RICO Prelims Schedule Released!';
-        mainMessage = `
-            <div style="margin-bottom: 32px;">
-                <h2 style="color: #0d9488; font-size: 28px; margin: 0 0 16px 0;">🎉 Prelims Schedule is Now Live!</h2>
-                <p style="font-size: 18px; color: #1f2937;">We're excited to announce that the <strong>Prelims Schedule</strong> for RICO 2026 has been released!</p>
-            </div>
-
-            <div style="background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%); padding: 32px 24px; border-radius: 12px; text-align: center; margin: 32px 0;">
-                <h3 style="margin: 0 0 16px 0; color: white; font-size: 24px;">📋 View Prelims Schedule</h3>
-                <p style="margin: 0 0 24px 0; color: rgba(255,255,255,0.95); font-size: 16px;">Check out all the events, timings, and venues for the prelims</p>
-                <a href="https://ricorrenza.fun/schedule" style="display: inline-block; background: white; color: #0d9488; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    View Schedule →
-                </a>
-            </div>
-
-            <div style="margin: 32px 0; padding: 20px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;">
-                <p style="margin: 0 0 8px 0; color: #92400e; font-weight: 600; font-size: 16px;">🏆 Mains Schedule - Coming Soon!</p>
-                <p style="margin: 0; color: #78350f;">The Mains schedule will be announced shortly. Stay tuned!</p>
-            </div>
-        `;
-    } else if (hasPrelims && hasMains) {
-        // Both schedules available (mains just uploaded)
-        emailSubject = '🏆 RICO Mains Schedule Released!';
-        mainMessage = `
-            <div style="margin-bottom: 32px;">
-                <h2 style="color: #8b5cf6; font-size: 28px; margin: 0 0 16px 0;">🎉 Mains Schedule is Now Live!</h2>
-                <p style="font-size: 18px; color: #1f2937;">Great news! The <strong>Mains Schedule</strong> for RICO 2026 has been released!</p>
-            </div>
-
-            <div style="background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); padding: 32px 24px; border-radius: 12px; text-align: center; margin: 32px 0;">
-                <h3 style="margin: 0 0 16px 0; color: white; font-size: 24px;">🏆 View Mains Schedule</h3>
-                <p style="margin: 0 0 24px 0; color: rgba(255,255,255,0.95); font-size: 16px;">Check out all the mains events with timings and venue details</p>
-                <a href="https://ricorrenza.fun/schedule" style="display: inline-block; background: white; color: #8b5cf6; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    View Schedule →
-                </a>
-            </div>
-        `;
-    } else {
-        // Fallback (no schedule yet)
-        emailSubject = '📅 RICO Festival Schedule Update';
-        mainMessage = `
-            <div style="margin-bottom: 32px;">
-                <h2 style="color: #6b7280; font-size: 28px; margin: 0 0 16px 0;">📅 Schedule Coming Soon!</h2>
-                <p style="font-size: 18px; color: #1f2937;">The festival schedule will be announced shortly. Please check our website for updates.</p>
-            </div>
-        `;
-    }
-
-    const emailHtmlRaw = `
-      <div class="email-container" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333333 !important; padding: 20px; background-color: #ffffff !important; max-width: 800px; margin: 0 auto;">
-        <style>
-            :root { color-scheme: light; supported-color-schemes: light; }
-            @media only screen and (max-width: 600px) {
-                .stamp-wrapper { margin-top: -100px !important; }
-                h2 { font-size: 24px !important; }
-                .cta-button { padding: 14px 24px !important; font-size: 16px !important; }
-            }
-            .email-container { background-color: #ffffff !important; color: #333333 !important; }
-        </style>
-        
-        <div style="position: relative; z-index: 1;">
-            <!-- HEADER -->
-            <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px 24px; border-radius: 12px; text-align: center; margin-bottom: 32px;">
-                <h1 style="margin: 0; color: white; font-size: 32px; font-weight: bold;">RICO 2026</h1>
-                <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.8); font-size: 16px;">Festival Schedule Update</p>
-            </div>
-
-            <p><strong>Dear Participant,</strong></p>
-
-            ${mainMessage}
-
-            <p style="margin-top: 32px; color: #6b7280;">Mark your calendars and get ready for an amazing fest!</p>
-            
-            <!-- FOOTER -->
-            <div style="margin-top: 40px; padding-top: 24px; border-top: 2px solid #e5e7eb;">
-                <p style="margin: 0;">Best regards,<br/><strong>The RICO Tech-Team</strong></p>
-                ${stampUrl ? `
-                <div class="stamp-wrapper" style="text-align: right; margin-top: -80px; opacity: 0.6;">
-                    <div style="
-                        display: inline-block;
-                        width: 250px;
-                        max-width: 50%;
-                        height: 0;
-                        padding-bottom: 28%;
-                        background-image: url('${stampUrl}');
-                        background-size: contain;
-                        background-repeat: no-repeat;
-                        background-position: center;
-                    ">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png" alt="Stamp" style="position: absolute; opacity: 0;" />
-                    </div>
-                </div>` : ''}
-            </div>
-        </div>
-      </div>
-    `;
-
-    let successCount = 0;
-    const errors: any[] = [];
-    const successfulLogs: any[] = [];
-    for (const rcpt of batch) {
+    let body: { dryRun?: boolean; provider?: string } = {};
+    if (!scheduled) { try { body = await req.json(); } catch { return Response.json({ error: 'Invalid request.' }, { status: 400 }); } }
+    if (!body || typeof body !== 'object' || (body.dryRun !== undefined && typeof body.dryRun !== 'boolean') || (body.provider && !['smtp', 'resend'].includes(body.provider))) return Response.json({ error: 'Invalid email options.' }, { status: 400 });
+    const [registrations, logs, days, settings] = await Promise.all([
+      readAll<ScheduleRecipient>((from, to) => admin.from('registrations').select('id,email,full_name').eq('status', 'approved').order('id').range(from, to)),
+      readAll<{ recipient_email: string }>((from, to) => admin.from('email_logs').select('recipient_email,id').eq('email_type', 'schedule_broadcast').eq('status', 'sent').gte('sent_at', new Date(Date.now() - 86400000).toISOString()).order('id').range(from, to)),
+      admin.from('schedule_days').select('id,schedule_type,title,schedule_events(id)').order('date'),
+      admin.from('homepage_settings').select('brand_year').limit(1).maybeSingle(),
+    ]);
+    if (days.error || settings.error) throw new Error('The current programme could not be loaded. No batch was started.');
+    const audience = scheduleRecipients(registrations, logs);
+    const counts = { total: audience.total, pending: audience.pending.length, sent: 0, failed: 0, remaining: audience.pending.length };
+    if (body.dryRun) return Response.json({ success: true, ...counts });
+    const populated = (days.data || []).filter(day => day.schedule_events?.length);
+    if (!populated.length) return Response.json({ error: 'Add events to the programme before sending an update.' }, { status: 400 });
+    const editions = [...new Set(populated.map(day => day.schedule_type === 'mains' ? 'Mains' : 'Prelims'))];
+    const batch = audience.pending.slice(0, 100);
+    let sent = 0, failed = 0, loggingFailed = false;
+    for (let offset = 0; offset < batch.length; offset += 5) {
+      await Promise.all(batch.slice(offset, offset + 5).map(async recipient => {
         try {
-            const res = await sendEmail({
-                to: rcpt.email,
-                subject: emailSubject,
-                html: emailHtmlRaw.replace('Dear Participant,', `Dear <strong>${rcpt.name}</strong>,`),
-                provider: provider as 'smtp' | 'resend'
-            });
-            if (res.success) {
-                successCount++;
-                successfulLogs.push({
-                    registration_id: rcpt.registrationId,
-                    email_type: 'schedule_broadcast',
-                    sent_at: new Date().toISOString(),
-                    subject: emailSubject,
-                    recipient_email: rcpt.email,
-                    status: 'sent'
-                });
-            }
-            else errors.push({ email: rcpt.email, error: res.error });
-        } catch (e: any) {
-             errors.push({ email: rcpt.email, error: e.message });
-        }
+          const email = renderScheduleBroadcast({ name: recipient.full_name, year: Number(settings.data?.brand_year) || Number(BRAND_YEAR), editions, siteUrl: process.env.SITE_URL || 'https://ricorrenza.fun' });
+          const result = await sendEmail({ to: recipient.email, ...email, provider: (body.provider || 'smtp') as 'smtp' | 'resend' });
+          if (!result.success) { failed++; return; }
+          sent++;
+          const log = await admin.from('email_logs').insert({ registration_id: recipient.id, recipient_email: recipient.email, subject: email.subject, email_type: 'schedule_broadcast', status: 'sent', sent_at: new Date().toISOString() });
+          if (log.error) loggingFailed = true;
+        } catch { failed++; }
+      }));
+      if (loggingFailed) break;
     }
-
-    if (successfulLogs.length > 0) {
-        await supabaseAdmin.from('email_logs').insert(successfulLogs);
-    }
-
-    return new Response(JSON.stringify({ 
-        success: true, 
-        total_unique: recipients.length,
-        sent: successCount,
-        failed: errors.length,
-        limit_note: 'Batch 100 applied'
-    }), { status: 200, headers });
-
-  } catch (err: any) {
-      console.error(err);
-      return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
+    if (loggingFailed) return Response.json({ error: `${sent} emails were sent, but delivery records could not be saved. The batch was stopped. Check email logs before retrying to avoid duplicate emails.`, sent, failed }, { status: 500 });
+    return Response.json({ success: true, total: audience.total, pending: audience.pending.length - sent, sent, failed, remaining: audience.pending.length - sent });
+  } catch (error) {
+    console.error('[Schedule broadcast]', error instanceof Error ? error.message : 'Request failed');
+    return Response.json({ error: error instanceof Error ? error.message : 'The schedule email could not be sent.' }, { status: 500 });
   }
 };
-
 export default secureRequest('broadcast-schedule', implementation);

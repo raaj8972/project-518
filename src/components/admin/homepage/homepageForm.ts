@@ -45,7 +45,7 @@ export type HomepageDraft = {
 
 
 export type HomepageDraftSetter = Dispatch<SetStateAction<HomepageDraft>>;
-export type HomepageSection = 'media' | 'content' | 'branding' | 'automatic' | 'films' | 'people' | 'partners' | 'about' | 'social' | 'roadmap';
+export type HomepageSection = 'media' | 'content' | 'branding' | 'films' | 'people' | 'partners' | 'about' | 'social' | 'roadmap';
 
 function homepageDefaults(homepageSettings?: Partial<HomepageSettings> | null): HomepageDraft {
   return {

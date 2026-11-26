@@ -1,37 +1,11 @@
-import React from 'react';
+import type { ScheduleType } from '../../utils/schedulePresentation';
 
-type Props = {
-  scheduleType: 'prelims' | 'mains';
-  setScheduleType: (type: 'prelims' | 'mains') => void;
-};
-
-const ScheduleTypeToggle: React.FC<Props> = ({ scheduleType, setScheduleType }) => {
-  return (
-    <div className="festival-schedule-toggle flex justify-center gap-6 mb-16">
-      <button 
-        aria-pressed={scheduleType === 'prelims'}
-        onClick={() => setScheduleType('prelims')}
-        className={`relative px-10 py-4 font-black tracking-[0.2em] transition-all duration-500 rounded-2xl uppercase border-2 ${
-          scheduleType === 'prelims' 
-            ? 'text-white bg-[#ff3333] border-[#ff3333] shadow-[0_0_30px_rgba(255,51,51,0.3)]' 
-            : 'text-gray-500 border-white/10 hover:border-[#ff3333]/50 hover:text-[#ff3333]'
-        }`}
-      >
-        Prelims
-      </button>
-      <button 
-        aria-pressed={scheduleType === 'mains'}
-        onClick={() => setScheduleType('mains')}
-        className={`relative px-10 py-4 font-black tracking-[0.2em] transition-all duration-500 rounded-2xl uppercase border-2 ${
-          scheduleType === 'mains' 
-            ? 'text-white bg-[#ff3333] border-[#ff3333] shadow-[0_0_30px_rgba(255,51,51,0.3)]' 
-            : 'text-gray-500 border-white/10 hover:border-[#ff3333]/50 hover:text-[#ff3333]'
-        }`}
-      >
-        Mains
-      </button>
-    </div>
-  );
-};
-
-export default ScheduleTypeToggle;
+export default function ScheduleTypeToggle({ scheduleType, setScheduleType, available }: {
+  scheduleType: ScheduleType;
+  setScheduleType: (type: ScheduleType) => void;
+  available: ScheduleType[];
+}) {
+  return <div className="rico-schedule-types" role="group" aria-label="Schedule edition">
+    {available.map(type => <button key={type} type="button" aria-pressed={scheduleType === type} onClick={() => setScheduleType(type)}>{type === 'prelims' ? 'Prelims' : 'Main festival'}</button>)}
+  </div>;
+}

@@ -9,7 +9,7 @@ export const DESIGNER_INSTAGRAM_URL = 'https://www.instagram.com/i_amraaj__/';
 export const BRAND_NAME_WITH_YEAR = `${BRAND_NAME} ${BRAND_YEAR}`;
 
 // Used for copyright notices (usually current year or future)
-export const COPYRIGHT_YEAR = '2027';
+export const COPYRIGHT_YEAR = BRAND_YEAR;
 
 // SEO Defaults
 export const DEFAULT_SEO_TITLE = `${BRAND_NAME_WITH_YEAR} — IQ City Medical College Cultural Festival`;

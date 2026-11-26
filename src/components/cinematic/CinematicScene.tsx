@@ -7,6 +7,7 @@ import { sampleCamera } from './cinematicMotion';
 import { samplePortalCamera } from './cinematicMotion';
 import { CinematicBloom, CinematicReflections } from './CinematicLighting';
 import PortalLogo from './CinematicPortalLogo';
+import { DEFAULT_BRAND_LOGO } from './portalLogoUrl';
 import { createFrameHealthMonitor } from './frameHealth';
 import { visibleTimeout } from './introCapability';
 import type { CharacterLook } from './inlineLook';
@@ -90,7 +91,7 @@ export default function CinematicScene(props: SceneProps) {
       <CinematicWorld progress={worldProgress} quality={quality} />
       <CinematicCharacter progress={progress} quality={quality} journey={portal} />
       {portal && <>
-        <PortalLogo logoUrl={props.logoUrl || '/favicon.svg'} progress={progress} />
+        <PortalLogo logoUrl={props.logoUrl || DEFAULT_BRAND_LOGO} progress={progress} />
         <pointLight position={[2.5, 5, -65]} intensity={20} color="#e5bd77" distance={22} decay={2} />
         <pointLight position={[-2, 4.5, -74]} intensity={12} color="#d9c6a6" distance={18} decay={2} />
         <mesh position={[0, 6, -84]}><planeGeometry args={[16, 17]} /><meshBasicMaterial color="#010b07" /></mesh>

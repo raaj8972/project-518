@@ -9,6 +9,7 @@ import {
 } from '@radix-ui/react-icons';
 import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 import { SITE_FEATURES } from '../../constants/siteFeatures';
+import { BrandMark } from '../BrandMark';
 import { CartButton } from '../CartDrawer';
 
 const navigation = [
@@ -83,7 +84,7 @@ export default function StudentDashboardShell({ studentId, profile, xpData, pend
             <HamburgerMenuIcon />
           </button>
           <NavLink to="/dashboard" className="sd-brand">
-            <img src="/images/ricorrenza-medical-mark.svg" alt="" />
+            <BrandMark allowCachedWhileLoading width={32} height={38} alt="" />
             <span>
               {BRAND_NAME}<small>IQ CITY MEDICAL COLLEGE <b> / {BRAND_YEAR}
               </b>

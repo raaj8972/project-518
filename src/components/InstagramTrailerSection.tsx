@@ -75,7 +75,7 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
   }
 
   return (
-    <section className="py-16 md:py-24 relative overflow-hidden">
+    <section data-homepage-film className="py-16 md:py-24 relative overflow-hidden">
       {/* Background gradients */}
       <div className="absolute inset-0 bg-gradient-to-br from-red-900/20 via-[#0a0a0a] to-orange-900/20"></div>
       

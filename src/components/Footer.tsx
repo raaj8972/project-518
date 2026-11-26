@@ -5,6 +5,7 @@ import { useData } from '../context/DataContext';
 import { BRAND_NAME, BRAND_YEAR, COPYRIGHT_YEAR, DESIGNER_INSTAGRAM_URL } from '../constants/brand';
 import { SITE_FEATURES } from '../constants/siteFeatures';
 import { FestivalCrown } from './Home/FestivalSectionHeading';
+import { BrandMark } from './BrandMark';
 import '../styles/FestivalFooter.css';
 
 const EXPLORE_LINKS = [
@@ -24,7 +25,7 @@ export const Footer = memo(function Footer() {
   const { socialMediaSettings, homepageSettings } = useData();
   const { pathname } = useLocation();
   const isHomeBound = pathname === '/home-bound' || pathname.startsWith('/home-bound/');
-  if (pathname.startsWith('/admin') || pathname.startsWith('/security-') || pathname.startsWith('/coordinator/dashboard') || pathname.startsWith('/dashboard')) return null;
+  if (pathname.startsWith('/admin') || pathname.startsWith('/security-') || pathname.startsWith('/coordinator/dashboard') || pathname.startsWith('/cr/dashboard') || pathname.startsWith('/dashboard')) return null;
   // Homebound includes its own compact music-page footer beneath the journey.
   if (isHomeBound) return null;
 
@@ -32,7 +33,6 @@ export const Footer = memo(function Footer() {
     ...(socialMediaSettings?.instagram_enabled && socialMediaSettings.instagram_url ? [{ label: 'Instagram', href: socialMediaSettings.instagram_url, Icon: InstagramLogoIcon }] : []),
     ...(socialMediaSettings?.youtube_enabled && socialMediaSettings.youtube_url ? [{ label: 'YouTube', href: socialMediaSettings.youtube_url, Icon: VideoIcon }] : []),
   ];
-  const logo = homepageSettings?.brand_logo_url || '/images/ricorrenza-medical-mark.svg';
   const navigation = (links: typeof EXPLORE_LINKS) => <ul>{links.map(link => <li key={link.to}><Link to={link.to} aria-current={pathname === link.to ? 'page' : undefined}>{link.label}<ArrowTopRightIcon aria-hidden="true" /></Link></li>)}</ul>;
 
   return <footer className="festival-footer" aria-label="Festival footer">
@@ -45,7 +45,7 @@ export const Footer = memo(function Footer() {
       </div>
       <div className="festival-footer__grid">
         <div className="festival-footer__identity">
-          <Link className="festival-footer__brand" to="/" aria-label={`${BRAND_NAME} ${BRAND_YEAR} home`}><img src={logo} alt="" width="42" height="48" loading="lazy" /><span>{BRAND_NAME}<small>{BRAND_YEAR} · The annual celebration</small></span></Link>
+          <Link className="festival-footer__brand" to="/" aria-label={`${BRAND_NAME} ${BRAND_YEAR} home`}><BrandMark settings={homepageSettings} allowCachedWhileLoading width={42} height={48} loading="lazy" alt="" /><span>{BRAND_NAME}<small>{BRAND_YEAR} · The annual celebration</small></span></Link>
           <p>Culture, creativity and a campus<br className="festival-footer__desktop-break" /> full of stories worth sharing.</p>
           <div className="festival-footer__location"><span aria-hidden="true" />IQ City Medical College<span>Durgapur, West Bengal</span></div>
         </div>

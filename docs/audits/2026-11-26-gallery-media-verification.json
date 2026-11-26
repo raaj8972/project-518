@@ -1,0 +1,14 @@
+{
+  "status": 200,
+  "contentType": "image/webp",
+  "requestedWidth": 320,
+  "originalBytes": 4371100,
+  "resizedBytes": 17208,
+  "reductionPercent": 99.6,
+  "realPhotoIndexTest": {
+    "photosScanned": 1,
+    "facesSaved": 8,
+    "publicSearchReturnedIndexedPhoto": true,
+    "remainingPhotos": 2544
+  }
+}

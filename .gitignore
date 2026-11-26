@@ -96,3 +96,8 @@ supabase/.temp/
 !scripts/audit-homebound-content.mjs
 !scripts/diagnostics/artist-access-probes.mjs
 !scripts/diagnostics/guest-artist-save-smoke.mjs
+
+# Repeatable Chronicles schema, role and storage verification.
+!scripts/audit-roadmap-photos.mjs
+!scripts/check-roadmap-photos-database.mjs
+!scripts/diagnostics/chronicles-access-probes.mjs

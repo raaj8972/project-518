@@ -1,24 +1,24 @@
+import { SITE_FEATURES } from './siteFeatures';
 import type { TabType } from '../components/admin/layout/AdminLayout';
 export interface WebsitePage { id:TabType; name:string; path:string; description:string; }
 export const WEBSITE_PAGES:WebsitePage[] = [
-  {id:'homepage',name:'Home',path:'/',description:'Background, page copy, About, films, roadmap, leadership and partner showcase.'},
-  {id:'events',name:'Events',path:'/events',description:'Event details, registration information, categories and page background.'},
+  {id:'homepage',name:'Home',path:'/',description:'Hero text, branding, About, Chronicles and footer links.'},
+  {id:'events',name:'Events',path:'/events',description:'Event details, registration information, and event categories.'},
   {id:'schedule',name:'Schedule',path:'/schedule',description:'Festival dates, times, venues and the public programme.'},
   {id:'gallery',name:'Gallery',path:'/gallery',description:'Photos, albums and gallery discovery.'},
-  {id:'homebound',name:'Home Bound',path:'/home-bound',description:'Band profiles and Home Bound page settings.'},
+  {id:'homebound',name:'Home Bound',path:'/home-bound',description:'Page text, stage photos, band profiles, categories and the band’s journey.'},
   {id:'rico-family',name:'Rico Family',path:'/rico-family',description:'Faculty, council, committees, heads and team profiles.'},
   {id:'sponsors',name:'Sponsors',path:'/sponsors',description:'Sponsor records and the shared Home / Sponsors logo showcase.'},
 ];
 export const WEBSITE_CHILDREN:Partial<Record<TabType,TabType>> = {
-  'hero-media':'homepage',about:'homepage',social:'homepage',roadmap:'homepage','guest-artists':'homepage','chief-guests':'homepage',categories:'events','face-indexing':'gallery',band:'homebound',
+  'hero-media':'homepage',about:'homepage',social:'homepage',roadmap:'homepage','guest-artists':'homepage','chief-guests':'homepage',categories:'events',band:'homebound',
 };
 export function websitePageForSection(id:TabType) {return WEBSITE_PAGES.find(page=>page.id===(WEBSITE_CHILDREN[id] || id));}
 export interface PageTool { label:string; href:string; grants:TabType[]; }
 export function websitePageTools(page:WebsitePage, available:ReadonlySet<string>):PageTool[] {
   const tools:PageTool[]=[{label:page.id==='homepage'?'Page editor':page.id==='homebound'?'Page settings':`${page.name} editor`,href:`/admin/${page.id}`,grants:[page.id]}];
-  if(page.id==='homepage') tools.push({label:'Artists',href:'/admin/guest-artists',grants:['guest-artists']},{label:'Chief guests',href:'/admin/chief-guests',grants:['chief-guests']});
-  if(page.id==='events') tools.push({label:'Categories',href:'/admin/categories',grants:['categories']},{label:'Background media',href:'/admin/events?edit=background',grants:['events','hero-media']});
-  if(page.id==='gallery') tools.push({label:'Face indexing',href:'/admin/face-indexing',grants:['face-indexing']});
+  if(page.id==='homepage') tools.push({label:'Artists',href:'/admin/guest-artists',grants:['guest-artists']},...(SITE_FEATURES.chiefGuests ? [{label:'Chief guests',href:'/admin/chief-guests',grants:['chief-guests'] as TabType[]}] : []));
+  if(page.id==='events') tools.push({label:'Categories',href:'/admin/categories',grants:['categories']});
   if(page.id==='homebound') tools.push({label:'Band profiles',href:'/admin/band',grants:['band']});
   return tools.filter(tool=>tool.grants.every(grant=>available.has(grant)));
 }

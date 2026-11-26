@@ -3,6 +3,7 @@ import { Save, X, GripVertical, Plus, ArrowUp, ArrowDown, Trash2, Settings2, Eye
 import { useData } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { RegistrationModal } from '../RegistrationModal';
+import '../../styles/ParticipantFormSettings.css';
 
 // ─── Styling tokens ─────────────────────────────
 const inputCls = 'w-full bg-white/[0.04] border border-white/10 rounded-xl py-2.5 px-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 focus:bg-white/[0.06] transition-all';
@@ -81,9 +82,16 @@ export const RegistrationModalSettings: React.FC = () => {
   };
 
   const handleCancel = () => {
-    setDraft(prev => ({ ...prev }));
+    setDraft(prev => ({
+      ...prev,
+      participantTypes: (siteSettings?.registration_participant_types as string[]) || prev.participantTypes,
+      registrationInstitutionVisible: (siteSettings as any)?.registration_institution_visible !== false,
+      registrationInstitutionOptional: (siteSettings as any)?.registration_institution_optional === true,
+      participantQuotas: (siteSettings as any)?.registration_participant_quotas || {},
+    }));
     setIsEditing(false);
     setMessage(null);
+    try { localStorage.removeItem('admin_registration_modal_draft'); } catch {}
   };
 
   const addParticipantType = () => {
@@ -122,7 +130,7 @@ export const RegistrationModalSettings: React.FC = () => {
   const canEdit = isOwner?.() || isAdmin?.() || !!(myPermissions?.can_registrations || myPermissions?.can_events);
 
   return (
-    <div className="space-y-6">
+    <div className="registration-config-page">
 
       {/* ═══ Hero Header ═══ */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-transparent border border-white/10 p-8">

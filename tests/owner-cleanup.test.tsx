@@ -54,7 +54,7 @@ it('opens the exact people section and keeps section changes in the URL', async 
 });
 it('keeps every child tool reachable within its parent and excludes unavailable sports tools from navigation', async () => {
   const tabs = getAdminSections(true, true);
-  await act(async () => root.render(<MemoryRouter><OwnerAdminLayout user={{}} isOwner isAdmin activeTab="homepage" setActiveTab={() => {}} visibleTabs={tabs} isSidebarOpen={false} setIsSidebarOpen={() => {}} onLogout={() => {}} onNavigateHome={() => {}} autoLogoutEnabled={false} setAutoLogoutEnabled={() => {}} isTOTPEnabled><h1>Homepage editor</h1></OwnerAdminLayout></MemoryRouter>));
+  await act(async () => root.render(<MemoryRouter><OwnerAdminLayout user={{}} isOwner isAdmin activeTab="homepage" setActiveTab={() => {}} visibleTabs={tabs} isSidebarOpen={false} setIsSidebarOpen={() => {}} onLogout={() => {}} onNavigateHome={() => {}} autoLogoutEnabled={false} setAutoLogoutEnabled={() => {}} isTOTPEnabled><h2>Homepage editor</h2></OwnerAdminLayout></MemoryRouter>));
   const sidebarNames = [...container.querySelectorAll('.owner-nav-link')].map(node => node.textContent);
   expect(sidebarNames).not.toContain('Hero Media'); expect(sidebarNames).not.toContain('Auction');
   expect(container.querySelector('.owner-section-tabs')).toBeNull();

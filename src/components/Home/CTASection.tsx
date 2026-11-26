@@ -1,17 +1,9 @@
 import React from 'react';
-import { Zap, Users, ArrowRight } from 'lucide-react';
+import { Zap, ArrowRight } from 'lucide-react';
 import { Parallax } from '../ui/Parallax';
 import { KineticText } from '../ui/KineticText';
 
-interface CTASectionProps {
-  formSettings: any;
-  setMembershipModal: (open: boolean) => void;
-}
-
-const CTASection: React.FC<CTASectionProps> = ({
-  formSettings,
-  setMembershipModal
-}) => {
+const CTASection: React.FC<Record<string, unknown>> = () => {
   return (
     <section className="py-32 relative overflow-hidden gsap-fade-up">
       <div className="container mx-auto px-4 text-center relative z-10">
@@ -35,19 +27,6 @@ const CTASection: React.FC<CTASectionProps> = ({
                   <ArrowRight className="w-6 h-6" />
                 </span>
               </a>
-            
-              {formSettings?.membership_form_enabled && (
-                <button 
-                  onClick={() => setMembershipModal(true)}
-                  className="stranger-btn px-12 py-5 text-base"
-                >
-                  <span className="relative z-10 flex items-center gap-4">
-                    <Users className="w-6 h-6" />
-                    Join the Family
-                    <ArrowRight className="w-6 h-6" />
-                  </span>
-                </button>
-              )}
             </div>
           </div>
         </Parallax>

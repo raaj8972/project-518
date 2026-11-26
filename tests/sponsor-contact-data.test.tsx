@@ -13,7 +13,7 @@ vi.mock('../src/utils/dataUtils', () => ({ fetchSupabaseBatch: mocks.batch, fetc
 vi.mock('../src/lib/adminService', () => ({ AdminService: {} }));
 vi.mock('../src/hooks/useDomainRealtime', () => ({ useDomainRealtime: mocks.realtime }));
 let host: HTMLDivElement, root: ReturnType<typeof createRoot>;
-function Probe() { const data = useManagementData(); return <output>{JSON.stringify({ loaded: data.isLoaded, settings: data.sponsorshipSettings })}</output>; }
+function Probe() { const data = useManagementData(); return <output>{JSON.stringify({ loaded: data.isLoaded, sponsors: data.sponsors, error: data.sponsorshipError, settings: data.sponsorshipSettings })}</output>; }
 beforeEach(() => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   mocks.read.mockReset(); mocks.batch.mockReset().mockResolvedValue({ data: [] }); mocks.privateRead.mockReset(); mocks.realtime.mockReset();
@@ -39,4 +39,17 @@ it('retains available brochure settings if the contact query is unavailable', as
   });
   await act(async () => root.render(<ManagementProvider enabled includePrivate={false}><Probe /></ManagementProvider>));
   expect(JSON.parse(host.querySelector('output')!.textContent!).settings).toMatchObject({ brochure_url: 'https://festival.example/brochure.pdf', contactSections: [] });
+});
+
+it('preserves the last sponsor and contact records when a refresh fails and clears the error on retry', async () => {
+  mocks.batch.mockResolvedValue({data:[{id:14,name:'Saved partner'}],error:null});
+  mocks.read.mockImplementation(async ({table}:{table:string})=>({data:table==='sponsorship_settings'?{id:1,page_title:'Partners'}:[{id:9,title:'Office'}]}));
+  await act(async()=>root.render(<ManagementProvider enabled includePrivate={false}><Probe/></ManagementProvider>));
+  const refresh=mocks.realtime.mock.calls.at(-1)![3];
+  mocks.batch.mockResolvedValue({data:null,error:new Error('offline')});mocks.read.mockRejectedValue(new Error('offline'));
+  await act(async()=>refresh());
+  const failed=JSON.parse(host.querySelector('output')!.textContent!);
+  expect(failed.sponsors).toEqual([{id:14,name:'Saved partner'}]);expect(failed.settings.contactSections[0].title).toBe('Office');expect(failed.error).toContain('last available records');
+  mocks.batch.mockResolvedValue({data:[],error:null});mocks.read.mockResolvedValue({data:null});await act(async()=>refresh());
+  expect(JSON.parse(host.querySelector('output')!.textContent!).error).toBeNull();
 });

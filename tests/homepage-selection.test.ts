@@ -1,7 +1,7 @@
 import { expect,it } from 'vitest';
 import { selectHomepageEvents, resolveHomepagePartners, indiaDayKey } from '../src/utils/homepageContent';
 import type { Event,Sponsor } from '../src/types/data';
-const event=(id:number,date:string,count:number,visible=true)=>({id,date,current_registrations:count,visible,title:`Event ${id}`} as Event);
+const event=(id:number,date:string,count:number,visible=true)=>({id,date,current_registrations:count,visible,featured:true,title:`Event ${id}`} as Event);
 const sponsor=(id:number)=>({id,name:`Partner ${id}`,logo:`logo-${id}.png`,featured:true,order_position:id,website:null,category:'Partners',description:'',created_at:''} as Sponsor);
 it('prioritizes today and upcoming dates, with registration totals breaking same-day ties',()=>{
  const result=selectHomepageEvents([event(1,'2026-11-08',10),event(2,'2026-11-08',60),event(3,'2026-11-09',900),event(4,'2026-11-07',5000),event(5,'2026-11-08',999,false)],new Date('2026-11-08T10:00:00Z'));
@@ -11,6 +11,18 @@ it('rolls the featured day over at India midnight without mutating manual flags'
  const source=[event(1,'2026-11-08',20),event(2,'2026-11-09',10)];
  expect(indiaDayKey(new Date('2026-11-08T18:31:00Z'))).toBe('2026-11-09');
  expect(selectHomepageEvents(source,new Date('2026-11-08T18:31:00Z')).map(item=>item.id)).toEqual([2]); expect(source).toHaveLength(2);
+});
+it('follows the Events page featured flag without filling empty slots with unfeatured events',()=>{
+ const now=new Date('2026-11-08T10:00:00Z');
+ const selected=event(1,'2026-11-09',10);
+ const unfeatured={...event(2,'2026-11-08',900),featured:false};
+ const hidden=event(3,'2026-11-08',1000,false);
+ const past=event(4,'2026-11-07',1000);
+ const undated={...event(5,'',20),date:null} as unknown as Event;
+ expect(selectHomepageEvents([unfeatured,hidden,past,undated,selected],now).map(item=>item.id)).toEqual([1,5]);
+ expect(selectHomepageEvents([{...selected,featured:false},unfeatured,hidden,past],now)).toEqual([]);
+ expect(selectHomepageEvents([{...unfeatured,featured:true}],now).map(item=>item.id)).toEqual([2]);
+ expect(selected.featured).toBe(true);expect(unfeatured.featured).toBe(false);
 });
 it('uses previous logos until a complete enabled current partner is published',()=>{
  const previous={id:'old',name:'Previous supporter',logo_url:'old.png',enabled:true,order:1,period:'previous'};

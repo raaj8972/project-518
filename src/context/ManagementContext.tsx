@@ -10,6 +10,7 @@ import { useAuth } from './AuthContext';
 import { fetchAllRegistrations, fetchSupabaseBatch } from '../utils/dataUtils';
 import { AdminService } from '../lib/adminService';
 import { useDomainRealtime } from '../hooks/useDomainRealtime';
+import { fetchAuditionApplications } from '../services/participantApplications';
 
 interface ManagementContextType {
   sponsors: Sponsor[];
@@ -21,6 +22,11 @@ interface ManagementContextType {
   adminUsers: any[];
   loading: boolean;
   isLoaded: boolean;
+  sponsorshipError: string | null;
+  refreshSponsorship: () => Promise<void>;
+  auditionsError: string | null;
+  auditionsLoading: boolean;
+  refreshAuditions: () => Promise<void>;
   
   // Sponsors
   addSponsor: (sponsor: Partial<Sponsor>) => Promise<Sponsor>;
@@ -104,6 +110,22 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [sponsorshipError, setSponsorshipError] = useState<string | null>(null);
+  const [auditionsError, setAuditionsError] = useState<string | null>(null);
+  const [auditionsLoading, setAuditionsLoading] = useState(includePrivate);
+  const auditionGeneration = useRef(0);
+  const refreshAuditions = useCallback(async () => {
+    if (!enabled || !includePrivate) return;
+    const request = ++auditionGeneration.current;
+    setAuditionsLoading(true);
+    try {
+      const data = await fetchAuditionApplications();
+      if (currentScope.current === privateScope && request === auditionGeneration.current) { setAuditions(data); setAuditionsError(null); }
+    } catch (failure) {
+      if (currentScope.current === privateScope && request === auditionGeneration.current) setAuditionsError('Audition applications could not refresh. Please retry before reviewing.');
+      throw failure;
+    } finally { if (currentScope.current === privateScope && request === auditionGeneration.current) setAuditionsLoading(false); }
+  }, [enabled, includePrivate, privateScope]);
 
   const fetchManagementData = useCallback(async () => {
     if (!enabled) return;
@@ -113,27 +135,29 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
 
     try {
       const reads: Promise<unknown>[] = [
-        fetchSupabaseBatch<Sponsor>('sponsors').then(r => setSponsors(r.data || [])),
-        fetchSupabaseBatch<SponsorshipPackage>('sponsorship_packages', { order: { column: 'order_position', ascending: true } }).then(r => setSponsorshipPackages(r.data || [])),
+        fetchSupabaseBatch<Sponsor>('sponsors').then(r => { if (r.error) throw r.error; setSponsors(r.data || []); }),
+        fetchSupabaseBatch<SponsorshipPackage>('sponsorship_packages', { order: { column: 'order_position', ascending: true } }).then(r => { if (r.error) throw r.error; setSponsorshipPackages(r.data || []); }),
         Promise.allSettled([
           dualRead({ table: 'sponsorship_settings', eq: ['id', 1], maybeSingle: true }),
           dualRead({ table: 'contact_sections', eq: ['sponsorship_settings_id', 1], order: ['order', { ascending: true }] }),
         ]).then(([settings, contacts]) => {
           if (settings.status === 'fulfilled') {
-            setSponsorshipSettings(settings.value.data ? {
+            setSponsorshipSettings(previous => settings.value.data ? {
               ...settings.value.data,
-              contactSections: contacts.status === 'fulfilled' ? contacts.value.data || [] : [],
+              contactSections: contacts.status === 'fulfilled' ? contacts.value.data || [] : previous?.contactSections || [],
             } : null);
           }
+          if (settings.status === 'rejected' || contacts.status === 'rejected') throw new Error('Sponsorship settings could not refresh.');
         }),
       ];
       if (includePrivate) reads.push(
         fetchAllRegistrations().then(r => { if (currentScope.current === privateScope) setRegistrations(r.data || []); }),
-        dualRead({ table: 'auditions', order: ['created_at', { ascending: false }] }).then(r => { if (currentScope.current === privateScope) setAuditions(r.data || []); }),
+        refreshAuditions(),
         dualRead({ table: 'memberships', order: ['created_at', { ascending: false }] }).then(r => { if (currentScope.current === privateScope) setMemberships(r.data || []); }),
         AdminService.getAllAdmins().then(data => { if (currentScope.current === privateScope) setAdminUsers(data); }),
       );
-      await Promise.allSettled(reads);
+      const results = await Promise.allSettled(reads);
+      setSponsorshipError(results.slice(0,3).some(result => result.status === 'rejected') ? 'Could not refresh all sponsor data. The last available records are shown. Please retry before editing.' : null);
 
       console.log(`[ManagementContext] Data fetched in ${Date.now() - start}ms`);
     } catch (err) {
@@ -142,7 +166,7 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
       setLoading(false);
       setIsLoaded(true);
     }
-  }, [enabled, includePrivate, privateScope]);
+  }, [enabled, includePrivate, privateScope, refreshAuditions]);
 
   useEffect(() => {
     if (enabled) {
@@ -151,10 +175,8 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
   }, [refreshTrigger, user?.id, fetchManagementData, enabled]);
 
   useEffect(() => {
-    if (!includePrivate) {
-      setRegistrations([]); setAuditions([]); setMemberships([]); setAdminUsers([]);
-    }
-  }, [includePrivate]);
+    setRegistrations([]); setAuditions([]); setMemberships([]); setAdminUsers([]); setAuditionsError(null);
+  }, [privateScope]);
   useDomainRealtime('management-context-realtime', enabled,
     includePrivate ? ['sponsors', 'sponsorship_packages', 'sponsorship_settings', 'contact_sections', 'registrations', 'auditions', 'memberships', 'admin_users', 'admin_permissions'] : ['sponsors', 'sponsorship_packages', 'sponsorship_settings', 'contact_sections'],
     fetchManagementData);
@@ -402,6 +424,11 @@ export function ManagementProvider({ children, enabled = true, includePrivate = 
     adminUsers,
     loading,
     isLoaded,
+    sponsorshipError,
+    refreshSponsorship: fetchManagementData,
+    auditionsError,
+    auditionsLoading,
+    refreshAuditions,
     addSponsor,
     updateSponsor,
     deleteSponsor,

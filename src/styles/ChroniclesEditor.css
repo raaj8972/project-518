@@ -1,0 +1,38 @@
+.chronicles-editor { color:#24352d; min-width:0; }
+.chronicles-editor h3,.chronicles-editor h4,.chronicles-editor p { margin:0; }
+.chronicles-overview { border:1px solid #dce4dc; border-radius:14px; padding:18px; background:#f7f9f5; }
+.chronicles-counts { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding-bottom:16px; margin-bottom:4px; border-bottom:1px solid #dce4dc; font-size:12px; color:#647168; }
+.chronicles-counts > span { display:flex; align-items:center; gap:6px; }
+.chronicles-counts strong { font-size:18px; color:#294a36; }
+.chronicles-counts .chronicles-published { margin-left:auto; color:#426b52; }
+.chronicles-editions { padding:24px 0; }
+.chronicles-editions > header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.chronicles-editor h3 { font-size:17px; font-weight:650; }
+.chronicles-editions > header p,.chronicles-import p { margin-top:5px; color:#69766c; font-size:12px; line-height:1.6; }
+.chronicles-editions > header .studio-button { min-height:38px; padding:9px 12px; font-size:12px; flex-shrink:0; }
+.chronicles-year-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); gap:8px; }
+.chronicles-year-list button { text-align:left; padding:12px; border:1px solid #dce4dc; background:white; border-radius:10px; color:#33463a; cursor:pointer; }
+.chronicles-year-list button[aria-pressed=true] { background:#eaf1e8; border-color:#426b52; box-shadow:inset 0 0 0 1px #426b52; }
+.chronicles-year-list button > span { display:flex; align-items:center; justify-content:space-between; gap:5px; font-size:18px; font-weight:650; }
+.chronicles-year-list small { display:block; margin-top:5px; font-size:11px; color:#657368; }
+.chronicles-year-list i { width:6px; height:6px; border-radius:50%; background:#a17a30; }
+.chronicles-import { margin-top:14px; font-size:12px; color:#657368; }
+.chronicles-import summary { cursor:pointer; }
+.chronicles-import .studio-text-button { margin-top:7px; font-size:12px; }
+.chronicles-empty { padding:28px 16px; text-align:center; border:1px dashed #cbd8ca; border-radius:12px; background:#fafbf8; }
+.chronicles-empty > svg { width:26px; height:26px; color:#648258; margin-bottom:12px; }
+.chronicles-empty h4 { font-size:17px; }
+.chronicles-empty p { margin:10px auto 18px; max-width:360px; font-size:13px; line-height:1.65; color:#657368; }
+.chronicles-detail { min-width:0; padding:0; margin:0; border:0; }
+.chronicles-detail > header { display:flex; justify-content:space-between; align-items:center; padding:18px 0; border-top:1px solid #dce4dc; border-bottom:1px solid #dce4dc; margin-bottom:22px; }
+.chronicles-eyebrow { font-size:10px; letter-spacing:.12em; color:#778273; }
+.chronicles-detail > header h3 { display:flex; align-items:center; gap:12px; margin-top:5px; font-size:30px; letter-spacing:-.04em; }
+.chronicles-detail > header h3 span { font-size:10px; letter-spacing:0; font-weight:500; padding:5px 8px; background:#f0f4eb; color:#63745a; border-radius:5px; }
+.chronicles-order { display:flex; gap:6px; }
+.chronicles-order button { display:grid; place-items:center; width:36px; height:36px; border:1px solid #dce4dc; border-radius:8px; background:white; color:#426b52; cursor:pointer; }
+.chronicles-editor button:disabled { opacity:.4; cursor:default; }
+.chronicles-editor button:focus-visible,.chronicles-editor summary:focus-visible { outline:2px solid #426b52; outline-offset:3px; }
+.chronicles-editor .chronicles-error { color:#ae3f38; font-size:12px; margin-top:-10px; margin-bottom:14px; }
+.chronicles-editor .chronicles-remove { color:#a0443c; margin-top:8px; }
+.chronicles-detail > .roadmap-photo-editor { margin-bottom:24px; }
+@media(max-width:480px) { .chronicles-editions > header { align-items:flex-start; } .chronicles-counts { gap:10px; } .chronicles-counts .chronicles-published { margin-left:0; } }

@@ -1,156 +1,86 @@
-import { useMemo, useState, useEffect } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { CalendarIcon, DownloadIcon, MagnifyingGlassIcon, MixerHorizontalIcon, ReloadIcon } from '@radix-ui/react-icons';
 import { useData } from '../context/DataContext';
-import { parseTimeValue, getEventTimeRange } from '../utils/timeUtils';
+import { SEO } from '../components/SEO';
+import { BRAND_YEAR } from '../constants/brand';
 import ScheduleHeader from '../components/Schedule/ScheduleHeader';
 import ScheduleTypeToggle from '../components/Schedule/ScheduleTypeToggle';
 import DailyScheduleSection from '../components/Schedule/DailyScheduleSection';
+import { scheduleCategory, scheduleDate, scheduleDayType, sortSchedule, type ScheduleType } from '../utils/schedulePresentation';
+import '../styles/Schedule.css';
 
 export const Schedule = () => {
-  const { schedule, events, siteSettings } = useData();
-  const [now, setNow] = useState(new Date());
+  const { schedule = [], events = [], siteSettings, homepageSettings, loading, scheduleError, connectionStatus, refreshAll } = useData();
+  const [now, setNow] = useState(() => new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
+  const [scheduleType, setScheduleType] = useState<ScheduleType>(siteSettings?.default_schedule_type || 'prelims');
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
+  const typeChosen = useRef(false);
+  const downloadBusy = useRef(false);
+  const pending = loading && !schedule.length;
+  const disconnected = !!scheduleError || connectionStatus === 'offline' || connectionStatus === 'degraded';
+  const availableTypes = useMemo(() => (['prelims', 'mains'] as const).filter(type => schedule.some(day => scheduleDayType(day) === type)), [schedule]);
+  const effectiveType = availableTypes.includes(scheduleType) || !availableTypes.length ? scheduleType : availableTypes[0];
+  const days = useMemo(() => sortSchedule(schedule.filter(day => scheduleDayType(day) === effectiveType)), [schedule, effectiveType]);
+  const allCategories = useMemo(() => [...new Set(days.flatMap(day => day.events.map(scheduleCategory)))], [days]);
+  const effectiveFilter = allCategories.includes(activeFilter) ? activeFilter : 'All';
+  const visibleDays = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return days.map(day => ({ ...day, events: day.events.filter(event =>
+      (effectiveFilter === 'All' || scheduleCategory(event) === effectiveFilter) &&
+      (!query || [event.title, event.venue, event.location, event.description, event.speaker].some(value => value?.toLowerCase().includes(query)))
+    ) }));
+  }, [days, searchQuery, effectiveFilter]);
+  const eventLookup = useMemo(() => new Map(events.map(event => [String(event.id), event])), [events]);
+  const hasResults = visibleDays.some(day => day.events.length);
+  const filtering = !!searchQuery.trim() || effectiveFilter !== 'All';
+  const eligibleDays = filtering && hasResults ? visibleDays.filter(day => day.events.length) : visibleDays;
+  const activeDay = eligibleDays.some(day => day.id === selectedDay) ? selectedDay : eligibleDays[0]?.id;
 
-  // Update timer every minute
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 60000);
-    return () => clearInterval(interval);
+    const update = () => setNow(new Date());
+    const interval = window.setInterval(update, 60_000);
+    window.addEventListener('focus', update);
+    return () => { window.clearInterval(interval); window.removeEventListener('focus', update); };
   }, []);
-
-  const [scheduleType, setScheduleType] = useState<'prelims' | 'mains'>('prelims');
-
-  // Set default type from site settings once loaded
   useEffect(() => {
-    if (siteSettings?.default_schedule_type) {
-      setScheduleType(siteSettings.default_schedule_type);
-    }
-  }, [siteSettings]);
+    if (!typeChosen.current && siteSettings?.default_schedule_type) setScheduleType(siteSettings.default_schedule_type);
+  }, [siteSettings?.default_schedule_type]);
+  const chooseType = (type: ScheduleType) => { typeChosen.current = true; setScheduleType(type); setSelectedDay(null); setActiveFilter('All'); setSearchQuery(''); };
+  const clearFilters = () => { setSearchQuery(''); setActiveFilter('All'); };
+  const download = async () => {
+    if (downloadBusy.current || !days.some(day => day.events.length)) return;
+    downloadBusy.current = true; setDownloading(true); setDownloadError('');
+    try { const { downloadSchedulePdf } = await import('../utils/schedulePdf'); await downloadSchedulePdf(days, effectiveType, homepageSettings?.brand_year || BRAND_YEAR); }
+    catch { setDownloadError('The PDF could not download. Please try again.'); }
+    finally { downloadBusy.current = false; setDownloading(false); }
+  };
 
-  const allCategories = useMemo(() => {
-    const categories = new Set(['All']);
-    schedule.forEach(day => {
-      day.events?.forEach((event: any) => {
-        if (event.category) categories.add(event.category);
-        else if (event.type) categories.add(event.type);
-      });
-    });
-    return Array.from(categories);
-  }, [schedule]);
-
-  const filteredGroupedByDate = useMemo(() => {
-    // 1. Filter by type (prelims/mains)
-    const typeFiltered = schedule.filter((day: any) => (day.schedule_type || 'prelims') === scheduleType);
-
-    return typeFiltered.map(day => {
-      // 2. Filter events by search and category
-      const filteredEvents = (day.events || []).filter((ev: any) => {
-        const matchesSearch = !searchQuery || 
-          ev.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          ev.venue?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          ev.description?.toLowerCase().includes(searchQuery.toLowerCase());
-        
-        const matchesCategory = activeFilter === 'All' || 
-          ev.category === activeFilter || 
-          ev.type === activeFilter;
-
-        return matchesSearch && matchesCategory;
-      });
-
-      // 3. Sort events by time
-      const sortedEvents = [...filteredEvents].sort((a: any, b: any) => {
-        return parseTimeValue(a.time) - parseTimeValue(b.time);
-      });
-
-      return {
-        ...day,
-        events: sortedEvents.map((ev: any) => ({
-          ...ev,
-          parsedDateRange: getEventTimeRange(ev),
-          // Check if registration is closed for linked events (logic preserved)
-          registration_closed: (() => {
-            const linkedEvent = ev.event_id ? events.find((e: any) => e.id === ev.event_id) : null;
-            if (!linkedEvent) return false;
-            if (linkedEvent.registration_open) return false;
-            
-            const le = linkedEvent as any;
-            if (le.registration_timer_enabled && le.registration_opens_at) {
-              const openAt = new Date(le.registration_opens_at).getTime();
-              const nowMs = Date.now();
-              if (!isNaN(openAt) && nowMs >= openAt) {
-                if (le.registration_closes_at) {
-                  const closesAt = new Date(le.registration_closes_at).getTime();
-                  if (!isNaN(closesAt) && nowMs >= closesAt) return true;
-                }
-                return false;
-              }
-            }
-            return true;
-          })()
-        }))
-      };
-    }).filter(day => day.events.length > 0 || !searchQuery); // Only show empty days if not searching
-  }, [schedule, scheduleType, searchQuery, activeFilter, events]);
-
-  return (
-    <div className="min-h-screen pt-24 pb-12 px-4 md:px-8 bg-[#0a0a0a] text-indigo-50 selection:bg-indigo-600 selection:text-white">
-      
-      {/* Background Glows */}
-      <div className="fixed top-20 left-10 w-96 h-96 bg-indigo-950/20 rounded-full mix-blend-multiply filter blur-[120px] opacity-40 animate-pulse pointer-events-none"></div>
-      <div className="fixed bottom-20 right-10 w-[30rem] h-[30rem] bg-violet-950/10 rounded-full mix-blend-multiply filter blur-[150px] opacity-30 animate-pulse pointer-events-none" style={{ animationDelay: '1.5s' }}></div>
-
-      <div className="max-w-7xl mx-auto relative z-10">
-        <ScheduleHeader 
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          activeFilter={activeFilter}
-          setActiveFilter={setActiveFilter}
-          allCategories={allCategories}
-        />
-
-        <ScheduleTypeToggle 
-          scheduleType={scheduleType}
-          setScheduleType={setScheduleType}
-        />
-
-        <div className="space-y-20">
-          {filteredGroupedByDate.map((day, idx) => (
-            <DailyScheduleSection 
-              key={day.id || idx}
-              day={day}
-              idx={idx}
-              now={now}
-            />
-          ))}
+  return <div className="rico-schedule-page">
+    <SEO title="Rico Schedule — Event Timeline" description="Plan your Ricorrenza. Explore the daily lineup, event times, venues and live festival schedule." canonical="https://ricorrenza.fun/schedule" />
+    <ScheduleHeader days={days.length} />
+    <div className="rico-schedule-content">
+      {scheduleError && !!days.length && <p className="rico-schedule-error" role="alert">The latest schedule could not load. Showing the last available programme. <button type="button" onClick={() => void refreshAll()}>Try again</button></p>}
+      {!!days.length && <div className="rico-schedule-days" role="group" aria-label="Schedule days">{days.map((day, index) => <button key={day.id} type="button" aria-pressed={activeDay === day.id} aria-controls={`schedule-day-${day.id}`} onClick={() => setSelectedDay(day.id)}><CalendarIcon aria-hidden="true" /><strong>{day.day || `Day ${index + 1}`}</strong><span>{scheduleDate(day.date, true)}</span></button>)}</div>}
+      <div className="rico-schedule-toolbar">
+        {availableTypes.length > 1 ? <ScheduleTypeToggle scheduleType={effectiveType} setScheduleType={chooseType} available={availableTypes} /> : <p className="rico-schedule-toolbar__label">The festival, hour by hour<span>All times in IST</span></p>}
+        <div className="rico-schedule-filters">
+          <label className="rico-schedule-search"><MagnifyingGlassIcon aria-hidden="true" /><span className="sr-only">Search events and venues</span><input type="search" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="Find an event or venue" /></label>
+          <label className="rico-schedule-category"><MixerHorizontalIcon aria-hidden="true" /><span className="sr-only">Filter schedule by category</span><select value={effectiveFilter} onChange={event => setActiveFilter(event.target.value)}><option value="All">All categories</option>{allCategories.map(category => <option key={category} value={category}>{category}</option>)}</select></label>
         </div>
-        
-        {filteredGroupedByDate.length === 0 && (
-          <div className="text-center py-40 border-2 border-white/5 bg-white/5 rounded-[4rem] backdrop-blur-3xl relative overflow-hidden group">
-            <div className="absolute inset-0 bg-indigo-600/5 animate-pulse"></div>
-            <AlertCircle size={80} className="mx-auto text-indigo-900/40 mb-8" />
-            <h3 className="text-4xl text-white font-black italic uppercase tracking-tighter mb-4">
-              Schedule Not Found
-            </h3>
-            <p className="text-gray-500 max-w-md mx-auto leading-relaxed">
-              We couldn't find any events matching your request. Try adjusting your filters or search terms.
-            </p>
-          </div>
-        )}
-
-        <style>{`
-          @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(40px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          .animate-fade-in-up {
-            animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-          }
-          .nebula-theme {
-            text-shadow: 0 0 30px rgba(99, 102, 241, 0.05);
-          }
-        `}</style>
       </div>
+      {pending ? <div className="rico-schedule-grid" aria-label="Loading schedule" aria-busy="true">{[0, 1].map(index => <div className="rico-schedule-skeleton" key={index}><span /><i /><i /><i /><i /></div>)}</div>
+        : days.length && (!filtering || hasResults) ? <div className="rico-schedule-grid">{visibleDays.map((day, idx) => <DailyScheduleSection key={day.id} day={day} idx={idx} now={now} selected={day.id === activeDay} eventLookup={eventLookup} />)}</div>
+        : <section className="rico-schedule-empty" aria-live="polite"><CalendarIcon aria-hidden="true" /><h2>{filtering ? 'No matching events' : disconnected ? 'The timeline is a moment away' : 'The stage is being set'}</h2><p>{filtering ? 'Try another event name, venue or category.' : disconnected ? 'The schedule could not load. Please try again.' : 'The festival schedule will appear here as dates and events are announced.'}</p>{filtering ? <button type="button" onClick={clearFilters}>Clear filters</button> : disconnected && <button type="button" onClick={() => void refreshAll()}>Try again<ReloadIcon aria-hidden="true" /></button>}</section>}
+      <footer className="rico-schedule-footer">
+        <button type="button" className="rico-schedule-download" disabled={downloading || !days.some(day => day.events.length)} onClick={() => void download()}><DownloadIcon aria-hidden="true" />{downloading ? 'Preparing your PDF…' : 'Download full schedule (PDF)'}</button>
+        <span className="rico-schedule-ornament" aria-hidden="true"><i /><img src="/images/ricorrenza-medical-mark.svg" alt="" width="42" height="45" /><i /></span>
+        <p>* Timings are tentative and subject to change.</p>
+      </footer>
+      {downloadError && <p className="rico-schedule-error" role="alert">{downloadError}</p>}
     </div>
-  );
+  </div>;
 };
-

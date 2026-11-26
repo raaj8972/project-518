@@ -5,7 +5,7 @@ import { useToast } from '../../components/ToastProvider';
 import {
   Shield, UserPlus, Trash2, Search, Lock, Edit, X,
   Globe, RefreshCcw, ChevronDown,
-  Calendar, Image, Star, ClipboardList, GraduationCap, Users, Key,
+  Calendar, Image, Star, ClipboardList, GraduationCap, Key,
   Crown
 } from 'lucide-react';
 import { AdminService } from '../../lib/adminService';
@@ -22,7 +22,6 @@ const ALL_PERMISSIONS: [string, string, React.ComponentType<{ className?: string
   ['can_sponsors',        'Sponsors',        Star],
   ['can_registrations',   'Registrations',   ClipboardList],
   ['can_faculty',         'Faculty',         GraduationCap],
-  ['can_chief_guests',    'Chief Guests',    Users],
   ['can_security_passes', 'Security',        Key],
 ];
 

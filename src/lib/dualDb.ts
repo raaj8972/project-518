@@ -162,6 +162,7 @@ export interface ReadOptions {
   table: string;
   select?: string;
   eq?: [string, any];
+  eqAll?: [string, unknown][];
   gt?: [string, any];
   in?: [string, any[]];
   is?: [string, any];
@@ -198,6 +199,7 @@ export async function dualRead(opts: ReadOptions): Promise<ReadResult> {
       let q = supabase.from(table).select(opts.select || '*', { count: count || undefined });
       
       if (eq)     q = q.eq(eq[0], eq[1]);
+      for (const [column, value] of opts.eqAll || []) q = q.eq(column, value);
       if (gt)     q = q.gt(gt[0], gt[1]);
       if (inOpts) q = q.in(inOpts[0], inOpts[1]);
       if (is)     q = q.is(is[0], is[1]);

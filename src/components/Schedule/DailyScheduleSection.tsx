@@ -1,44 +1,24 @@
-import React from 'react';
-import { AlertCircle } from 'lucide-react';
+import type { Event } from '../../types/data';
+import { scheduleDate, scheduleDayTitle, type TimelineDay } from '../../utils/schedulePresentation';
 import EventCard from './EventCard';
 
-type Props = {
-  day: any;
+export default function DailyScheduleSection({ day, idx, now, selected, eventLookup }: {
+  day: TimelineDay;
   idx: number;
   now: Date;
-};
-
-const DailyScheduleSection: React.FC<Props> = ({ day, idx, now }) => {
-  return (
-    <div
-      className="festival-schedule-day animate-fade-in-up"
-      style={{ animationDelay: `${idx * 150}ms`, animationFillMode: 'both' }}
-    >
-      <div className="flex items-center gap-6 mb-10">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-[#ff3333]/20"></div>
-        <div className="text-center">
-          <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase mb-1">
-            {day.date}
-          </h2>
-          <p className="text-[#ff3333] text-sm font-bold tracking-[0.3em] uppercase">{day.day}</p>
-        </div>
-        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-white/10 to-[#ff3333]/20"></div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-        {day.events?.length === 0 ? (
-          <div className="col-span-full p-20 text-center bg-white/5 border border-white/10 rounded-3xl">
-             <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-             <p className="text-gray-500 font-medium tracking-wide">No events found for this criteria.</p>
-          </div>
-        ) : (
-          day.events?.map((event: any, evIdx: number) => (
-            <EventCard key={event.id || evIdx} event={event} currentTime={now} />
-          ))
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default DailyScheduleSection;
+  selected: boolean;
+  eventLookup: Map<string, Event>;
+}) {
+  return <section id={`schedule-day-${day.id}`} className="rico-schedule-day" data-selected={selected} aria-labelledby={`schedule-day-heading-${day.id}`}>
+    <svg className="rico-schedule-day__frame" viewBox="0 0 760 450" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M2 29 25 6H62L69 1H685L694 9H732L758 31V424L735 448H25L2 424Z" />
+      <path d="M7 42V31L28 11H65L73 6H682M8 418l24 24H730l22-23V35l-21-21h-38M12 29v14m-5-4 26-25M748 418l-22 20" />
+    </svg>
+    <header className={`rico-schedule-day__header rico-schedule-day__header--${idx % 2 ? 'portal' : 'flag'}`}>
+      <span className="rico-schedule-day__badge">{day.day || `Day ${idx + 1}`}</span>
+      <div><h2 id={`schedule-day-heading-${day.id}`}>{scheduleDate(day.date)}</h2><p>{scheduleDayTitle(day) || (idx === 0 ? 'Opening day' : 'The festival continues')}</p></div>
+    </header>
+    {day.events.length ? <ol className="rico-schedule-day__events">{day.events.map(event => <EventCard key={event.id} event={event} date={day.date} currentTime={now} linkedEvent={event.event_id ? eventLookup.get(String(event.event_id)) : undefined} />)}</ol>
+      : <p className="rico-schedule-day__empty">No events to display for this day yet.</p>}
+  </section>;
+}

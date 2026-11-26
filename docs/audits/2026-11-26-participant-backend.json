@@ -1,0 +1,109 @@
+{
+  "date": "2026-11-26",
+  "scope": [
+    "event registrations",
+    "band auditions",
+    "PDF branding",
+    "email providers"
+  ],
+  "migration": {
+    "file": "20261126150000_participant_operations.sql",
+    "appliedToLinkedSupabase": true
+  },
+  "countsBefore": {
+    "auditions": 0,
+    "email_logs": 0,
+    "entry_passes": 3,
+    "registrations": 8
+  },
+  "countsAfter": {
+    "auditions": 0,
+    "email_logs": 0,
+    "entry_passes": 3,
+    "registrations": 8
+  },
+  "liveRoleChecks": {
+    "auditionAccess": true,
+    "brandingUpsert": true,
+    "emailLogCompatibility": true,
+    "formSettingsWriteGuard": true,
+    "linkedPassSync": true,
+    "publicSubmissionPendingOnly": true,
+    "registrationAccess": true,
+    "revokedUsersDenied": true,
+    "rolledBack": true,
+    "unrelatedUsersDenied": true
+  },
+  "brandingFiles": [
+    {
+      "name": "watermark.png",
+      "ok": true,
+      "format": "png",
+      "width": 500,
+      "height": 500,
+      "bytes": 193018
+    },
+    {
+      "name": "stamp.png",
+      "ok": true,
+      "format": "png",
+      "width": 1414,
+      "height": 2000,
+      "bytes": 192026
+    },
+    {
+      "name": "email_stamp.png",
+      "ok": true,
+      "format": "png",
+      "width": 2475,
+      "height": 3500,
+      "bytes": 558059
+    }
+  ],
+  "registrationQueries": {
+    "combinedAndQuotedSearch": true,
+    "count": 0
+  },
+  "providers": {
+    "smtp": {
+      "configured": true,
+      "host": "smtp.gmail.com",
+      "port": 465,
+      "secure": true,
+      "authentication": false,
+      "errorCode": "EAUTH",
+      "responseCode": 535
+    },
+    "resend": {
+      "domain": "ricorrenza.fun",
+      "status": "failed",
+      "records": [
+        {
+          "type": "TXT",
+          "name": "resend._domainkey.ricorrenza.fun",
+          "providerStatus": "failed",
+          "present": false,
+          "matchesExpected": false
+        },
+        {
+          "type": "MX",
+          "name": "send.ricorrenza.fun",
+          "providerStatus": "failed",
+          "present": false,
+          "matchesExpected": false
+        },
+        {
+          "type": "TXT",
+          "name": "send.ricorrenza.fun",
+          "providerStatus": "failed",
+          "present": false,
+          "matchesExpected": false
+        }
+      ]
+    },
+    "configuredSenderDomain": "gmail.com",
+    "domainDns": "NXDOMAIN"
+  },
+  "deliveryTest": "No email messages sent; SMTP authentication and read-only Resend/DNS checks only.",
+  "hostedEnvironment": "Netlify CLI is not linked; deployed server environment could not be inspected."
+}

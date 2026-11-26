@@ -12,9 +12,10 @@ const policies: Record<string, Policy> = {
   'passkey-list': 'admin', 'passkey-delete': 'admin',
   'add-admin-user': 'owner', 'update-admin-email': 'owner', 'grant-permissions': 'owner',
   'install-heartbeat': 'owner', 'heartbeat': 'admin', 'heartbeat_fallback': 'admin',
-  'index-faces-batch': ['gallery'], 'sync-google-drive': ['gallery'], 'sync-drive-folders': ['gallery'],
+  'sync-google-drive': ['gallery'], 'sync-drive-folders': ['gallery'],
   'notify-event-update': ['events', 'registrations'],
   'send-confirmation': ['registrations'], 'send-rejection': ['registrations'], 'send-custom-email': ['registrations'],
+  'email-provider-status': ['registrations', 'auditions', 'events'],
   'update-form-settings': ['auditions', 'memberships', 'homebound'],
   'ai-extract-iqmg-roster': ['student-system'],
   'ai-extract-events': ['events'], 'ai-generate-event': ['events'], 'ai-extract-schedule': ['schedule'],
@@ -24,11 +25,11 @@ const policies: Record<string, Policy> = {
   'get-event-candidates': ['events', 'registrations'], 'delete-r2-file': 'admin', 'get-r2-upload-url': 'admin',
 };
 const publicReads = new Set(['health', 'public-security-settings', 'image-proxy', 'drive-proxy']);
-const readRoutes = new Set([...publicReads, 'list-admin-users', 'broadcast-schedule']);
+const readRoutes = new Set([...publicReads, 'list-admin-users', 'broadcast-schedule', 'email-provider-status']);
 const json = (statusCode: number, error: string) => ({ statusCode, body: JSON.stringify({ error }), headers: { 'Content-Type': 'application/json' } });
 const privateHeaders = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
 const metered = new Set(['passkey-challenge', 'passkey-register', 'passkey-login', 'get-r2-upload-url',
-  'index-faces-batch', 'image-proxy', 'drive-proxy', 'notify-event-update', 'send-confirmation', 'send-rejection', 'send-custom-email', 'coordinator-ai-groups', 'broadcast-schedule']);
+  'image-proxy', 'drive-proxy', 'notify-event-update', 'send-confirmation', 'send-rejection', 'send-custom-email', 'email-provider-status', 'coordinator-ai-groups', 'broadcast-schedule']);
 
 async function rateLimit(name: string, event: any, client: any, userId = '') {
   if (!metered.has(name) && !name.startsWith('ai-')) return null;

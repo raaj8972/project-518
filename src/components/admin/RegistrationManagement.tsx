@@ -1,15 +1,20 @@
+import { ParticipantEmailStatus } from './participants/ParticipantEmailStatus';
+import { CalendarIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, Cross2Icon, DownloadIcon, EnvelopeClosedIcon, EyeOpenIcon, FileTextIcon, MixerHorizontalIcon, ReloadIcon, ResetIcon, TrashIcon, MagnifyingGlassIcon, DotsHorizontalIcon } from '@radix-ui/react-icons';
+import { ParticipantMenu, ParticipantMetrics, ParticipantStatus, ParticipantLoading, participantDate, participantInitials } from './participants/ParticipantWorkspace';
+import { EventAdminDialog } from './events/EventAdminDialog';
+import ParticipationVerification from '../shared/ParticipationVerification';
+import '../../styles/EventsAdmin.css';
 import { PrivateMediaImage, PrivateMediaLink } from '../PrivateMedia';
-import { prepareBrandAsset } from '../../utils/brandAsset';
+import { usePdfBranding } from '../../hooks/usePdfBranding';
 import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { createPortal } from 'react-dom';
 import {
-  Users, Search, Filter, Download, Trash2, RefreshCw,
+  Users, Filter, Download, RefreshCw,
   CheckCircle, XCircle,
-  Mail, Eye, Loader2, Sparkles, AlertTriangle,
-  Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw, ChevronDown, Settings, MailCheck, MailX,
-  Pencil, Check, ChevronLeft, ChevronRight, Image as ImageIcon
+  Mail, Eye, Loader2, AlertTriangle,
+  X,
+  Pencil, Check, Image as ImageIcon
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
@@ -23,25 +28,12 @@ import {
   exportRegistrationsToPDF,
   exportRegistrationsByEvent as exportRegistrationsByEventPDF,
   exportRegistrationsByStatus as exportRegistrationsByStatusPDF,
-  preloadWatermark,
   exportEventSummaryPDF
 } from '../../utils/pdfExport';
-import { encryptData } from '../../utils/encryption';
 import ExportPdfButton from '../../components/ExportPdfButton';
 import { useRegistrations } from '../../hooks/useRegistrations';
 import { useRegistrationMutations } from '../../hooks/useRegistrationMutations';
 import { getAccessibleEventWhatsAppGroups } from '../../services/eventWhatsAppGroups';
-
-const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 16 16"
-    fill="currentColor"
-    className={className}
-  >
-    <path d="M13.601 2.326A7.854 7.854 0 0 0 6.979 0c-4.308 0-7.796 3.486-7.796 7.793 0 1.954.555 3.553 1.548 4.903l-1.649 4.8 4.92-1.286a7.862 7.862 0 0 0 3.799.965h.004c4.316 0 7.805-3.48 7.805-7.797 0-2.127-.836-4.13-2.316-5.597zM2.844 13.568l.492-1.656-.25-.398A6.366 6.366 0 0 1 1.768 7.793c0-3.522 2.87-6.393 6.398-6.393 1.708 0 3.315.666 4.524 1.874a6.37 6.37 0 0 1 1.87 4.529c0 3.526-2.87 6.397-6.398 6.397-1.618 0-3.14-.627-4.314-1.78l-.348-.344-1.656.492zm9.143-3.072c-.225-.113-1.333-.658-1.54-.733-.207-.075-.357-.112-.508.113-.15.225-.585.733-.717.883-.131.15-.262.169-.487.056-.225-.113-.951-.35-1.812-1.118-.673-.6-1.125-1.34-1.257-1.565-.131-.225-.014-.347.098-.459.1-.1.225-.262.338-.393.113-.131.15-.225.225-.375.075-.15.038-.281-.019-.393-.056-.113-.508-1.224-.696-1.673-.183-.44-.37-.38-.508-.38l-.432-.008c-.15 0-.394.056-.6.281-.207.225-.788.769-.788 1.875 0 1.106.806 2.175.919 2.325.113.15 3.169 4.838 7.675 6.788 1.071.464 1.907.557 2.56.486.726-.079 1.333-.543 1.521-1.066.188-.524.188-.973.131-1.067-.056-.094-.207-.169-.431-.281z"/>
-  </svg>
-);
 
 // Inline Editable Row Component for details
 const EditableRow = ({
@@ -207,9 +199,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     coordinatorMode && coordinatorEventId ? String(coordinatorEventId) : 'all'
   );
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedBatch, setSelectedBatch] = useState<string>('all');
-  const [selectedEmailStatus, setSelectedEmailStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'active' | 'trash'>('active');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -218,8 +208,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     registrations,
     count,
     isLoading: isRegistrationsLoading,
+    error: registrationsError,
     refresh: refreshRegistrations,
-    stats
+    stats, statsLoading, statsError, refreshStats
   } = useRegistrations({
     page,
     pageSize,
@@ -227,7 +218,6 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       event: selectedEvent,
       status: selectedStatus,
       batch: selectedBatch,
-      category: selectedCategory,
       search: searchTerm,
       viewMode
     }
@@ -258,7 +248,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     active: false, title: '', progress: 0
   });
 
-  const [emailProvider, setEmailProvider] = useState<'smtp' | 'resend'>('smtp'); // Default to Hostinger
+  const [emailProvider, setEmailProvider] = useState<'smtp' | 'resend'>('smtp'); // Uses the configured server-side SMTP host
   const [expandedRegistration, setExpandedRegistration] = useState<string | null>(null);
   useEffect(() => {
     if (coordinatorMode) return;
@@ -271,6 +261,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   }, [location.search, coordinatorMode]);
   const [emailLogs, setEmailLogs] = useState<any[]>([]); // New state for logs
   const [logsLoading, setLogsLoading] = useState(false);
+  const [logsError, setLogsError] = useState(false);
+  const [emailStatusState, setEmailStatusState] = useState<'checking' | 'ready' | 'unavailable'>('checking');
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   // Email status tracking: map registration ID to email sent status
@@ -285,27 +277,21 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       push({ message: result.message, type: 'success' });
     }
   };
-  const [pdfExporting] = useState(false);
   const [showColumnModal, setShowColumnModal] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<RegistrationColumnKey[]>(EXPORT_PRESETS.full);
   const [exportPreset, setExportPreset] = useState<string>('full');
-  const [splitThreshold, setSplitThreshold] = useState<number>(0);
   // Institution visibility controls (moved from Site Settings into Registration admin)
   const [registrationInstitutionVisible, setRegistrationInstitutionVisible] = useState<boolean>(true);
   const [registrationInstitutionOptional, setRegistrationInstitutionOptional] = useState<boolean>(false);
   const [savingRegSettings, setSavingRegSettings] = useState<boolean>(false);
   // Selection for bulk actions
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  useEffect(() => { setSelectedIds(new Set()); }, [page, pageSize, selectedEvent, selectedStatus, selectedBatch, searchTerm, viewMode]);
   // const [bulkDeleting, setBulkDeleting] = useState(false);
   // User option: exclude Registration ID and College/Institution specifically for PDF
   const [pdfExcludeIdCollege, setPdfExcludeIdCollege] = useState<boolean>(true);
-  // Date range filter
-  const [dateFrom, setDateFrom] = useState<string>('');
-  const [dateTo, setDateTo] = useState<string>('');
-  const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
 
-  // UI state for collapsible sections
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  // Report settings
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
   // Compute duplicates map:
@@ -344,16 +330,10 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     return dupes;
   }, [registrations]);
 
-  // Watermark state
-  const [watermarkUrl, setWatermarkUrl] = useState<string | null>(null);
-  const [watermarkDataUrl, setWatermarkDataUrl] = useState<string | null>(null);
-  const [watermarkUploading, setWatermarkUploading] = useState(false);
-
-  // Stamp state (bottom corner image)
-  const [stampUrl, setStampUrl] = useState<string | null>(null);
-  const [stampDataUrl, setStampDataUrl] = useState<string | null>(null);
-  const [stampUploading, setStampUploading] = useState(false);
-
+  const branding = usePdfBranding();
+  const { watermarkUrl, watermarkDataUrl, stampUrl, stampDataUrl } = branding;
+  const watermarkUploading = branding.busy === 'watermark';
+  const stampUploading = branding.busy === 'stamp';
   // Map registration.id -> preview URL (signed if bucket is private)
   const [photoPreviewMap, setPhotoPreviewMap] = useState<Record<string, string>>({});
 
@@ -413,157 +393,10 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     return () => { cancelled = true; };
   }, [rowsNeedingPreview]);
 
-  // Load existing watermark from Supabase storage on mount
-  useEffect(() => {
-    const loadWatermark = async () => {
-      try {
-        const { data } = await supabase.storage
-          .from('pdf-watermarks')
-          .getPublicUrl('watermark.png');
-
-        if (data?.publicUrl) {
-          // Check if file actually exists by fetching it
-          const response = await fetch(data.publicUrl, { method: 'HEAD' });
-          if (response.ok) {
-            setWatermarkUrl(data.publicUrl);
-            const dataUrl = await preloadWatermark(data.publicUrl);
-            setWatermarkDataUrl(dataUrl);
-          }
-        }
-      } catch (error) {
-        console.log('No existing watermark found');
-      }
-    };
-    loadWatermark();
-  }, []);
-
-  // Handle watermark upload to Supabase
-  const handleWatermarkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setWatermarkUploading(true);
-      const result = await adminDataService.uploadBrandAsset(file, 'watermark');
-      if (result.success && result.url) {
-        setWatermarkUrl(result.url);
-        const preloaded = await preloadWatermark(result.url);
-        setWatermarkDataUrl(preloaded);
-        push({ message: result.message, type: 'success' });
-      } else {
-        push({ message: result.message, type: 'error' });
-      }
-    } catch (error: any) {
-      push({ message: error.message || 'Upload failed', type: 'error' });
-    } finally {
-      setWatermarkUploading(false);
-      e.target.value = '';
-    }
-  };
-
-  // Delete watermark from Supabase
-  const handleWatermarkDelete = async () => {
-    if (!confirm('Remove the watermark?')) return;
-    try {
-      const result = await adminDataService.deleteBrandAsset('watermark');
-      if (result.success) {
-        setWatermarkUrl(null);
-        setWatermarkDataUrl(null);
-        push({ message: result.message, type: 'success' });
-      } else {
-        push({ message: result.message, type: 'error' });
-      }
-    } catch (error: any) {
-      push({ message: error.message || 'Delete failed', type: 'error' });
-    }
-  };
-
-  // Load existing stamp from Supabase storage on mount
-  useEffect(() => {
-    const loadStamp = async () => {
-      try {
-        // Try PNG first, then SVG
-        for (const ext of ['png', 'svg']) {
-          const { data } = await supabase.storage
-            .from('pdf-watermarks')
-            .getPublicUrl(`stamp.${ext}`);
-
-          if (data?.publicUrl) {
-            const response = await fetch(data.publicUrl, { method: 'HEAD' });
-            if (response.ok) {
-              setStampUrl(data.publicUrl);
-              const dataUrl = await preloadWatermark(data.publicUrl);
-              setStampDataUrl(dataUrl);
-              break;
-            }
-          }
-        }
-      } catch (error) {
-        console.log('No existing stamp found');
-      }
-    };
-    loadStamp();
-  }, []);
-
-  // Handle stamp upload to Supabase
-  const handleStampUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.includes('png') && !file.type.includes('svg')) {
-      push({ message: 'Please upload a PNG or SVG file for the stamp.', type: 'error' });
-      return;
-    }
-
-    try {
-      setStampUploading(true);
-
-      const uploadFile = await prepareBrandAsset(file);
-      const ext = 'png';
-      const fileName = `stamp.${ext}`;
-
-      const { error } = await supabase.storage
-        .from('pdf-watermarks')
-        .upload(fileName, uploadFile, {
-          cacheControl: '0',
-          upsert: true
-        });
-
-      if (error) throw error;
-
-      const { data } = await supabase.storage
-        .from('pdf-watermarks')
-        .getPublicUrl(fileName);
-
-      if (data?.publicUrl) {
-        const urlWithCacheBuster = `${data.publicUrl}?t=${Date.now()}`;
-        setStampUrl(urlWithCacheBuster);
-        const dataUrl = await preloadWatermark(urlWithCacheBuster);
-        setStampDataUrl(dataUrl);
-        push({ message: 'Stamp uploaded successfully!', type: 'success' });
-      }
-    } catch (error) {
-      console.error('Stamp upload failed:', error);
-      push({ message: 'Failed to upload stamp.', type: 'error' });
-    } finally {
-      setStampUploading(false);
-    }
-  };
-
-  // Delete stamp from Supabase
-  const handleStampDelete = async () => {
-    try {
-      await supabase.storage
-        .from('pdf-watermarks')
-        .remove(['stamp.png', 'stamp.svg']);
-
-      setStampUrl(null);
-      setStampDataUrl(null);
-      push({ message: 'Stamp removed.', type: 'success' });
-    } catch (error) {
-      console.error('Failed to delete stamp:', error);
-    }
-  };
+  const handleWatermarkUpload = (event: React.ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void branding.upload('watermark', file); };
+  const handleStampUpload = (event: React.ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void branding.upload('stamp', file); };
+  const handleWatermarkDelete = () => { if (confirm('Remove the PDF watermark?')) void branding.remove('watermark'); };
+  const handleStampDelete = () => { if (confirm('Remove the shared PDF stamp?')) void branding.remove('stamp'); };
 
   // Server-side filtered via useRegistrations hook
   const filteredRegistrations = registrations;
@@ -575,29 +408,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     [events]
   );
 
-  const uniqueCategories = useMemo(() =>
-    // Use event categories context or derive from events if needed. Using events context is safer.
-    // If eventCategories context is empty, we can't show them, but that's fine.
-    // Assuming eventCategories is available in useData.
-    // Actually useData returns eventCategories.
-    (useData().eventCategories || []).map(c => c.name).sort(),
-    [useData().eventCategories]
-  );
-
   const batchOptions = useMemo(() => {
     const fromSettings = (siteSettings as any)?.registration_participant_types || [];
     const fromRegs = Array.from(new Set(registrations.map(r => r.participant_type).filter(Boolean)));
     return Array.from(new Set([...fromSettings, ...fromRegs])).sort();
   }, [siteSettings, registrations]);
-
-  // Use event.current_registrations for counts
-  const eventCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    events.forEach(e => {
-      counts[e.title] = e.current_registrations || 0;
-    });
-    return counts;
-  }, [events]);
 
   // Selection helpers
   const toggleRowSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -643,6 +458,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   // Fetch email status for all registrations (not just filtered ones to avoid flicker)
   // EXTRACTED: Made fetchEmailStatuses a stable function to call after sending emails
   const fetchEmailStatuses = React.useCallback(async () => {
+    setEmailStatusState('checking');
     try {
       // Use all registrations from current view mode (active or trash)
       const sourceRegs = registrations;
@@ -669,7 +485,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       });
 
       setEmailStatusMap(statusMap);
+      setEmailStatusState('ready');
     } catch (err) {
+      setEmailStatusState('unavailable');
       console.error('Error fetching email statuses:', err);
     }
   }, [registrations]);
@@ -813,6 +631,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const fetchEmailLogs = async (regId: string) => {
     setLogsLoading(true);
     setEmailLogs([]);
+    setLogsError(false);
     try {
         const { data } = await dualRead({
             table: 'email_logs',
@@ -821,6 +640,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         });
         setEmailLogs(data || []);
     } catch (err) {
+        setLogsError(true);
         console.error('Error fetching logs:', err);
     } finally {
         setLogsLoading(false);
@@ -887,6 +707,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
           setEmailSending(true);
           let sent = 0;
           let failed = 0;
+          const failedIds = new Set<string>();
+          let failureMessage = '';
 
           // Send sequentially to avoid rate limits/timeouts
           for (const reg of recipients) {
@@ -905,13 +727,13 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                       })
                  });
                  if (res.ok) sent++;
-                 else failed++;
-              }
+                 else { failed++; failedIds.add(reg.id); const result = await res.json().catch(() => ({})); failureMessage = result.error || 'Email delivery failed.'; }
+              } else { failed++; failedIds.add(reg.id); failureMessage = 'Your session expired. Sign in again before sending.'; }
           }
 
-          push({ message: `Emails sent: ${sent}, Failed: ${failed}`, type: sent > 0 ? 'success' : 'error' });
-          setShowEmailModal(false);
-          setSelectedIds(new Set()); // Deselect after sending
+          push({ message: failed ? `Sent ${sent}; ${failed} failed. ${failureMessage}` : `Emails sent: ${sent}`, type: failed ? 'error' : 'success' });
+          if (!failed) setShowEmailModal(false);
+          setSelectedIds(failedIds);
 
       } catch (e: any) {
           console.error(e);
@@ -972,39 +794,6 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         setIsSendingRejection(false);
     }
   };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]';
-      case 'rejected':
-        return 'bg-red-500/20 text-red-200 border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]';
-      default:
-        return 'bg-amber-500/20 text-amber-200 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return <CheckCircle size={14} className="text-emerald-400" />;
-      case 'rejected':
-        return <XCircle size={14} className="text-red-400" />;
-      default:
-        return <AlertTriangle size={14} className="text-amber-400" />;
-    }
-  };
-
-  const exportOptions = [
-    {
-      label: 'Send Email',
-      action: handleOpenEmailModal
-    },
-    ...(!coordinatorMode ? [{
-      label: 'Export All Registrations',
-      action: () => exportRegistrationsToExcel(filteredRegistrations, 'all-registrations.xlsx')
-    }] : [])
-  ];
 
   const handleBulkApprove = async () => {
     // Determine which items are pending in the current view
@@ -1133,7 +922,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   }, [selectedColumns, pdfExcludeIdCollege, registrationInstitutionVisible]);
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
+    <div className="participants-workspace">
       {processingState.active && (
         <ProcessingOverlay
           title={processingState.title}
@@ -1142,249 +931,36 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         />
       )}
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-        <div>
-          <h2 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
-            <div className="w-2 h-10 bg-gradient-to-b from-indigo-500 to-purple-600 rounded-full shadow-[0_0_20px_rgba(99,102,241,0.5)]" />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/70">Registrations</span>
-            <div className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 tracking-widest uppercase ml-2">v3.0</div>
-          </h2>
-          <p className="text-gray-400 mt-2 font-medium flex items-center gap-2">
-            <Users size={14} className="text-indigo-400" />
-            Strategic participant lifecycle management
-          </p>
-        </div>
+      <ParticipantMetrics value={selectedStatus} loading={isRegistrationsLoading || statsLoading || !!statsError} onChange={status => { setSelectedStatus(status); setPage(1); }} items={[
+        { id: 'all', label: 'Total registrations', count: stats.total, description: 'Across all festival events' },
+        { id: 'pending', label: 'Pending review', count: stats.pending, description: 'Ready for your decision' },
+        { id: 'approved', label: 'Approved', count: stats.approved, description: 'Confirmed participants' },
+        { id: 'rejected', label: 'Rejected', count: stats.rejected, description: 'Applications not approved' },
+      ]} />
 
-        <div className="flex items-center gap-3">
-             <div className="flex items-center bg-black/20 backdrop-blur-sm rounded-xl px-3 py-1 border border-white/10">
-                <span className="text-xs text-gray-500 mr-2 font-bold uppercase tracking-wide">Email Via:</span>
-                <div className="relative">
-                  <select
-                      value={emailProvider}
-                      onChange={(e) => setEmailProvider(e.target.value as any)}
-                      className="bg-transparent border-none py-2 pr-6 text-sm focus:ring-0 cursor-pointer text-white appearance-none font-medium"
-                  >
-                      <option value="smtp" className="bg-gray-900">Hostinger (SMTP)</option>
-                      <option value="resend" className="bg-gray-900">Resend API</option>
-                  </select>
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                  </div>
-                </div>
-             </div>
+      <div className="participants-tools">
+        <div><h2>{viewMode === 'trash' ? 'Deleted registrations' : 'Event registrations'}<small>{isRegistrationsLoading ? '…' : count}</small></h2><p>Review entries, manage teams and keep participants informed.</p></div>
+        <div className="participants-tools__actions">
+          <button className="participants-button is-quiet" onClick={() => { setViewMode(viewMode === 'trash' ? 'active' : 'trash'); setPage(1); }}><TrashIcon />{viewMode === 'trash' ? 'Active entries' : `Trash${stats.trash ? ` (${stats.trash})` : ''}`}</button>
+          <ParticipantMenu label="More" icon={<DotsHorizontalIcon />}>
+            <button onClick={() => void refreshRegistrations()}><ReloadIcon />Refresh entries</button>
+            {viewMode === 'active' && <><button disabled={isMutating || !filteredRegistrations.some(r => r.status === 'pending')} onClick={handleBulkApprove}><CheckIcon />Approve pending on this page</button><button disabled={isMutating || !filteredRegistrations.some(r => r.status === 'pending')} onClick={handleBulkReject}><Cross2Icon />Reject pending on this page</button></>}
+            <button onClick={handleCopyPhones}><FileTextIcon />Copy phone numbers on this page</button>
+            <hr /><button onClick={() => setShowAdvancedSettings(true)}><MixerHorizontalIcon />Report & registration settings</button>
+          </ParticipantMenu>
+          <ParticipantMenu label="Export" icon={<DownloadIcon />} disabled={branding.loading || !!branding.busy || !!branding.error}>
+            <small>Export {filteredRegistrations.length} entries on this page</small>
+            <button disabled={!filteredRegistrations.length} onClick={() => exportRegistrationsToExcel(filteredRegistrations, 'registrations.xlsx')}><DownloadIcon />Excel spreadsheet</button>
+            <ExportPdfButton rows={filteredRegistrations} columns={pdfColumns} filename={`registrations-${new Date().toISOString().slice(0,10)}.pdf`} className="participants-export-pdf" watermarkDataUrl={watermarkDataUrl} stampDataUrl={stampDataUrl} />
+            <button disabled={!filteredRegistrations.length} onClick={() => exportRegistrationsToPDF(filteredRegistrations as any, { title: 'Event Registrations Report', watermarkDataUrl: watermarkDataUrl || undefined, stampDataUrl: stampDataUrl || undefined })}><FileTextIcon />Detailed PDF with teams</button>
+            <hr /><button disabled={!filteredRegistrations.length} onClick={() => exportEventSummaryPDF(filteredRegistrations as any, { watermarkDataUrl: watermarkDataUrl || undefined, stampDataUrl: stampDataUrl || undefined })}><FileTextIcon />Event summary</button>
+            <button disabled={!filteredRegistrations.length} onClick={() => exportRegistrationsByEventPDF(filteredRegistrations as any, watermarkDataUrl, stampDataUrl)}><CalendarIcon />PDF grouped by event</button>
+            <button disabled={!filteredRegistrations.length} onClick={() => exportRegistrationsByStatusPDF(filteredRegistrations as any, watermarkDataUrl, stampDataUrl)}><CheckIcon />PDF grouped by status</button>
+          </ParticipantMenu>
         </div>
       </div>
 
-          {/* Quick Actions Bar */}
-          <div className="rico-glass-card rounded-[2rem] p-5 border-white/5 shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-[80px] group-hover:bg-indigo-500/10 transition-colors duration-700"></div>
-            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-3 md:gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Status Actions (only in active view) */}
-                {viewMode !== 'trash' && (
-                  <>
-                    <button
-                      onClick={handleBulkApprove}
-                      disabled={isMutating}
-                      className={`flex items-center bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20 text-sm font-bold ${isMutating ? 'opacity-70 cursor-not-allowed':''}`}
-                      title="Approve all pending registrations in current filter"
-                    >
-                      <CheckCircle size={16} className="mr-2" />
-                      Approve All Pending
-                    </button>
-
-                    <button
-                      onClick={handleBulkReject}
-                      disabled={isMutating}
-                      className={`flex items-center bg-red-600 text-white px-4 py-2.5 rounded-xl hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 text-sm font-bold ${isMutating ? 'opacity-70 cursor-not-allowed':''}`}
-                      title="Reject all pending registrations in current filter"
-                    >
-                      <XCircle size={16} className="mr-2" />
-                      Reject All Pending
-                    </button>
-
-                  </>
-                )}
-
-                {/* Selection Actions */}
-                <button
-                  onClick={handleOpenEmailModal}
-                  disabled={selectedIds.size === 0}
-                  className={`flex items-center bg-blue-600 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/20 text-sm font-bold ${selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-500'}`}
-                  title={`Send email to ${selectedIds.size} selected registration(s)`}
-                >
-                  <Send size={16} className="mr-2" />
-                  Email Selected ({selectedIds.size})
-                </button>
-
-
-                {viewMode === 'trash' ? (
-                  <button
-                    onClick={doBulkRestore}
-                    disabled={isMutating || selectedIds.size === 0}
-                    className={`flex items-center bg-emerald-600 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-600/20 text-sm font-bold ${isMutating || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-emerald-500'}`}
-                    title="Restore selected registrations"
-                  >
-                    <RotateCcw size={16} className="mr-2" />
-                    Restore Selected
-                  </button>
-                ) : null}
-
-                <button
-                  onClick={doBulkDelete}
-                  disabled={isMutating || selectedIds.size === 0}
-                  className={`flex items-center bg-red-700 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-red-700/20 text-sm font-bold ${isMutating || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-600'}`}
-                  title={viewMode === 'trash' ? "Permanently delete selected registrations" : "Move selected to trash"}
-                >
-                  {isMutating ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  ) : <Trash2 size={16} className="mr-2" />}
-                  {viewMode === 'trash' ? 'Delete Forever' : 'Delete Selected'}
-                </button>
-              </div>
-
-              {/* View Toggle */}
-              <button
-                onClick={() => setViewMode(prev => prev === 'active' ? 'trash' : 'active')}
-                className={`flex items-center px-4 py-2.5 rounded-xl transition-all text-sm font-bold shadow-lg ${
-                  viewMode === 'trash'
-                    ? 'bg-gray-700 text-white hover:bg-gray-600 shadow-gray-700/20'
-                    : 'bg-white/10 text-gray-300 hover:bg-white/15 shadow-white/5'
-                }`}
-              >
-                <Trash2 size={16} className="mr-2" />
-                {viewMode === 'trash' ? 'Back to Active' : `Trash (${stats?.trash || 0})`}
-              </button>
-            </div>
-          </div>
-
-        {/* Export Section */}
-        <div className="rico-glass-card rounded-[2rem] p-8 border-white/5 relative overflow-hidden group">
-          <div className="absolute bottom-0 right-0 w-80 h-80 bg-purple-500/5 rounded-full translate-x-1/3 translate-y-1/4 blur-[100px] group-hover:bg-purple-500/10 transition-colors duration-700"></div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-            <h3 className="text-lg font-bold text-white flex items-center gap-3">
-              <div className="p-2 bg-purple-500/20 rounded-lg">
-                  <Download size={20} className="text-purple-400" />
-              </div>
-              Export ({filteredRegistrations.length} records)
-            </h3>
-            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={toggleSelectAllVisible}
-                className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
-              />
-              <span className="font-bold group-hover:text-white transition-colors">Select All Visible</span>
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* PDF Exports */}
-            <div className="space-y-3">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">PDF Exports</div>
-              <div className="flex flex-col gap-2">
-                <ExportPdfButton
-                  rows={filteredRegistrations}
-                  columns={pdfColumns}
-                  filename={`registrations-${new Date().toISOString().slice(0,10)}.pdf`}
-                  className={`flex items-center justify-center bg-red-600 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/20 text-sm font-bold ${pdfExporting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-500 hover:-translate-y-0.5'}`}
-                  watermarkDataUrl={watermarkDataUrl}
-                  stampDataUrl={stampDataUrl}
-                />
-                <button
-                  onClick={() => exportRegistrationsToPDF(filteredRegistrations as any, {
-                    filename: `registrations-detailed-${new Date().toISOString().slice(0,10)}.pdf`,
-                    title: 'Event Registrations Report',
-                    watermarkDataUrl: (window as any).watermarkDataUrl,
-                    stampDataUrl: (window as any).stampDataUrl
-                  })}
-                  className="flex items-center justify-center bg-purple-600 text-white px-4 py-2.5 rounded-xl hover:bg-purple-500 transition-all shadow-lg shadow-purple-600/20 text-sm font-bold hover:-translate-y-0.5"
-                  title="Detailed PDF with team information"
-                >
-                  <FileText size={16} className="mr-2" />
-                  Detailed Report
-                </button>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => exportEventSummaryPDF(filteredRegistrations as any, {
-                      watermarkDataUrl: (window as any).watermarkDataUrl,
-                      stampDataUrl: (window as any).stampDataUrl
-                    })}
-                    className="flex items-center justify-center bg-teal-600 text-white px-3 py-2 rounded-xl hover:bg-teal-500 transition-all shadow-lg shadow-teal-600/20 text-sm font-bold"
-                    title="Summary: Count & Batch breakdown"
-                  >
-                    <FileText size={14} className="mr-1" />
-                    Summary
-                  </button>
-                  <button
-                    onClick={() => exportRegistrationsByEventPDF(filteredRegistrations as any, (window as any).watermarkDataUrl, (window as any).stampDataUrl)}
-                    className="flex items-center justify-center bg-blue-600 text-white px-3 py-2 rounded-xl hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20 text-sm font-bold"
-                    title="PDF grouped by event"
-                  >
-                    <FileText size={14} className="mr-1" />
-                    By Event
-                  </button>
-                  <button
-                    onClick={() => exportRegistrationsByStatusPDF(filteredRegistrations as any, (window as any).watermarkDataUrl, (window as any).stampDataUrl)}
-                    className="flex items-center justify-center bg-indigo-600 text-white px-3 py-2 rounded-xl hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 text-sm font-bold"
-                    title="PDF grouped by status"
-                  >
-                    <FileText size={14} className="mr-1" />
-                    By Status
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Excel Exports */}
-            <div className="space-y-3">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Excel Exports</div>
-              <div className="flex flex-col gap-2">
-                {exportOptions.map((option, index) => (
-                  <button
-                    key={index}
-                    onClick={option.action}
-                    className={`flex items-center justify-center ${option.label === 'Send Email' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'} text-white px-4 py-2.5 rounded-xl transition-all shadow-lg text-sm font-bold hover:-translate-y-0.5`}
-                  >
-                    {option.label === 'Send Email' ? <Send size={16} className="mr-2" /> : <Download size={16} className="mr-2" />}
-                    {option.label}
-                  </button>
-                ))}
-
-                <button
-                  onClick={handleCopyPhones}
-                  className="flex items-center justify-center bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-cyan-600/20 text-sm font-bold hover:-translate-y-0.5"
-                  title="Copy valid phone numbers to clipboard"
-                >
-                  <Phone size={16} className="mr-2" />
-                  Copy Phones
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Advanced Settings */}
-        <div className="rico-glass-card rounded-[2rem] p-8 border-white/5 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-[80px] group-hover:bg-amber-500/10 transition-colors duration-700"></div>
-          <button
-            onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-            className="flex items-center justify-between w-full text-left group"
-          >
-            <h3 className="text-lg font-bold text-white flex items-center gap-3">
-              <div className="p-2 bg-purple-500/20 rounded-lg group-hover:bg-purple-500/30 transition-colors">
-                  <Settings size={20} className="text-purple-400" />
-              </div>
-              Advanced Settings
-            </h3>
-            <ChevronDown
-              size={20}
-              className={`text-gray-500 transition-transform group-hover:text-gray-400 ${showAdvancedSettings ? 'rotate-180' : ''}`}
-            />
-          </button>
-
-          {showAdvancedSettings && (
+      {showAdvancedSettings && <EventAdminDialog title="Report & registration settings" eyebrow="Participant workspace" onClose={() => setShowAdvancedSettings(false)}><div className="participants-workspace participants-legacy p-6">
             <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-white/5 pt-6">
               {/* PDF Watermark & Stamp */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1416,7 +992,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                       accept="image/png,image/svg+xml"
                       onChange={handleWatermarkUpload}
                       className="hidden"
-                      disabled={watermarkUploading}
+                      disabled={branding.loading || !!branding.busy || !!branding.error}
                     />
                   </label>
                 </div>
@@ -1449,7 +1025,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                       accept="image/png,image/svg+xml"
                       onChange={handleStampUpload}
                       className="hidden"
-                      disabled={stampUploading}
+                      disabled={branding.loading || !!branding.busy || !!branding.error}
                     />
                   </label>
                 </div>
@@ -1546,759 +1122,52 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </div>
               )}
             </div>
-          )}
+
+        <label className="participants-field"><span>Email provider</span><select value={emailProvider} onChange={event => setEmailProvider(event.target.value as 'smtp' | 'resend')}><option value="smtp">Configured SMTP</option><option value="resend">Resend API</option></select></label>
+        <ParticipantEmailStatus />
+      </div></EventAdminDialog>}
+      {showColumnModal && <EventAdminDialog title="PDF report columns" eyebrow="Report settings" onClose={() => setShowColumnModal(false)} footer={<><button className="event-admin-button is-secondary" onClick={() => setShowColumnModal(false)}>Close</button><button className="event-admin-button is-primary" onClick={() => { setShowColumnModal(false); push({ message: 'Report columns updated.', type: 'success' }); }}>Apply columns</button></>}><div className="participants-dialog-body"><div className="participants-template-tabs" aria-label="Column presets">{Object.keys(EXPORT_PRESETS).map(preset => <button key={preset} aria-pressed={exportPreset === preset} onClick={() => handlePresetChange(preset)}>{preset}</button>)}</div><div className="participants-column-grid">{REGISTRATION_COLUMNS.map(column => <label key={column.key}><input type="checkbox" checked={selectedColumns.includes(column.key as RegistrationColumnKey)} onChange={() => toggleColumn(column.key as RegistrationColumnKey)} /><span>{column.header}</span></label>)}</div></div></EventAdminDialog>}
+      {branding.error && <div className="participants-error" role="alert"><span>{branding.error}</span><button className="participants-button" onClick={() => void branding.reload()}>Retry branding</button></div>}
+      {statsError && <div className="participants-error" role="alert"><span>{statsError}</span><button className="participants-button" onClick={() => void refreshStats()}>Retry totals</button></div>}
+      {registrationsError && <div className="participants-error" role="alert"><span>Registrations could not load. {registrationsError}</span><button className="participants-button" onClick={() => void refreshRegistrations()}><ReloadIcon />Retry</button></div>}
+      <section className="participants-catalog" aria-label="Event registration entries" aria-busy={isRegistrationsLoading}>
+        <div className="participants-filters">
+          <label className="participants-field"><span>Search registrations</span><div className="participants-search"><MagnifyingGlassIcon /><input type="search" placeholder="Search name, email, phone or ID…" value={searchTerm} onChange={event => { setSearchTerm(event.target.value); setPage(1); }} /></div></label>
+          <label className="participants-field"><span>Event</span><select value={selectedEvent} disabled={coordinatorMode} onChange={event => { setSelectedEvent(event.target.value); setPage(1); }}><option value="all">All events</option>{uniqueEvents.map(title => <option key={title} value={title}>{title}</option>)}</select></label>
+          <label className="participants-field"><span>Batch</span><select value={selectedBatch} onChange={event => { setSelectedBatch(event.target.value); setPage(1); }}><option value="all">All batches</option>{batchOptions.map(batch => <option key={batch} value={batch}>{batch}</option>)}</select></label>
+          <label className="participants-field"><span>Status</span><select value={selectedStatus} onChange={event => { setSelectedStatus(event.target.value); setPage(1); }}><option value="all">All statuses</option><option value="pending">Pending review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></label>
         </div>
-
-      {showColumnModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="rico-glass-card rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 border-white/10">
-            <div className="flex justify-between items-center border-b border-white/5 pb-4">
-              <h3 className="text-xl font-black text-white tracking-tight">Select Columns</h3>
-              <button onClick={() => setShowColumnModal(false)} className="text-gray-400 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {Object.keys(EXPORT_PRESETS).map(p => (
-                <button
-                  key={p}
-                  onClick={() => handlePresetChange(p)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-                    exportPreset === p
-                      ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                  }`}
-                >{p}</button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-              {REGISTRATION_COLUMNS.map(col => (
-                <label key={col.key} className="flex items-center space-x-3 text-sm p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
-                  <div className="relative flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedColumns.includes(col.key as RegistrationColumnKey)}
-                      onChange={() => toggleColumn(col.key as RegistrationColumnKey)}
-                      className="peer appearance-none w-4 h-4 rounded border-2 border-gray-500 checked:bg-indigo-500 checked:border-indigo-500 transition-colors"
-                    />
-                    <Check size={10} className="absolute text-white pointer-events-none left-0.5 opacity-0 peer-checked:opacity-100 transition-opacity" />
-                  </div>
-                  <span className="text-gray-300 group-hover:text-white transition-colors font-medium">{col.header}</span>
-                </label>
-              ))}
-            </div>
-
-            <div className="flex items-center space-x-3 pt-2 border-t border-white/5">
-              <label className="text-sm font-medium text-gray-400">PDF Split Threshold</label>
-              <input
-                type="number"
-                min={0}
-                value={splitThreshold}
-                onChange={e => setSplitThreshold(parseInt(e.target.value)||0)}
-                className="w-20 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-              />
-              <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">(0 = no split)</span>
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-2">
-              <button
-                onClick={() => setShowColumnModal(false)}
-                className="px-4 py-2 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => { setShowColumnModal(false); push({ message: 'Column selection updated.', type: 'success'}); }}
-                className="px-6 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 transition-all hover:scale-105"
-              >
-                Apply Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Active Filters Display */}
-      {(selectedEvent !== 'all' || selectedStatus !== 'all' || selectedBatch !== 'all' || selectedCategory !== 'all' || selectedEmailStatus !== 'all' || dateFrom || dateTo || searchTerm || showDuplicatesOnly) && (
-        <div className="rico-glass-card border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-[500px] h-full bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none" />
-          <div className="flex flex-wrap items-center gap-2 relative z-10">
-            <span className="text-sm font-bold text-indigo-300 flex items-center shadow-indigo-500/50 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]">
-              <Filter size={16} className="mr-2" />
-              Active Filters:
-            </span>
-
-            {selectedEvent !== 'all' && (
-              <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
-                <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Event:</span> {selectedEvent}
-                <button onClick={() => setSelectedEvent('all')} className="ml-1 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors">
-                  <X size={14} />
-                </button>
-              </span>
-            )}
-
-            {selectedStatus !== 'all' && (
-              <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
-                <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Status:</span> {selectedStatus}
-                <button onClick={() => setSelectedStatus('all')} className="ml-1 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors">
-                  <X size={14} />
-                </button>
-              </span>
-            )}
-
-            {selectedBatch !== 'all' && (
-              <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
-                <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Batch:</span> {selectedBatch}
-                <button onClick={() => setSelectedBatch('all')} className="ml-1 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors">
-                  <X size={14} />
-                </button>
-              </span>
-            )}
-
-            {selectedCategory !== 'all' && (
-              <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
-                <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Category:</span> {selectedCategory}
-                <button onClick={() => setSelectedCategory('all')} className="ml-1 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors">
-                  <X size={14} />
-                </button>
-              </span>
-            )}
-
-            {dateFrom && (
-              <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
-                <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">From:</span> {dateFrom}
-                <button onClick={() => setDateFrom('')} className="ml-1 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors">
-                  <X size={14} />
-                </button>
-              </span>
-            )}
-
-            {dateTo && (
-              <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
-                <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">To:</span> {dateTo}
-                <button onClick={() => setDateTo('')} className="ml-1 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors">
-                  <X size={14} />
-                </button>
-              </span>
-            )}
-
-            {searchTerm && (
-              <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
-                <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Search:</span> "{searchTerm}"
-                <button onClick={() => setSearchTerm('')} className="ml-1 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors">
-                  <X size={14} />
-                </button>
-              </span>
-            )}
-
-            {selectedEmailStatus !== 'all' && (
-              <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
-                <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Email:</span> {selectedEmailStatus === 'sent' ? '✓ Sent' : '✗ Not Sent'}
-                <button onClick={() => setSelectedEmailStatus('all')} className="ml-1 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors">
-                  <X size={14} />
-                </button>
-              </span>
-            )}
-
-            {showDuplicatesOnly && (
-              <span className="inline-flex items-center gap-1 bg-amber-500/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-amber-200 border border-amber-500/20 hover:border-amber-400/50 transition-all shadow-lg">
-                <AlertTriangle size={14} className="text-amber-400" />
-                Duplicates Only
-                <button onClick={() => setShowDuplicatesOnly(false)} className="ml-1 hover:text-red-400 p-0.5 rounded-full hover:bg-amber-500/20 transition-colors">
-                  <X size={14} />
-                </button>
-              </span>
-            )}
-
-            <button
-              onClick={() => {
-                setSelectedEvent('all');
-                setSelectedStatus('all');
-                setSelectedBatch('all');
-                setSelectedCategory('all');
-                setSelectedEmailStatus('all');
-                setSearchTerm('');
-                setDateFrom('');
-                setDateTo('');
-                setShowDuplicatesOnly(false);
-              }}
-              className="ml-auto inline-flex items-center gap-1 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-gray-400 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border border-white/5 hover:border-red-500/30"
-            >
-              <X size={14} />
-              Clear All
-            </button>
-          </div>
-
-          <div className="mt-3 text-xs font-medium text-gray-500 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-            Showing <span className="text-white font-bold">{filteredRegistrations.length}</span> of <span className="text-gray-400">{registrations.length}</span> registrations
-          </div>
-        </div>
-      )}
-
-      {/* Filters Section - Reorganized */}
-      <div className="rico-glass-card rounded-[2.5rem] p-8 border-white/5 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[100px]"></div>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-black text-white flex items-center tracking-tight">
-            <div className="p-2 bg-indigo-500/20 rounded-lg mr-3 shadow-[0_0_15px_rgba(99,102,241,0.3)]">
-              <Filter size={20} className="text-indigo-400" />
-            </div>
-            Smart Filters
-          </h3>
-          <div className="text-sm font-bold text-gray-400 bg-white/5 px-3 py-1 rounded-full border border-white/5 shadow-inner">
-            {filteredRegistrations.length} results found
-          </div>
-        </div>
-
-        {/* Quick Filters */}
-        <div className="space-y-4 relative z-10">
-          <div className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Primary Filters</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            {/* Event Filter */}
-            <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">Event</label>
-              <div className="relative group">
-                <Filter className="absolute left-3 top-3.5 w-4 h-4 text-indigo-400 pointer-events-none group-hover:scale-110 transition-transform" />
-                <select
-                  value={selectedEvent}
-                  onChange={(e) => setSelectedEvent(e.target.value)}
-                  disabled={coordinatorMode}
-                  className={`w-full pl-10 pr-4 py-3 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none transition-all shadow-lg ${coordinatorMode ? 'bg-white/5 cursor-not-allowed opacity-60' : 'bg-black/20 hover:bg-black/30'}`}
-                >
-                  <option value="all" className="bg-[#050508] text-gray-300">All Events ({registrations.length})</option>
-                  {uniqueEvents.map(eventTitle => (
-                    <option key={eventTitle} value={eventTitle} className="bg-[#050508] text-white">
-                      {eventTitle} ({eventCounts[eventTitle] || 0})
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-3.5 pointer-events-none text-gray-500">
-                  <ChevronDown size={14} />
-                </div>
-              </div>
-            </div>
-
-            {/* Status Filter */}
-            <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">Status</label>
-              <div className="relative group">
-                <Filter className="absolute left-3 top-3.5 w-4 h-4 text-indigo-400 pointer-events-none group-hover:scale-110 transition-transform" />
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-white/10 rounded-xl bg-black/20 hover:bg-black/30 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none transition-all shadow-lg"
-                >
-                  <option value="all" className="bg-[#050508] text-gray-300">All Statuses</option>
-                  <option value="pending" className="bg-[#050508] text-amber-400">Pending</option>
-                  <option value="approved" className="bg-[#050508] text-emerald-400">Approved</option>
-                  <option value="rejected" className="bg-[#050508] text-red-400">Rejected</option>
-                </select>
-                <div className="absolute right-3 top-3.5 pointer-events-none text-gray-500">
-                  <ChevronDown size={14} />
-                </div>
-              </div>
-            </div>
-
-            {/* Batch Filter */}
-            <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">Batch</label>
-              <div className="relative group">
-                <Users className="absolute left-3 top-3.5 w-4 h-4 text-indigo-400 pointer-events-none group-hover:scale-110 transition-transform" />
-                <select
-                  value={selectedBatch}
-                  onChange={(e) => setSelectedBatch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-white/10 rounded-xl bg-black/20 hover:bg-black/30 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none transition-all shadow-lg"
-                >
-                  <option value="all" className="bg-[#050508] text-gray-300">All Batches</option>
-                  {batchOptions.map(batch => (
-                    <option key={batch} value={batch} className="bg-[#050508] text-white">
-                      {batch}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-3.5 pointer-events-none text-gray-500">
-                  <ChevronDown size={14} />
-                </div>
-              </div>
-            </div>
-
-            {/* Email Status Filter */}
-            {viewMode === 'active' && (
-              <div>
-                <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">Email Status</label>
-                <div className="relative group">
-                  <Mail className="absolute left-3 top-3.5 w-4 h-4 text-indigo-400 pointer-events-none group-hover:scale-110 transition-transform" />
-                  <select
-                    value={selectedEmailStatus}
-                    onChange={(e) => setSelectedEmailStatus(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-white/10 rounded-xl bg-black/20 hover:bg-black/30 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none transition-all shadow-lg"
-                  >
-                    <option value="all" className="bg-[#050508] text-gray-300">All Emails</option>
-                    <option value="sent" className="bg-[#050508] text-emerald-400">✓ Email Sent</option>
-                    <option value="not-sent" className="bg-[#050508] text-amber-400">✗ Email Not Sent</option>
-                  </select>
-                  <div className="absolute right-3 top-3.5 pointer-events-none text-gray-500">
-                    <ChevronDown size={14} />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Search */}
-            <div className={`${viewMode !== 'active' ? 'md:col-span-1' : ''}`}>
-              <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">Search</label>
-              <div className="relative group">
-                <Search className="absolute left-3 top-3.5 w-4 h-4 text-indigo-400 pointer-events-none group-hover:scale-110 transition-transform" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Name, email, college..."
-                  className="w-full pl-10 pr-4 py-3 border border-white/10 rounded-xl bg-black/20 hover:bg-black/30 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-lg"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Advanced Filters - Collapsible */}
-        <div className="border-t border-white/5 pt-4 mt-4 relative z-10">
-          <button
-            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className="flex items-center justify-between w-full text-left text-sm font-bold text-gray-400 hover:text-white transition-colors group p-2 rounded-lg hover:bg-white/5"
-          >
-            <span className="flex items-center">
-              <Settings size={16} className="mr-2 group-hover:rotate-45 transition-transform duration-500" />
-              Advanced Filters
-            </span>
-            <ChevronDown
-              size={16}
-              className={`transition-transform duration-300 ${showAdvancedFilters ? 'rotate-180 text-indigo-400' : ''}`}
-            />
-          </button>
-
-          {showAdvancedFilters && (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
-              {/* Category Filter */}
-              <div>
-                <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">Category</label>
-                <div className="relative group">
-                  <Filter className="absolute left-3 top-3.5 w-4 h-4 text-gray-500 pointer-events-none" />
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-white/10 rounded-xl bg-black/20 hover:bg-black/30 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none transition-all"
-                  >
-                    <option value="all" className="bg-[#050508] text-gray-300">All Categories</option>
-                    {uniqueCategories.map(category => (
-                      <option key={category} value={category} className="bg-[#050508] text-white">
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3 top-3.5 pointer-events-none text-gray-500">
-                    <ChevronDown size={14} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Date From */}
-              <div>
-                <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">From Date</label>
-                <div className="relative group">
-                  <Calendar className="absolute left-3 top-3.5 w-4 h-4 text-gray-500 pointer-events-none" />
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    className="w-full pl-10 pr-3 py-3 border border-white/10 rounded-xl bg-black/20 hover:bg-black/30 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all [color-scheme:dark]"
-                  />
-                </div>
-              </div>
-
-              {/* Date To */}
-              <div>
-                <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">To Date</label>
-                <div className="relative group">
-                  <Calendar className="absolute left-3 top-3.5 w-4 h-4 text-gray-500 pointer-events-none" />
-                  <input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    className="w-full pl-10 pr-3 py-3 border border-white/10 rounded-xl bg-black/20 hover:bg-black/30 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all [color-scheme:dark]"
-                  />
-                </div>
-              </div>
-
-              {/* Duplicates Filter */}
-              <div className="md:col-span-3">
-                <label className={`inline-flex items-center space-x-3 px-4 py-3 rounded-xl border transition-all cursor-pointer w-full md:w-auto ${showDuplicatesOnly ? 'bg-amber-500/10 border-amber-500/30' : 'bg-black/20 border-white/5 hover:bg-black/30'}`}>
-                  <div className="relative flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={showDuplicatesOnly}
-                      onChange={(e) => setShowDuplicatesOnly(e.target.checked)}
-                      className="peer appearance-none w-5 h-5 border-2 border-gray-500 rounded checked:bg-amber-500 checked:border-amber-500 focus:ring-2 focus:ring-amber-500/50 transition-colors"
-                    />
-                    <CheckCircle className="absolute w-4 h-4 text-white hidden peer-checked:block pointer-events-none left-0.5" />
-                  </div>
-                  <span className="flex items-center text-sm font-medium text-gray-300">
-                    <AlertTriangle size={16} className={`mr-2 ${showDuplicatesOnly ? 'text-amber-400' : 'text-gray-500'}`} />
-                    <span className={showDuplicatesOnly ? 'text-amber-200 font-bold' : ''}>Show Duplicates Only</span>
-                    <span className="ml-2 text-xs text-gray-500 font-normal hidden sm:inline">(Same email/phone per event)</span>
-                  </span>
-                </label>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Statistics Cards - Enhanced & Responsive */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Registrations */}
-        <div className="rico-glass-card rounded-[2rem] p-8 border-blue-500/10 hover:border-blue-500/30 transition-all duration-500 group relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
-          <div className="flex items-center justify-between mb-2">
-            <Users className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />
-            <div className="text-3xl md:text-4xl font-bold text-blue-700">{filteredRegistrations.length}</div>
-          </div>
-          <div className="text-sm font-semibold text-gray-700">Total Registrations</div>
-          <div className="text-xs text-gray-600 mt-1">
-            {filteredRegistrations.length !== registrations.length && (
-              <span>of {registrations.length} total</span>
-            )}
-          </div>
-        </div>
-
-        {/* Pending */}
-        <div className="rico-glass-card rounded-[2rem] p-8 border-amber-500/10 hover:border-amber-500/30 transition-all duration-500 group relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
-          <div className="flex items-center justify-between mb-2">
-            <AlertTriangle className="w-6 h-6 md:w-8 md:h-8 text-amber-600" />
-            <div className="text-3xl md:text-4xl font-bold text-amber-700">
-              {filteredRegistrations.filter(r => r.status === 'pending').length}
-            </div>
-          </div>
-          <div className="text-sm font-semibold text-gray-700">Pending</div>
-          <div className="text-xs text-gray-600 mt-1">Awaiting approval</div>
-        </div>
-
-        {/* Approved */}
-        <div className="rico-glass-card rounded-[2rem] p-8 border-green-500/10 hover:border-green-500/30 transition-all duration-500 group relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
-          <div className="flex items-center justify-between mb-2">
-            <CheckCircle className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
-            <div className="text-3xl md:text-4xl font-bold text-green-700">
-              {filteredRegistrations.filter(r => r.status === 'approved').length}
-            </div>
-          </div>
-          <div className="text-sm font-semibold text-gray-700">Approved</div>
-          <div className="text-xs text-gray-600 mt-1">Confirmed participants</div>
-        </div>
-
-        {/* Rejected */}
-        <div className="rico-glass-card rounded-[2rem] p-8 border-red-500/10 hover:border-red-500/30 transition-all duration-500 group relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
-          <div className="flex items-center justify-between mb-2">
-            <XCircle className="w-6 h-6 md:w-8 md:h-8 text-red-600" />
-            <div className="text-3xl md:text-4xl font-bold text-red-700">
-              {filteredRegistrations.filter(r => r.status === 'rejected').length}
-            </div>
-          </div>
-          <div className="text-sm font-semibold text-gray-700">Rejected</div>
-          <div className="text-xs text-gray-600 mt-1">Not approved</div>
-        </div>
-      </div>
-
-      {/* Registrations List */}
-      <div className="rico-glass-card rounded-[2.5rem] border-white/5 overflow-hidden shadow-2xl">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-white/5">
-            <thead className="bg-white/5 backdrop-blur-sm border-b border-white/10">
-              <tr>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em] shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
-                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} className="rounded border-white/20 bg-black/40 text-indigo-500 focus:ring-indigo-500/50 shadow-inner" />
-                </th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em] shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
-                  Participant
-                </th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em] shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
-                  Event
-                </th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em] shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
-                  Batch
-                </th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em] shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
-                  Status
-                </th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em] shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
-                  {viewMode === 'trash' ? 'Deleted On' : 'Date'}
-                </th>
-                <th className="px-6 py-5 text-left text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em] shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filteredRegistrations.map((registration) => (
+        <div className="participants-result-bar"><span>{isRegistrationsLoading ? 'Loading entries…' : `${count} ${count === 1 ? 'registration' : 'registrations'}${viewMode === 'trash' ? ' in trash' : ''}`}<span aria-hidden="true"> · </span>Newest first</span><div>{(searchTerm || selectedEvent !== 'all' || selectedBatch !== 'all' || selectedStatus !== 'all') && <button className="participants-text-button" onClick={() => { setSearchTerm(''); if (!coordinatorMode) setSelectedEvent('all'); setSelectedBatch('all'); setSelectedStatus('all'); setPage(1); }}>Clear filters</button>}<span>Select entries for bulk actions</span></div></div>
+        {selectedIds.size > 0 && <div className="participants-selection"><span>{selectedIds.size} selected</span>{viewMode === 'active' ? <button className="participants-button" onClick={handleOpenEmailModal}><EnvelopeClosedIcon />Email selected</button> : <button className="participants-button" disabled={isMutating} onClick={doBulkRestore}><ResetIcon />Restore selected</button>}<button className="participants-button is-danger" disabled={isMutating} onClick={doBulkDelete}><TrashIcon />{viewMode === 'trash' ? 'Delete permanently' : 'Move to trash'}</button><button className="participants-icon" aria-label="Clear selection" onClick={() => setSelectedIds(new Set())}><Cross2Icon /></button></div>}
+        {isRegistrationsLoading ? <ParticipantLoading label="Loading registrations" /> : !registrationsError && <div className="participants-table-scroll">
+          <table className="participants-table">
+            <thead><tr><th><input type="checkbox" aria-label="Select all registrations on this page" checked={allVisibleSelected} onChange={toggleSelectAllVisible} /></th><th>Participant</th><th>Event</th><th>Entry type / batch</th><th>Status</th><th className="participants-optional">{viewMode === 'trash' ? 'Deleted' : 'Registered'}</th><th><span className="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              {filteredRegistrations.map(registration => (
                 <React.Fragment key={registration.id}>
-                  <tr className="hover:bg-white/[0.05] transition-all duration-300 group/row border-b border-white/5">
-                    <td className="px-6 py-4 whitespace-nowrap align-top">
-                      <input type="checkbox" checked={selectedIds.has(registration.id)} onChange={() => toggleRowSelect(registration.id)} className="rounded border-white/10 bg-black/20 text-indigo-500 focus:ring-indigo-500/50" />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="mr-3">
-                          {((registration as any).photo_url) ? (
-                            <img
-                              src={(photoPreviewMap[registration.id] || (registration as any).photo_url) as any}
-                              alt={`${registration.full_name} photo`}
-                              className="w-10 h-10 rounded-full object-cover border border-gray-200"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-gray-200 border border-gray-200 flex items-center justify-center text-[10px] text-gray-500">
-                              N/A
-                            </div>
-                          )}
-                        </div>
-                          <div className="flex-1">
-                            <div className="text-sm font-bold text-white flex items-center gap-2">
-                              {registration.full_name}
-                              {duplicateIds.has(registration.id) && (
-                              <span
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 border border-orange-200"
-                                title="Duplicate registration detected for this event + email/phone"
-                              >
-                                Duplicate
-                              </span>
-                            )}
-                              {/* Email Status Indicator */}
-                              {registration.status === 'approved' && (() => {
-                                const emailStatus = emailStatusMap[registration.id];
-                                if (emailStatus?.sent) {
-                                  return (
-                                    <span
-                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700 border border-green-200"
-                                      title={`Confirmation email sent (${emailStatus.count} time${emailStatus.count > 1 ? 's' : ''})`}
-                                    >
-                                      <MailCheck size={10} />
-                                      Sent
-                                    </span>
-                                  );
-                                } else {
-                                  return (
-                                    <span
-                                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-500/10 text-orange-400 border border-orange-500/20 uppercase tracking-tighter"
-                                      title="Confirmation email not sent"
-                                    >
-                                      <MailX size={10} />
-                                      Pending Dispatch
-                                    </span>
-                                  );
-                                }
-                              })()}
-                          </div>
-                          <div className="text-sm text-gray-400 flex items-center">
-                            <Mail size={12} className="mr-1" />
-                            {registration.email}
-                          </div>
-                          <div className="text-sm text-gray-400 flex items-center">
-                            <Phone size={12} className="mr-1" />
-                            {registration.phone}
-                            {registration.phone && (() => {
-                              const eligible = registration.status === 'approved' && registration.is_active === true && !registration.deleted_at;
-                              const groupLink = eligible ? eventGroups[String(registration.event_id)] || '' : '';
-                              const firstName = registration.full_name.split(' ')[0];
-                              const eventTitle = registration.event_title;
-
-                              const message = eligible ? `Hello ${firstName}! 👋\n\nYour registration for *${eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR} is approved! 🎭\n\n${groupLink ? `Join the official WhatsApp group for important updates:\n\n${groupLink}` : 'The event group link will be shared soon.'}` : `Hello ${firstName}! This is regarding your registration for *${eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}. The WhatsApp group becomes available after coordinator approval.`;
-
-                              const cleanPhone = registration.phone.replace(/[^0-9]/g, '');
-                              const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-
-
-                              return (
-                                <a
-                                  href={whatsappUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="ml-2 inline-flex items-center text-green-600 hover:text-green-700 hover:bg-green-50 rounded px-1 transition-colors"
-                                  title={`Chat on WhatsApp${groupLink ? ' (Link included)' : ' (No link set)'}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <WhatsAppLogo className="w-4 h-4" />
-                                </a>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-bold text-white/90">{registration.event_title}</div>
-                      <div className="text-sm text-gray-500 flex items-center">
-                        <Building size={12} className="mr-1" />
-                        {registration.college}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {registration.is_team_registration ? 'Team' : 'Individual'}
-                      </div>
-                      {registration.is_team_registration && (
-                        <div className="text-sm text-gray-500">
-                          {registration.team_name} ({registration.total_members} members)
-                        </div>
-                      )}
-                      <div className="text-xs text-gray-500">{registration.participant_type}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(registration.status)}`}>
-                        {getStatusIcon(registration.status)}
-                        <span className="ml-1 capitalize">{registration.status}</span>
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {viewMode === 'trash' ? (
-                        <div>
-                          <div>{new Date((registration as any).deleted_at).toLocaleDateString()}</div>
-                          <div className="text-xs text-red-500">
-                            {Math.max(0, 7 - Math.floor((Date.now() - new Date((registration as any).deleted_at).getTime()) / (1000 * 60 * 60 * 24)))} days left
-                          </div>
-                        </div>
-                      ) : (
-                        new Date(registration.registration_date).toLocaleDateString()
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {viewMode === 'active' ? (
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => {
-                        const newId = expandedRegistration === registration.id ? null : registration.id;
-                        setExpandedRegistration(newId);
-                        if (newId) fetchEmailLogs(newId); // Fetch logs
-                      }}
-                      className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
-                      title="View Details"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    {registration.status === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => handleStatusUpdate(registration.id, 'approved')}
-                          className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
-                          title="Approve Registration"
-                        >
-                          <CheckCircle size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleRejectClick(registration.id)}
-                          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                          title="Reject Registration"
-                        >
-                          <XCircle size={16} />
-                        </button>
-                      </>
-                    )}
-                    {registration.status === 'approved' && (
-                        <button
-                            onClick={async () => {
-                                if (confirm(`Resend confirmation email to ${registration.full_name}?`)) {
-                                    const success = await sendApprovalEmail(registration);
-                                    if (success) {
-                                        push({ message: `Email sent to ${registration.full_name}`, type: 'success' });
-                                        // Refresh email status
-                                        const { data } = await dualRead({
-                                          table: 'email_logs',
-                                          eq: ['registration_id', registration.id]
-                                        });
-                                        if (data && data.length > 0) {
-                                          setEmailStatusMap(prev => ({
-                                            ...prev,
-                                            [registration.id]: {
-                                              sent: data.some((log: any) => log.status === 'sent'),
-                                              count: data.length
-                                            }
-                                          }));
-                                        }
-                                    } else {
-                                        push({ message: `Failed to send email to ${registration.full_name}`, type: 'error' });
-                                    }
-                                }
-                            }}
-                            className="text-indigo-600 hover:text-indigo-900 p-1 rounded hover:bg-indigo-50 transition-colors"
-                            title="Resend Confirmation Email"
-                        >
-                            <Send size={16} />
-                        </button>
-                    )}
-
-                    {registration.status !== 'pending' && isOwner && (
-                      <button
-                        onClick={() => handleStatusUpdate(registration.id, 'pending')}
-                        className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-100 transition-colors"
-                        title="Undo (Revert to Pending)"
-                      >
-                        <RotateCcw size={16} />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDeleteRegistration(registration.id)}
-                      disabled={deletingIds.has(registration.id)}
-                      className={`p-1 rounded transition-colors ${
-                        deletingIds.has(registration.id)
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-red-600 hover:text-red-900 hover:bg-red-50'
-                      }`}
-                      title="Move to Trash"
-                    >
-                      {deletingIds.has(registration.id) ? (
-                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        <Trash2 size={16} />
-                      )}
-                    </button>
-                  </div>
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleRestoreRegistration(registration.id)}
-                        className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
-                        title="Restore Registration"
-                      >
-                        <RotateCcw size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteRegistration(registration.id)}
-                        disabled={deletingIds.has(registration.id)}
-                        className={`p-1 rounded transition-colors ${
-                          deletingIds.has(registration.id)
-                            ? 'text-gray-400 cursor-not-allowed'
-                            : 'text-red-600 hover:text-red-900 hover:bg-red-50'
-                        }`}
-                        title="Permanently Delete"
-                      >
-                        {deletingIds.has(registration.id) ? (
-                          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <Trash2 size={16} />
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </td>
+                  <tr className={selectedIds.has(registration.id) ? 'is-selected' : ''}>
+                    <td><input type="checkbox" aria-label={`Select ${registration.full_name}`} checked={selectedIds.has(registration.id)} onChange={() => toggleRowSelect(registration.id)} /></td>
+                    <td><div className="participants-person"><span className="participants-avatar">{registration.photo_url ? <img src={photoPreviewMap[registration.id] || registration.photo_url} alt="" referrerPolicy="no-referrer" loading="lazy" /> : participantInitials(registration.full_name)}</span><div><button aria-expanded={expandedRegistration === registration.id} onClick={() => { const id = expandedRegistration === registration.id ? null : registration.id; setExpandedRegistration(id); if (id) void fetchEmailLogs(id); }}>{registration.full_name}</button><small>{registration.email}</small>{duplicateIds.has(registration.id) && <span className="participants-tag">Possible duplicate</span>}</div></div></td>
+                    <td><div className="participants-cell"><strong>{registration.event_title}</strong><small>{registration.college || 'Institution not provided'}</small></div></td>
+                    <td><div className="participants-cell"><strong>{registration.is_team_registration ? registration.team_name || 'Team entry' : 'Individual'}</strong><small>{registration.participant_type || '—'}{registration.is_team_registration ? ` · ${registration.total_members} members` : ''}</small></div></td>
+                    <td><div className="participants-cell"><ParticipantStatus status={registration.status} />{registration.status === 'approved' && <small>{emailStatusMap[registration.id]?.sent ? 'Confirmation sent' : emailStatusState === 'checking' ? 'Checking email…' : emailStatusState === 'unavailable' ? 'Email status unavailable' : 'Email not sent'}</small>}</div></td>
+                    <td className="participants-optional"><span className="whitespace-nowrap text-[10px]">{participantDate(viewMode === 'trash' ? registration.deleted_at : registration.registration_date || registration.created_at)}</span></td>
+                    <td><div className="participants-actions"><button className="participants-icon" aria-label={`View ${registration.full_name}`} aria-expanded={expandedRegistration === registration.id} onClick={() => { const id = expandedRegistration === registration.id ? null : registration.id; setExpandedRegistration(id); if (id) void fetchEmailLogs(id); }}><EyeOpenIcon /></button>
+                      {viewMode === 'active' ? <>
+                        {registration.status === 'pending' && <button className="participants-icon" aria-label={`Approve ${registration.full_name}`} disabled={isMutating} onClick={() => handleStatusUpdate(registration.id, 'approved')}><CheckIcon /></button>}
+                        <ParticipantMenu label={`Actions for ${registration.full_name}`} icon={<DotsHorizontalIcon />} compact>
+                          {registration.status === 'pending' && <button onClick={() => handleRejectClick(registration.id)}><Cross2Icon />Reject registration</button>}
+                          {registration.status === 'approved' && <button onClick={async () => { if (!confirm(`Resend confirmation email to ${registration.full_name}?`)) return; const result = await sendApprovalEmail(registration); if (result.success) { setEmailStatusMap(previous => ({ ...previous, [registration.id]: { sent: true, count: (previous[registration.id]?.count || 0) + 1 } })); } push({ message: result.success ? 'Confirmation email sent.' : 'Email could not be sent. Please retry.', type: result.success ? 'success' : 'error' }); }}><EnvelopeClosedIcon />Resend confirmation</button>}
+                          {registration.phone && <><a href={`tel:${registration.phone}`}>Call participant</a><a href={`https://wa.me/${registration.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${registration.full_name.split(' ')[0]}! This is regarding your registration for ${registration.event_title} at ${BRAND_NAME} ${BRAND_YEAR}.${registration.status === 'approved' && registration.is_active === true && !registration.deleted_at && eventGroups[String(registration.event_id)] ? ` Join the official event group: ${eventGroups[String(registration.event_id)]}` : ''}`)}`} target="_blank" rel="noopener noreferrer">Chat on WhatsApp</a></>}
+                          {registration.status !== 'pending' && isOwner && <button disabled={isMutating} onClick={() => handleStatusUpdate(registration.id, 'pending')}><ResetIcon />Return to pending</button>}
+                          <hr /><button disabled={deletingIds.has(registration.id)} onClick={() => handleDeleteRegistration(registration.id)}><TrashIcon />Move to trash</button>
+                        </ParticipantMenu>
+                      </> : <><button className="participants-icon" aria-label={`Restore ${registration.full_name}`} disabled={isMutating} onClick={() => handleRestoreRegistration(registration.id)}><ResetIcon /></button><button className="participants-icon" aria-label={`Permanently delete ${registration.full_name}`} disabled={deletingIds.has(registration.id)} onClick={() => handleDeleteRegistration(registration.id)}><TrashIcon /></button></>}
+                    </div></td>
                   </tr>
-
                   {/* Expanded Details Row */}
                   {expandedRegistration === registration.id && (
-                    <tr className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <tr className="participants-detail">
                       <td colSpan={7} className="px-6 py-8 bg-black/20 border-b border-white/5">
                         <div className="space-y-4">
                           <div className="grid md:grid-cols-2 gap-4">
@@ -2315,7 +1184,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                       push({ message: 'Update failed', type: 'error' });
                                       return false;
                                     }
-                                    await updateRegistrationStatus(registration.id, registration.status);
+                                    await refreshRegistrations();
                                     push({ message: 'Name updated', type: 'success' });
                                     return true;
                                   }}
@@ -2335,7 +1204,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                       push({ message: 'Update failed', type: 'error' });
                                       return false;
                                     }
-                                    await updateRegistrationStatus(registration.id, registration.status);
+                                    await refreshRegistrations();
                                     push({ message: 'College updated', type: 'success' });
                                     return true;
                                   }}
@@ -2346,13 +1215,13 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                   value={registration.email}
                                   onSave={async (val) => {
                                     try {
-                                      const enc = encryptData(val);
-                                      await dualUpdate('registrations', registration.id, { email: enc });
+                                      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) { push({ message: 'Enter a valid email address.', type: 'error' }); return false; }
+                                      await dualUpdate('registrations', registration.id, { email: val.trim().toLowerCase() });
                                     } catch (err) {
                                       push({ message: 'Update failed', type: 'error' });
                                       return false;
                                     }
-                                    await updateRegistrationStatus(registration.id, registration.status);
+                                    await refreshRegistrations();
                                     push({ message: 'Email updated', type: 'success' });
                                     return true;
                                   }}
@@ -2363,13 +1232,13 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                   value={registration.phone}
                                   onSave={async (val) => {
                                     try {
-                                      const enc = encryptData(val);
-                                      await dualUpdate('registrations', registration.id, { phone: enc });
+                                      if (!/^[+\d\s()-]{7,40}$/.test(val.trim())) { push({ message: 'Enter a valid phone number.', type: 'error' }); return false; }
+                                      await dualUpdate('registrations', registration.id, { phone: val.trim() });
                                     } catch (err) {
                                       push({ message: 'Update failed', type: 'error' });
                                       return false;
                                     }
-                                    await updateRegistrationStatus(registration.id, registration.status);
+                                    await refreshRegistrations();
                                     push({ message: 'Phone updated', type: 'success' });
                                     return true;
                                   }}
@@ -2448,7 +1317,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                       push({ message: 'Update failed', type: 'error' });
                                       return false;
                                     }
-                                    await updateRegistrationStatus(registration.id, registration.status);
+                                    await refreshRegistrations();
                                     push({ message: 'Team name updated', type: 'success' });
                                     return true;
                                   }}
@@ -2473,7 +1342,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                           push({ message: 'Update failed', type: 'error' });
                                           return false;
                                         }
-                                        await updateRegistrationStatus(registration.id, registration.status);
+                                        await refreshRegistrations();
                                         return true;
                                       }}
                                       canEdit={isOwner}
@@ -2491,7 +1360,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                           push({ message: 'Update failed', type: 'error' });
                                           return false;
                                         }
-                                        await updateRegistrationStatus(registration.id, registration.status);
+                                        await refreshRegistrations();
                                         return true;
                                       }}
                                       canEdit={isOwner}
@@ -2509,7 +1378,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                           push({ message: 'Update failed', type: 'error' });
                                           return false;
                                         }
-                                        await updateRegistrationStatus(registration.id, registration.status);
+                                        await refreshRegistrations();
                                         return true;
                                       }}
                                       canEdit={isOwner}
@@ -2530,7 +1399,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                 <div className="flex items-center gap-2 text-sm text-gray-400 font-bold uppercase tracking-tighter animate-pulse">
                                   <Loader2 className="animate-spin" size={14} /> Loading logs...
                                 </div>
-                            ) : emailLogs.length > 0 ? (
+                            ) : logsError ? <div className="participants-error" role="alert"><span>Notification history could not load.</span><button className="participants-button" onClick={() => void fetchEmailLogs(registration.id)}>Retry</button></div> : emailLogs.length > 0 ? (
                                 <div className="bg-black/20 border border-white/10 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm">
                                     <div className="overflow-x-auto">
                                       <table className="min-w-full divide-y divide-white/10">
@@ -2590,316 +1459,21 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
             </tbody>
           </table>
 
-          {/* Pagination Controls */}
-          {count > 0 && (
-            <div className="px-6 py-4 flex items-center justify-between border-t border-white/5 bg-white/[0.02]">
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, count)} of {count}
-                </span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setPage(1); // Reset to page 1 on size change
-                  }}
-                  className="bg-black/20 border border-white/10 rounded px-2 py-1 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                >
-                  <option value={10}>10 / page</option>
-                  <option value={20}>20 / page</option>
-                  <option value={50}>50 / page</option>
-                  <option value={100}>100 / page</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1 || isRegistrationsLoading}
-                  className="p-2 rounded-lg hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-gray-400 hover:text-white"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-
-                <div className="flex items-center gap-1">
-                  {/* Simplified pagination: just show current page */}
-                  <span className="text-[10px] font-black text-indigo-300 bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20 uppercase tracking-widest shadow-lg backdrop-blur-md">
-                    Page {page} of {Math.ceil(count / pageSize) || 1}
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => setPage(p => Math.min(Math.ceil(count / pageSize), p + 1))}
-                  disabled={page >= Math.ceil(count / pageSize) || isRegistrationsLoading}
-                  className="p-2 rounded-lg hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-gray-400 hover:text-white"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* No Results */}
-        {filteredRegistrations.length === 0 && (
-          <div className="bg-white/5 border border-white/10 rounded-3xl p-16 text-center backdrop-blur-xl shadow-2xl mt-12 relative overflow-hidden group">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-indigo-500/5 rounded-full blur-[100px] -z-10 group-hover:bg-indigo-500/10 transition-colors duration-1000" />
-            <Users size={64} className="mx-auto text-indigo-500/30 mb-6 animate-pulse" />
-            <h3 className="text-xl font-black text-white mb-3 tracking-tight uppercase">No registrations found</h3>
-            <p className="text-gray-400 max-w-sm mx-auto font-bold uppercase tracking-widest text-[10px] opacity-60 italic">
-              {registrations.length === 0
-                ? "The database is currently empty. No registrations have been submitted yet."
-                : "Try adjusting your filters to see more results."
-              }
-            </p>
-          </div>
-        )}
-      </div>
-      {/* Rejection Reason Modal */}
-      {rejectingId && createPortal(
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] animate-in fade-in duration-200">
-            <div className="rico-glass-card rounded-2xl p-6 max-w-md w-full shadow-2xl border-white/10">
-                <h3 className="text-lg font-black mb-4 text-white flex items-center gap-2">
-                  <XCircle className="text-red-500" />
-                  Reject Registration
-                </h3>
-                <p className="text-sm text-gray-300 mb-4">Please provide a reason for this rejection. This will be emailed to the user.</p>
-                <textarea
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 mb-4 text-white focus:ring-2 focus:ring-red-500/50 outline-none placeholder-gray-600"
-                    rows={4}
-                    placeholder="e.g., ID card not clear, Invalid details..."
-                />
-                <div className="flex justify-end gap-3">
-                    <button
-                        onClick={() => { setRejectingId(null); setRejectionReason(''); }}
-                        className="px-4 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all font-bold"
-                        disabled={isSendingRejection}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={confirmRejection}
-                        disabled={isSendingRejection || !rejectionReason.trim()}
-                        className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-500 shadow-lg shadow-red-600/20 flex items-center gap-2 font-bold transition-all"
-                    >
-                        {isSendingRejection ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Sending...
-                            </>
-                        ) : 'Reject & Notify'}
-                    </button>
-                </div>
-            </div>
-        </div>
-      , document.body)}
-      {showEmailModal && createPortal(
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[9999] p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="rico-glass-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border-white/10">
-            <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5 rounded-t-2xl">
-              <h3 className="font-black text-white flex items-center gap-3 text-lg">
-                <div className="p-2 bg-blue-500/20 rounded-lg">
-                   <Mail size={20} className="text-blue-400" />
-                </div>
-                Send Email to {selectedIds.size} Recipient(s)
-              </h3>
-              <button onClick={() => setShowEmailModal(false)} className="text-gray-400 hover:text-white p-2 hover:bg-white/10 rounded-lg transition-all">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto flex-1 space-y-6 custom-scrollbar">
-
-                {/* Template Type Selector */}
-                <div className="grid grid-cols-3 gap-4">
-                    <button
-                        onClick={() => setEmailTemplate('winner')}
-                        className={`p-4 rounded-xl border flex flex-col items-center gap-3 transition-all duration-300 relative overflow-hidden group ${emailTemplate === 'winner' ? 'border-yellow-500/50 bg-yellow-500/10 text-yellow-200' : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20'}`}
-                    >
-                        <div className={`p-3 rounded-full ${emailTemplate === 'winner' ? 'bg-yellow-500/20' : 'bg-black/20 group-hover:bg-black/40'} transition-colors`}>
-                           <Award size={24} className={emailTemplate === 'winner' ? 'text-yellow-400' : 'text-gray-500 group-hover:text-gray-300'} />
-                        </div>
-                        <span className="font-bold text-sm tracking-wide">Winner</span>
-                        {emailTemplate === 'winner' && <div className="absolute inset-0 bg-yellow-500/5 animate-pulse" />}
-                    </button>
-                    <button
-                        onClick={() => setEmailTemplate('selection')}
-                        className={`p-4 rounded-xl border flex flex-col items-center gap-3 transition-all duration-300 relative overflow-hidden group ${emailTemplate === 'selection' ? 'border-teal-500/50 bg-teal-500/10 text-teal-200' : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20'}`}
-                    >
-                         <div className={`p-3 rounded-full ${emailTemplate === 'selection' ? 'bg-teal-500/20' : 'bg-black/20 group-hover:bg-black/40'} transition-colors`}>
-                           <CheckCircle size={24} className={emailTemplate === 'selection' ? 'text-teal-400' : 'text-gray-500 group-hover:text-gray-300'} />
-                        </div>
-                        <span className="font-bold text-sm tracking-wide">Selection</span>
-                        {emailTemplate === 'selection' && <div className="absolute inset-0 bg-teal-500/5 animate-pulse" />}
-                    </button>
-                    <button
-                        onClick={() => setEmailTemplate('custom')}
-                        className={`p-4 rounded-xl border flex flex-col items-center gap-3 transition-all duration-300 relative overflow-hidden group ${emailTemplate === 'custom' ? 'border-blue-500/50 bg-blue-500/10 text-blue-200' : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:border-white/20'}`}
-                    >
-                         <div className={`p-3 rounded-full ${emailTemplate === 'custom' ? 'bg-blue-500/20' : 'bg-black/20 group-hover:bg-black/40'} transition-colors`}>
-                           <Mail size={24} className={emailTemplate === 'custom' ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-300'} />
-                        </div>
-                        <span className="font-bold text-sm tracking-wide">Custom</span>
-                         {emailTemplate === 'custom' && <div className="absolute inset-0 bg-blue-500/5 animate-pulse" />}
-                    </button>
-                </div>
-
-                {/* Dynamic Inputs */}
-                {emailTemplate === 'winner' && (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                        <div className="bg-yellow-500/10 p-4 rounded-xl border border-yellow-500/20 text-sm text-yellow-200 flex items-start gap-3">
-                             <Sparkles size={18} className="text-yellow-400 mt-0.5" />
-                             <div>
-                               <strong className="block text-yellow-400 mb-1">Celebratory Theme</strong>
-                               Sends a celebratory email with gold/yellow styling.
-                             </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Select Position</label>
-                            <div className="flex flex-wrap gap-2 mb-3">
-                                {['Winner', '1st Runner Up', '2nd Runner Up'].map(pos => (
-                                    <button
-                                        key={pos}
-                                        onClick={() => setEmailAdditionalData({...emailAdditionalData, position: pos})}
-                                        className={`px-4 py-2 rounded-lg text-sm font-bold border transition-all ${emailAdditionalData.position === pos ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-300 shadow-[0_0_15px_rgba(234,179,8,0.2)]' : 'bg-black/20 border-white/10 text-gray-400 hover:text-white hover:border-white/30'}`}
-                                    >
-                                        {pos}
-                                    </button>
-                                ))}
-                            </div>
-                            <input
-                                type="text"
-                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-yellow-500/50 outline-none placeholder-gray-600 transition-all font-medium"
-                                placeholder="Or type custom position..."
-                                value={emailAdditionalData.position || ''}
-                                onChange={e => setEmailAdditionalData({...emailAdditionalData, position: e.target.value})}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Additional Message (Optional)</label>
-                            <textarea
-                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-yellow-500/50 outline-none h-24 placeholder-gray-600 transition-all font-medium custom-scrollbar"
-                                placeholder="Any specific instructions for the winner..."
-                                value={emailCustomBody}
-                                onChange={e => setEmailCustomBody(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {emailTemplate === 'selection' && (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                         <div className="bg-teal-500/10 p-4 rounded-xl border border-teal-500/20 text-sm text-teal-200 flex items-start gap-3">
-                             <CheckCircle size={18} className="text-teal-400 mt-0.5" />
-                             <div>
-                               <strong className="block text-teal-400 mb-1">Professional Theme</strong>
-                               Sends a professional selection notice (Green/Teal styling).
-                             </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Round Cleared</label>
-                            <input
-                                type="text"
-                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-teal-500/50 outline-none placeholder-gray-600 transition-all font-medium"
-                                placeholder="e.g. preliminary round, audition round, first evaluation"
-                                value={emailAdditionalData.roundCleared || 'preliminary round'}
-                                onChange={e => setEmailAdditionalData({...emailAdditionalData, roundCleared: e.target.value})}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Selection Stage</label>
-                            <input
-                                type="text"
-                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-teal-500/50 outline-none placeholder-gray-600 transition-all font-medium"
-                                placeholder="e.g. Round 2, Finals, Interview Round"
-                                value={emailAdditionalData.stage || ''}
-                                onChange={e => setEmailAdditionalData({...emailAdditionalData, stage: e.target.value})}
-                            />
-                        </div>
-                        <div>
-                             <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Additional Message (Optional)</label>
-                            <textarea
-                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-teal-500/50 outline-none h-24 placeholder-gray-600 transition-all font-medium custom-scrollbar"
-                                placeholder="Instructions for the next round..."
-                                value={emailCustomBody}
-                                onChange={e => setEmailCustomBody(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {emailTemplate === 'custom' && (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Subject Line</label>
-                            <input
-                                type="text"
-                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-blue-500/50 outline-none placeholder-gray-600 transition-all font-medium"
-                                placeholder="e.g. Important Update regarding..."
-                                value={emailCustomSubject}
-                                onChange={e => setEmailCustomSubject(e.target.value)}
-                            />
-                        </div>
-                         <div>
-                            <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Message Body</label>
-                            <textarea
-                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:ring-2 focus:ring-blue-500/50 outline-none h-32 placeholder-gray-600 transition-all font-medium custom-scrollbar"
-                                placeholder="Type your full message here..."
-                                value={emailCustomBody}
-                                onChange={e => setEmailCustomBody(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {/* Preview Box */}
-                <div className="bg-black/30 border border-white/10 p-5 rounded-xl text-sm text-gray-300 space-y-2 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-[30px] -translate-y-1/2 translate-x-1/2"></div>
-                    <p className="font-black text-white uppercase tracking-wider text-xs mb-3 flex items-center gap-2">
-                        <Eye size={12} className="text-indigo-400" /> Summary Preview
-                    </p>
-                    <p className="flex justify-between"><strong className="text-gray-500">Recipients:</strong> <span className="text-white font-mono">{selectedIds.size} users</span></p>
-                    <p className="flex justify-between"><strong className="text-gray-500">Template:</strong> <span className="text-white font-mono">{emailTemplate.toUpperCase()}</span></p>
-                    <p className="flex justify-between items-start gap-4">
-                        <strong className="text-gray-500 flex-shrink-0">Subject:</strong>
-                        <span className="text-white text-right italic opacity-80">{
-                            emailTemplate === 'winner' ? `🎉 Congratulations! You are a ${emailAdditionalData.position || 'Winner'}...` :
-                            emailTemplate === 'selection' ? `Selection Update: You're selected for ${emailAdditionalData.stage || 'next round'}!` :
-                            emailCustomSubject || '(No subject)'
-                        }</span>
-                    </p>
-                </div>
-
-            </div>
-
-            <div className="p-5 border-t border-white/10 bg-white/5 rounded-b-2xl flex justify-end gap-3">
-                <button
-                    onClick={() => setShowEmailModal(false)}
-                    className="px-5 py-2.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all font-bold"
-                >
-                    Cancel
-                </button>
-                <button
-                    onClick={handleSendCustomEmail}
-                    disabled={emailSending}
-                    className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 shadow-lg shadow-blue-600/20 font-bold flex items-center gap-2 disabled:opacity-50 hover:scale-105 transition-all"
-                >
-                    {emailSending ? (
-                        <>
-                            <RefreshCw size={18} className="animate-spin" /> Sending...
-                        </>
-                    ) : (
-                        <>
-                            <Send size={18} /> Send Application
-                        </>
-                    )}
-                </button>
-            </div>
-          </div>
-        </div>
-      , document.body)}
+        </div>}
+        {!isRegistrationsLoading && !registrationsError && filteredRegistrations.length === 0 && <div className="participants-empty"><span><CalendarIcon /></span><h3>{viewMode === 'trash' ? 'Your trash is empty' : searchTerm || selectedEvent !== 'all' || selectedBatch !== 'all' || selectedStatus !== 'all' ? 'No matching registrations' : 'The first entry starts here'}</h3><p>{viewMode === 'trash' ? 'Deleted event registrations will appear here.' : 'Submitted event registrations appear here for review. Try clearing filters or check back after registrations open.'}</p>{(searchTerm || selectedEvent !== 'all' || selectedBatch !== 'all' || selectedStatus !== 'all') && <button className="participants-button" onClick={() => { setSearchTerm(''); if (!coordinatorMode) setSelectedEvent('all'); setSelectedBatch('all'); setSelectedStatus('all'); setPage(1); }}>Clear filters</button>}</div>}
+        {count > 0 && <div className="participants-pagination"><div><span>Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, count)} of {count}</span><select className="participants-inline-select" aria-label="Registrations per page" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1); }}>{[10, 20, 50, 100].map(size => <option key={size} value={size}>{size} / page</option>)}</select></div><div><button className="participants-icon" aria-label="Previous registration page" disabled={page === 1 || isRegistrationsLoading} onClick={() => setPage(value => Math.max(1, value - 1))}><ChevronLeftIcon /></button><span>{page} / {Math.max(1, Math.ceil(count / pageSize))}</span><button className="participants-icon" aria-label="Next registration page" disabled={page >= Math.ceil(count / pageSize) || isRegistrationsLoading} onClick={() => setPage(value => value + 1)}><ChevronRightIcon /></button></div></div>}
+      </section>
+      <div className="participants-bottom-tools"><span><CheckIcon />Review each application before confirming participation.</span><span>Exports follow the entries on your current page.</span></div>
+      {!coordinatorMode && <ParticipationVerification />}
+      {rejectingId && <EventAdminDialog title="Reject registration" eyebrow="Participant review" description="The participant will receive your reason by email." busy={isSendingRejection} onClose={() => { setRejectingId(null); setRejectionReason(''); }} footer={<><button className="event-admin-button is-secondary" disabled={isSendingRejection} onClick={() => { setRejectingId(null); setRejectionReason(''); }}>Cancel</button><button className="event-admin-button is-danger" disabled={isSendingRejection || !rejectionReason.trim()} onClick={confirmRejection}>{isSendingRejection ? 'Sending…' : 'Reject & notify'}</button></>}><div className="participants-dialog-body"><label className="participants-dialog-field"><span>Reason for rejection</span><textarea rows={4} placeholder="Explain which information needs attention…" value={rejectionReason} onChange={event => setRejectionReason(event.target.value)} /></label></div></EventAdminDialog>}
+      {showEmailModal && <EventAdminDialog title={`Email ${selectedIds.size} ${selectedIds.size === 1 ? 'participant' : 'participants'}`} eyebrow="Participant communication" description="Send an update to the entries you selected." busy={emailSending} onClose={() => setShowEmailModal(false)} footer={<><button className="event-admin-button is-secondary" disabled={emailSending} onClick={() => setShowEmailModal(false)}>Cancel</button><button className="event-admin-button is-primary" disabled={emailSending || (emailTemplate === 'custom' && (!emailCustomSubject.trim() || !emailCustomBody.trim()))} onClick={handleSendCustomEmail}><EnvelopeClosedIcon />{emailSending ? 'Sending…' : 'Send email'}</button></>}><div className="participants-dialog-body">
+        <div className="participants-template-tabs" aria-label="Email template">{([{ id: 'custom', label: 'Custom message' }, { id: 'selection', label: 'Selection update' }, { id: 'winner', label: 'Winner announcement' }] as const).map(template => <button key={template.id} aria-pressed={emailTemplate === template.id} onClick={() => setEmailTemplate(template.id)}>{template.label}</button>)}</div>
+        {emailTemplate === 'custom' && <label className="participants-dialog-field"><span>Subject</span><input placeholder="An update about your registration" value={emailCustomSubject} onChange={event => setEmailCustomSubject(event.target.value)} /></label>}
+        {emailTemplate === 'winner' && <label className="participants-dialog-field"><span>Position / achievement</span><input placeholder="For example, 1st place or Best performer" value={emailAdditionalData.position || ''} onChange={event => setEmailAdditionalData({ ...emailAdditionalData, position: event.target.value })} /></label>}
+        {emailTemplate === 'selection' && <label className="participants-dialog-field"><span>Selection stage</span><input placeholder="For example, Round 2 or Finals" value={emailAdditionalData.stage || ''} onChange={event => setEmailAdditionalData({ ...emailAdditionalData, stage: event.target.value })} /></label>}
+        <label className="participants-dialog-field"><span>{emailTemplate === 'custom' ? 'Message' : 'Additional message (optional)'}</span><textarea rows={5} placeholder="Write your message to participants…" value={emailCustomBody} onChange={event => setEmailCustomBody(event.target.value)} /></label>
+        <div className="participants-email-note"><EnvelopeClosedIcon /><span>Sending to {selectedIds.size} selected {selectedIds.size === 1 ? 'participant' : 'participants'} via {emailProvider === 'smtp' ? 'SMTP' : 'Resend'}.</span></div>
+      </div></EventAdminDialog>}
     </div>
   );
 };

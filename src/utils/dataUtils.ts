@@ -1,3 +1,4 @@
+import { driveFileId, galleryImageUrl } from '../../shared/galleryMedia';
 import { supabase } from '../lib/supabase';
 import { dualRead } from '../lib/dualDb';
 import { GalleryImage, GallerySettings } from '../types/data';
@@ -71,21 +72,9 @@ export const sanitizeUrl = (url?: string | null, options?: ImageOptions): string
   let s = String(url).trim();
   if (!s) return '';
   
-  // Handle drive:// protocol for Google Drive images
-  if (s.startsWith('drive://')) {
-    const fileId = s.replace('drive://', '');
-    const width = options?.width || 1280;
-    
-    // If running locally without Netlify Proxy, use direct Google Drive thumbnails as fallback
-    if (typeof window !== 'undefined' && 
-       (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ) {
-      return `https://drive.google.com/thumbnail?id=${fileId}&sz=w${width}`;
-    }
-    
-    return `/api/drive-proxy?id=${fileId}&width=${width}`;
-  }
-  
+  // Use the same CORS-safe, resized endpoint locally and in production.
+  if (driveFileId(s)) return galleryImageUrl(s, options?.width || 1600);
+
   // Normalize protocol
   if (s.startsWith('//')) s = `https:${s}`;
   

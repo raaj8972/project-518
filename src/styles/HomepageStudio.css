@@ -233,14 +233,6 @@ body .owner-workspace .studio-subheading h3 { font:550 14px/1.5 'Geist Variable'
 .studio-auto-notice strong { font-size:12px; font-weight:550; }
 .studio-auto-notice p { margin:7px 0 0; color:var(--studio-muted); font-size:11px; line-height:1.65; }
 .studio-partner-manager > .studio-field { margin-top:18px; }
-.studio-auto-list { list-style:none; padding:0; margin:0; }
-.studio-auto-list li { display:flex; align-items:center; gap:10px; padding:14px 0; border-bottom:1px solid var(--studio-line); }
-.studio-auto-list li > span { color:var(--studio-muted); font-size:11px; min-width:18px; }
-.studio-auto-list img { width:42px; height:42px; object-fit:cover; border-radius:7px; }
-.studio-auto-list strong { display:block; font-weight:500; font-size:12px; }
-.studio-auto-list small { display:block; font-size:10px; color:var(--studio-muted); margin-top:4px; }
-.studio-auto-list b { margin-left:auto; text-align:right; font-size:12px; font-weight:550; }
-.studio-auto-list b small { font-weight:400; }
 .studio-stat-edit { display:grid; grid-template-columns:minmax(0,.65fr) minmax(0,1fr); gap:12px; align-items:start; }
 .studio-stat-edit > button { grid-column:2; justify-self:end; }
 .studio-preview-about-heading { display:block; font-size:10px; margin-top:8px; }

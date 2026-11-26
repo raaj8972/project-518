@@ -190,7 +190,7 @@ it('repairs partial stored drafts across every studio section while preserving u
   localStorage.setItem('homepage_roadmap_resource_draft',JSON.stringify({bad:null,'milestone-51':{id:51,year:2023,title:null,points:[null,42,'Restored milestone'],enabled:true}}));
   await mount();
   expect(container.querySelector('.studio-preview-tagline')?.textContent).toBe('Keep this tagline');
-  for(const tab of ['Background video & images','Page content','Brand identity','Automatic homepage sections','About the festival','Social media links','Roadmap & milestones','Films & reels','People & leadership','Partner showcase']) await click(tab);
+  for(const tab of ['Background video & images','Page content','Brand identity','About the festival','Social media links','Roadmap & milestones','Films & reels','People & leadership','Partner showcase']) await click(tab);
   await click('Save changes');
   expect(mocks.saveMedia).not.toHaveBeenCalled();
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('lead');

@@ -40,7 +40,8 @@ export const Events: React.FC = () => {
     events, 
     eventCoordinators, 
     eventWinners = [], 
-    connectionStatus, 
+    connectionStatus,
+    eventsError,
     lastError, 
     refreshAll, 
     adminUsers, 
@@ -311,9 +312,10 @@ export const Events: React.FC = () => {
     <div className="arena-page">
       <EventsArenaHero />
       <div className="arena-main" id="event-arena">
-          {connectionStatus === 'error' && <div className="arena-connection-error" role="alert"><p>{lastError || 'We could not refresh the events. Please try again.'}</p><button type="button" className="arena-gold-button" onClick={refreshAll}><ReloadIcon /> Refresh events</button></div>}
+          {connectionStatus === 'error' && <div className="arena-connection-error" role="alert"><p>{lastError || 'We could not refresh the events. Please try again.'}</p><button type="button" className="arena-gold-button" onClick={() => void refreshAll()}><ReloadIcon /> Refresh events</button></div>}
           <CategoryFilter selectedCategory={selectedCategory} setSelectedCategory={changeCategory} />
           <div className="arena-list-heading"><p>{selectedCategory === 'All' ? 'Every passion has a place here' : `${selectedCategory} / Find your moment`}</p><span aria-live="polite">{loading && !visibleEvents.length ? 'Loading events…' : `${filteredEvents.length} ${filteredEvents.length === 1 ? 'event' : 'events'} to explore`}</span></div>
+          {eventsError && <div className="arena-empty" role="alert"><p>{eventsError}</p><button type="button" className="arena-gold-button" onClick={() => void refreshAll()}>Try again</button></div>}
           <div className="arena-grid" aria-busy={loading && !visibleEvents.length}>
             {loading && !visibleEvents.length ? Array.from({ length: 4 }, (_, index) => <div className="arena-skeleton" key={index} aria-hidden="true" />) : displayedEvents.map((event: any, idx: number) => (
               <EventCard
@@ -338,7 +340,7 @@ export const Events: React.FC = () => {
               />
             ))}
           </div>
-          {!loading && !filteredEvents.length && <div className="arena-empty"><h2>The arena is getting ready.</h2><p>{selectedCategory === 'All' ? 'Events will appear here as soon as they are announced.' : 'No events in this category yet. Explore another arena.'}</p>{selectedCategory !== 'All' && <button className="arena-gold-button" onClick={() => changeCategory('All')}>Explore all events <ArrowRightIcon /></button>}</div>}
+          {!loading && !eventsError && !filteredEvents.length && <div className="arena-empty"><h2>The arena is getting ready.</h2><p>{selectedCategory === 'All' ? 'Events will appear here as soon as they are announced.' : 'No events in this category yet. Explore another arena.'}</p>{selectedCategory !== 'All' && <button className="arena-gold-button" onClick={() => changeCategory('All')}>Explore all events <ArrowRightIcon /></button>}</div>}
           {!showAllEvents && filteredEvents.length > 4 ? <div className="arena-view-all"><button type="button" className="arena-gold-button" onClick={() => setShowAllEvents(true)}>View all events <span>({filteredEvents.length})</span><ArrowRightIcon /></button></div> : filteredEvents.length > 0 && <p className="arena-result-note">You've reached the edge of the arena.</p>}
           <WinnersSection eventWinners={mergedWinners} events={visibleEvents} onOpenProfile={handleOpenWinnerProfile} onOpenEvent={id => { setSelectedCategory('All'); setShowAllEvents(true); setFlippedCards(new Set([id as any])); }} />
       </div>

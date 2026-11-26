@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { dualInsert, dualUpdate, dualDelete, dualUpsert } from '../lib/dualDb';
+import { dualInsert, dualUpdate, dualDelete, dualUpsert, dualRead } from '../lib/dualDb';
 
 export interface PendingApproval {
   id: string; // Changed to string for Firestore ID
@@ -20,7 +20,7 @@ export interface PendingApproval {
   admin_email?: string;
 }
 
-export const useApprovals = () => {
+export const useApprovals = ({ listen = true }: { listen?: boolean } = {}) => {
   const { user } = useAuth();
   const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +28,7 @@ export const useApprovals = () => {
 
   // Real-time subscription to pending approvals
   useEffect(() => {
-    if (!user?.id) return;
+    if (!listen || !user?.id) { setLoading(false); return; }
 
     setLoading(true);
 
@@ -82,7 +82,7 @@ export const useApprovals = () => {
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [user?.id]);
+  }, [user?.id, listen]);
 
   // Refetch wrapper for API compatibility, though Supabase Realtime automatically handles it
   const fetchPendingApprovals = async () => {};
@@ -171,9 +171,30 @@ export const useApprovals = () => {
   // Apply approved change to actual table via dualDb
   const applyApprovedChange = async (approval: PendingApproval) => {
     const { entity_type, action_type, changes, entity_id } = approval;
-    const table = entity_type === 'gallery_image' ? 'gallery_images' : `${entity_type}s`;
+    const table = entity_type === 'gallery_image' ? 'gallery_images' : entity_type === 'gallery_settings' ? 'gallery_settings' : `${entity_type}s`;
 
     try {
+      if (entity_type === 'event' && action_type !== 'delete' && Array.isArray(changes?.coordinators)) {
+        const { coordinators, ...eventChanges } = changes;
+        let eventId = entity_id;
+        if (action_type === 'create') {
+          const inserted = await dualInsert('events', eventChanges);
+          eventId = (Array.isArray(inserted) ? inserted[0] : inserted)?.id;
+          if (eventId == null) throw new Error('The created event could not be confirmed.');
+        } else {
+          if (eventId == null) throw new Error('The event to update is missing.');
+          await dualUpdate('events', eventId, eventChanges);
+        }
+        const { data: existing = [] } = await dualRead({ table: 'event_coordinators', eq: ['event_id', eventId], forceRefresh: true });
+        const desired = coordinators.filter((coord: any) => coord && typeof coord.name === 'string' && coord.name.trim());
+        for (const row of existing || []) if (!desired.some((coord: any) => coord.id === row.id)) await dualDelete('event_coordinators', row.id);
+        for (const [index, coord] of desired.entries()) {
+          const payload = { event_id: eventId, name: coord.name.trim(), phone: coord.phone || null, order_position: index + 1 };
+          if (coord.id != null && (existing || []).some((row: any) => row.id === coord.id)) await dualUpdate('event_coordinators', coord.id, payload);
+          else await dualInsert('event_coordinators', payload);
+        }
+        return;
+      }
       if (action_type === 'create') {
         await dualInsert(table, changes);
       } else if (action_type === 'update' && entity_id) {

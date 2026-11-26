@@ -183,7 +183,7 @@ const ActiveEvents: React.FC = () => {
       // 3. Fetch co-participants (other approved registrations for this event)
       let coQuery = supabase
         .from('registrations')
-        .select('id, full_name, batch, user_id, photo_url')
+        .select('id, full_name, batch, user_id')
         .eq('event_id', String(eventId))
         .eq('status', 'approved')
         .eq('is_active', true)
@@ -215,7 +215,7 @@ const ActiveEvents: React.FC = () => {
             id: r.user_id || r.id,
             full_name: profile.full_name || r.full_name,
             batch: profile.batch || r.batch,
-            avatar_url: profile.avatar_url || r.photo_url,
+            avatar_url: profile.avatar_url || null,
             aura_color: profile.aura_color || null,
             user_id: r.user_id,
             registration_id: r.id,

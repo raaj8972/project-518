@@ -1,0 +1,16 @@
+{
+  "counts": {
+    "days": 11,
+    "slots": 35,
+    "events": 3
+  },
+  "festivalYear": 2026,
+  "prelimsDates": [
+    "2026-12-19",
+    "2026-12-20",
+    "2026-12-21",
+    "2026-12-22",
+    "2026-12-23"
+  ],
+  "legacyDatesWithoutYear": 0
+}

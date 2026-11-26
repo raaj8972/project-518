@@ -4,6 +4,7 @@ import type { HeroMediaV2 } from '../../services/heroMediaService';
 import { LazyVideo } from './LazyVideo';
 import { useData } from '../../context/DataContext';
 import { BRAND_YEAR } from '../../constants/brand';
+import { getPortalLogoUrl } from '../cinematic/portalLogoUrl';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { FestivalEnvironment } from './festival/FestivalEnvironment';
@@ -30,7 +31,7 @@ export function SpiderHeroContent({ media, mobile = false }: { media?: HeroMedia
       {media?.enabled !== false && !festivalBackdrop && (showImage ? <img className="spider-hero-video" style={crop} src={configuredImage} alt="" aria-hidden="true" onError={() => setFailed(true)} /> : <LazyVideo className="spider-hero-video" style={crop} src={source} poster={poster} muted loop playsInline aria-hidden="true" tabIndex={-1}
         onError={() => setFailed(true)} onCanPlay={event => { void event.currentTarget.play().catch(() => {}); }} />)}
       <div className="spider-hero-video-shade" aria-hidden="true" style={media?.overlay_color ? { background: media.overlay_color, opacity: media.overlay_opacity } : undefined} />
-      {usesFestivalScene && <FestivalEnvironment logoUrl={homepageSettings?.brand_logo_url || '/favicon.svg'} onSettled={setSettled} />}
+      {usesFestivalScene && <FestivalEnvironment logoUrl={getPortalLogoUrl(homepageSettings)} onSettled={setSettled} />}
       {media?.enabled !== false && <FestivalAtmosphere />}
       <div className="spider-hero-layout">
         <div className="spider-hero-copy">

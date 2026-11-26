@@ -1,385 +1,94 @@
 import React, { useState } from 'react';
-import { Save, X, ToggleLeft, ToggleRight, MessageSquare, Music, Users, AlertCircle } from 'lucide-react';
+import { AlertCircle, Check, Music2, Save, Settings2, X } from 'lucide-react';
 import { useData } from '../../context/DataContext';
-import { SUPABASE_HOST } from '../../lib/supabase';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import '../../styles/ParticipantFormSettings.css';
+
+const defaults = {
+  audition_form_enabled: true,
+  membership_form_enabled: true,
+  audition_form_message: 'Auditions are currently closed. Please check back later.',
+  membership_form_message: 'Membership applications are currently closed. Please check back later.',
+};
 
 export const FormSettingsManagement: React.FC = () => {
   const { formSettings, updateFormSettings } = useData();
   const [isEditing, setIsEditing] = useState(false);
-  // const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const savingProgress = useSavingProgress();
-  
-  const [form, setForm] = useLocalStorage('admin_form_settings_draft', {
-    audition_form_enabled: formSettings?.audition_form_enabled ?? true,
-    membership_form_enabled: formSettings?.membership_form_enabled ?? true,
-    audition_form_message: formSettings?.audition_form_message || 'Auditions are currently closed. Please check back later.',
-    membership_form_message: formSettings?.membership_form_message || 'Membership applications are currently closed. Please check back later.'
-  });
-
-  // When opening editor, sync form from latest context values
-  const openEditor = () => {
-    setForm({
-      audition_form_enabled: formSettings?.audition_form_enabled ?? true,
-      membership_form_enabled: formSettings?.membership_form_enabled ?? true,
-      audition_form_message: formSettings?.audition_form_message || 'Auditions are currently closed. Please check back later.',
-      membership_form_message: formSettings?.membership_form_message || 'Membership applications are currently closed. Please check back later.'
-    });
-    setIsEditing(true);
+  const current = {
+    audition_form_enabled: formSettings?.audition_form_enabled ?? defaults.audition_form_enabled,
+    membership_form_enabled: formSettings?.membership_form_enabled ?? defaults.membership_form_enabled,
+    audition_form_message: formSettings?.audition_form_message || defaults.audition_form_message,
+    membership_form_message: formSettings?.membership_form_message || defaults.membership_form_message,
   };
+  const [form, setForm] = useLocalStorage('admin_form_settings_draft', current);
 
+  const openEditor = () => { setForm(current); setMessage(null); setIsEditing(true); };
   const handleSave = async () => {
+    setSaving(true);
+    const steps = savingProgress.withSteps(3, 'Preparing…');
     try {
-      // setSaving(true);
-      const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
+      steps.next('Saving settings');
       await updateFormSettings(form);
-      steps.next('Saving');
+      steps.next('Applying changes');
       setIsEditing(false);
-      setMessage({ type: 'success', text: 'Form settings updated successfully!' });
+      setMessage({ type: 'success', text: 'Application settings saved. Changes are live on the website.' });
       try { localStorage.removeItem('admin_form_settings_draft'); } catch {}
-      setTimeout(() => setMessage(null), 5000);
       steps.done();
     } catch (error) {
       console.error('Error updating form settings:', error);
-      const errText = (error as any)?.message || String(error);
-      setMessage({ type: 'error', text: `Failed to update form settings: ${errText}` });
-      setTimeout(() => setMessage(null), 5000);
+      setMessage({ type: 'error', text: `Could not save settings: ${(error as Error)?.message || String(error)}` });
       savingProgress.done();
-    } finally {
-      // setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
-
   const handleCancel = () => {
-    setForm({
-      audition_form_enabled: formSettings?.audition_form_enabled ?? true,
-      membership_form_enabled: formSettings?.membership_form_enabled ?? true,
-      audition_form_message: formSettings?.audition_form_message || 'Auditions are currently closed. Please check back later.',
-      membership_form_message: formSettings?.membership_form_message || 'Membership applications are currently closed. Please check back later.'
-    });
-    setIsEditing(false);
-    setMessage(null);
+    setForm(current); setIsEditing(false); setMessage(null);
     try { localStorage.removeItem('admin_form_settings_draft'); } catch {}
   };
 
+  const forms = [
+    { key: 'audition' as const, title: 'Band auditions', description: 'Applications to join the Home Bound band.', Icon: Music2, enabledKey: 'audition_form_enabled' as const, messageKey: 'audition_form_message' as const, enabled: current.audition_form_enabled, accent: 'violet' },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <section className="participant-form-settings">
+      <header className="pfs-heading">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Form Settings</h2>
-          <p className="text-gray-600">Control the availability of audition and membership forms</p>
+          <div className="pfs-eyebrow"><Settings2 size={15} /> APPLICATION SETTINGS</div>
+          <h2>Application availability</h2>
+          <p>Control which applications are open and what visitors see when they are closed.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => (isEditing ? setIsEditing(false) : openEditor())}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 flex items-center transition-colors"
-        >
-          {isEditing ? (
-            <>
-              <X size={16} className="mr-2" />
-              Cancel
-            </>
-          ) : (
-            <>
-              <Save size={16} className="mr-2" />
-              Edit Settings
-            </>
-          )}
-        </button>
+        {!isEditing ? <button type="button" className="pfs-primary" onClick={openEditor}><Settings2 size={17} /> Edit settings</button> : <div className="pfs-heading-actions"><button type="button" className="pfs-quiet" onClick={handleCancel}><X size={16} /> Cancel</button><button type="button" className="pfs-primary" onClick={handleSave} disabled={saving}><Save size={16} /> {saving ? 'Saving…' : 'Save changes'}</button></div>}
+      </header>
+
+      {message && <div role="status" className={`pfs-message ${message.type}`}><span>{message.type === 'success' ? <Check size={18} /> : <AlertCircle size={18} />}</span>{message.text}</div>}
+
+      <div className="pfs-overview">
+        <div><span className="pfs-overview-label">APPLICATIONS</span><strong>2</strong><small>Independent forms</small></div>
+        <div><span className="pfs-overview-label">CURRENTLY OPEN</span><strong>{forms.filter(item => item.enabled).length}</strong><small>Available to visitors</small></div>
+        <div className="pfs-overview-note"><span className="pfs-live-dot" /> Changes apply to public forms as soon as they are saved.</div>
       </div>
 
-      {/* Message */}
-      {message && (
-        <div className={`rounded-lg p-4 flex items-center ${
-          message.type === 'success' 
-            ? 'bg-green-50 border border-green-200' 
-            : 'bg-red-50 border border-red-200'
-        }`}>
-          {message.type === 'success' ? (
-            <Save className="w-5 h-5 text-green-500 mr-3" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
-          )}
-          <span className={message.type === 'success' ? 'text-green-700' : 'text-red-700'}>
-            {message.text}
-          </span>
-        </div>
-      )}
-
-      {/* Current Settings Display */}
-      {!isEditing && (
-        <div className="space-y-6">
-          {/* Diagnostics */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
-            <div className="font-semibold mb-1">Diagnostics</div>
-            {(import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1' && (
-              <div>Supabase project: <span className="font-mono">{SUPABASE_HOST}</span></div>
-            )}
-            <div className="mt-1">Audition enabled: <span className="font-mono">{String(!!formSettings?.audition_form_enabled)}</span></div>
-            <div>Membership enabled: <span className="font-mono">{String(!!formSettings?.membership_form_enabled)}</span></div>
-          </div>
-          {/* Audition Form Settings */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <Music className="w-6 h-6 text-purple-600 mr-3" />
-                <h3 className="text-lg font-semibold text-gray-900">Audition Form</h3>
-              </div>
-              <div className="flex items-center space-x-2">
-                {formSettings?.audition_form_enabled ? (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
-                    <ToggleRight size={16} className="mr-1.5" />
-                    Enabled
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 border border-red-200">
-                    <ToggleLeft size={16} className="mr-1.5" />
-                    Disabled
-                  </span>
-                )}
-              </div>
+      <div className="pfs-list">
+        {forms.map(({ key, title, description, Icon, enabledKey, messageKey, enabled, accent }, index) => (
+          <article key={key} className={`pfs-card ${accent}`}>
+            <div className="pfs-card-top">
+              <div className="pfs-card-icon"><Icon size={21} /></div>
+              <div className="pfs-card-title"><span className="pfs-card-number">0{index + 1} / APPLICATION</span><h3>{title}</h3><p>{description}</p></div>
+              {isEditing ? <button type="button" role="switch" aria-checked={form[enabledKey]} aria-label={`Enable ${title}`} className={`pfs-switch ${form[enabledKey] ? 'on' : ''}`} onClick={() => setForm(previous => ({ ...previous, [enabledKey]: !previous[enabledKey] }))}><span /></button> : <span className={`pfs-status ${enabled ? 'open' : 'closed'}`}><span />{enabled ? 'Open' : 'Closed'}</span>}
             </div>
-            
-            <div className="space-y-3">
-              <div>
-                <span className="text-sm font-medium text-gray-700">Status:</span>
-                <p className="text-sm text-gray-600 mt-1">
-                  {formSettings?.audition_form_enabled 
-                    ? 'Users can submit audition applications for the Home Bound band'
-                    : 'Audition form is disabled - users cannot submit applications'
-                  }
-                </p>
-              </div>
-              {!formSettings?.audition_form_enabled && (
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Disabled Message:</span>
-                  <p className="text-sm text-gray-600 mt-1 italic">
-                    "{formSettings?.audition_form_message}"
-                  </p>
-                </div>
-              )}
+            <div className="pfs-card-detail">
+              <div><span className="pfs-detail-label">FORM STATUS</span><p>{isEditing ? (form[enabledKey] ? 'Visitors can submit an application.' : 'The form is hidden from submissions.') : (enabled ? 'Accepting new applications' : 'Not accepting applications')}</p></div>
+              {(isEditing || !enabled) && <label className="pfs-message-field"><span className="pfs-detail-label">MESSAGE SHOWN WHEN CLOSED</span><textarea value={form[messageKey]} disabled={!isEditing} maxLength={240} rows={2} onChange={event => setForm(previous => ({ ...previous, [messageKey]: event.target.value }))} /><small>{form[messageKey].length}/240 characters</small></label>}
             </div>
-          </div>
-
-          {/* Membership Form Settings */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <Users className="w-6 h-6 text-blue-600 mr-3" />
-                <h3 className="text-lg font-semibold text-gray-900">Membership Form</h3>
-              </div>
-              <div className="flex items-center space-x-2">
-                {formSettings?.membership_form_enabled ? (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
-                    <ToggleRight size={16} className="mr-1.5" />
-                    Enabled
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 border border-red-200">
-                    <ToggleLeft size={16} className="mr-1.5" />
-                    Disabled
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <div>
-                <span className="text-sm font-medium text-gray-700">Status:</span>
-                <p className="text-sm text-gray-600 mt-1">
-                  {formSettings?.membership_form_enabled 
-                    ? 'Users can submit membership applications for the Rico Family'
-                    : 'Membership form is disabled - users cannot submit applications'
-                  }
-                </p>
-              </div>
-              {!formSettings?.membership_form_enabled && (
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Disabled Message:</span>
-                  <p className="text-sm text-gray-600 mt-1 italic">
-                    "{formSettings?.membership_form_message}"
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Form */}
-      {isEditing && (
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-400">
-          <h3 className="text-lg font-semibold mb-6">Edit Form Settings</h3>
-          
-          <div className="space-y-8">
-            {/* Audition Form Settings */}
-            <div className="border border-gray-200 rounded-lg p-6">
-              <div className="flex items-center mb-4">
-                <Music className="w-6 h-6 text-purple-600 mr-3" />
-                <h4 className="text-lg font-semibold text-gray-900">Audition Form Settings</h4>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Enable Audition Form</label>
-                    <p className="text-sm text-gray-500">Allow users to submit band audition applications</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...prev, audition_form_enabled: !prev.audition_form_enabled }))}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      form.audition_form_enabled ? 'bg-green-600' : 'bg-gray-200'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        form.audition_form_enabled ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Message When Disabled
-                  </label>
-                  <div className="relative">
-                    <MessageSquare className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <textarea
-                      value={form.audition_form_message}
-                      onChange={(e) => setForm(prev => ({ ...prev, audition_form_message: e.target.value }))}
-                      placeholder="Message to show when auditions are closed"
-                      rows={3}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    This message will be displayed when the audition form is disabled
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Membership Form Settings */}
-            <div className="border border-gray-200 rounded-lg p-6">
-              <div className="flex items-center mb-4">
-                <Users className="w-6 h-6 text-blue-600 mr-3" />
-                <h4 className="text-lg font-semibold text-gray-900">Membership Form Settings</h4>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Enable Membership Form</label>
-                    <p className="text-sm text-gray-500">Allow users to submit Rico Family membership applications</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...prev, membership_form_enabled: !prev.membership_form_enabled }))}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      form.membership_form_enabled ? 'bg-green-600' : 'bg-gray-200'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        form.membership_form_enabled ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Message When Disabled
-                  </label>
-                  <div className="relative">
-                    <MessageSquare className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <textarea
-                      value={form.membership_form_message}
-                      onChange={(e) => setForm(prev => ({ ...prev, membership_form_message: e.target.value }))}
-                      placeholder="Message to show when membership applications are closed"
-                      rows={3}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    This message will be displayed when the membership form is disabled
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Save/Cancel Buttons */}
-          <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="px-6 py-2 text-gray-600 hover:text-gray-800 flex items-center"
-            >
-              <X size={16} className="mr-2" />
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 flex items-center transition-colors"
-            >
-              <Save size={16} className="mr-2" />
-              Save Settings
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Usage Instructions */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-4">Usage Instructions</h3>
-        <div className="space-y-3 text-sm text-blue-800">
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <span><strong>Audition Form:</strong> Controls whether users can submit applications to join the Home Bound band</span>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <span><strong>Membership Form:</strong> Controls whether users can submit applications to join the Rico Family</span>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <span><strong>Disabled Messages:</strong> Custom messages shown to users when forms are disabled</span>
-          </div>
-          <div className="flex items-start">
-            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <span><strong>Real-time Updates:</strong> Changes take effect immediately on the website</span>
-          </div>
-        </div>
+          </article>
+        ))}
       </div>
 
-      {/* Current Status Summary */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Status</h3>
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <Music className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-            <div className="text-lg font-bold text-purple-600 mb-1">
-              {formSettings?.audition_form_enabled ? 'Open' : 'Closed'}
-            </div>
-            <div className="text-gray-600 text-sm">Audition Applications</div>
-          </div>
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-            <div className="text-lg font-bold text-blue-600 mb-1">
-              {formSettings?.membership_form_enabled ? 'Open' : 'Closed'}
-            </div>
-            <div className="text-gray-600 text-sm">Membership Applications</div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <footer className="pfs-footer"><span>Each application type keeps its own open/closed state and message.</span><span>Public forms reflect saved settings right away.</span></footer>
+    </section>
   );
 };

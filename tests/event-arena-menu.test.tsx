@@ -20,12 +20,12 @@ beforeEach(() => {
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callback(0); return 1; }); vi.stubGlobal('cancelAnimationFrame', vi.fn());
 });
 afterEach(() => vi.unstubAllGlobals());
-it.each(['/events', '/'])('opens the same illustrated drawer on %s and closes through Escape and the backdrop', async path => {
+it.each(['/events', '/', '/schedule'])('opens the same illustrated drawer on %s and closes through Escape and the backdrop', async path => {
   const host = document.createElement('div'); document.body.appendChild(host); const root = createRoot(host);
   try {
     await act(async () => root.render(<MemoryRouter initialEntries={[path]}><Navbar /></MemoryRouter>));
     const toggle = host.querySelector('[aria-controls="festival-mobile-menu"]') as HTMLButtonElement;
-    expect(host.querySelector('.doom-navigation')).toBeTruthy();
+    expect(host.querySelector(path === '/schedule' ? '.rico-schedule-nav' : '.doom-navigation')).toBeTruthy();
     expect(toggle.getAttribute('aria-expanded')).toBe('false'); toggle.focus();
     await act(async () => toggle.click());
     const menu = document.querySelector('#festival-mobile-menu');

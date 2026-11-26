@@ -31,7 +31,7 @@
 .sd-topbar { height: 88px; border-bottom: 1px solid var(--sd-line); padding: 0 40px; display: flex; align-items: center; justify-content: space-between; gap: 20px; background: #0f1915; }
 .sd-brand-group, .sd-header-actions { display: flex; align-items: center; gap: 18px; }
 .sd-brand { display: flex; gap: 13px; align-items: center; color: #ecdfba; font-size: 18px; font-weight: 600; letter-spacing: .16em; }
-.sd-brand > img { height: 38px; width: 32px; }
+.sd-brand > img { height: 38px; width: 32px; object-fit: contain; }
 .sd-brand small { display: block; font-size: 7px; letter-spacing: .17em; color: var(--sd-muted); margin-top: 3px; font-weight: 400; }
 .sd-brand small b { color: var(--sd-gold); font-weight: 500; }
 .sd-portal-label { margin-left: 26px; padding-left: 28px; border-left: 1px solid var(--sd-line); color: var(--sd-muted); font-size: 12px; }

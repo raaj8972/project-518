@@ -1,3 +1,4 @@
+import { SITE_FEATURES } from '../constants/siteFeatures';
 import { selectHomepageArtists } from '../utils/guestArtists';
 import { isHomepageRoadmapVisible } from '../utils/homepageRoadmap';
 import { useHomepageEvents } from '../hooks/useHomepageEvents';
@@ -9,7 +10,6 @@ import { useLocation } from 'react-router-dom';
 
 import { useData } from '../context/DataContext';
 import DeferredSection from '../components/DeferredSection';
-const MembershipModal = React.lazy(() => import('../components/MembershipModal').then(module => ({ default: module.MembershipModal })));
 import HomeHero from '../components/HomeHero';
 import { SEO } from '../components/SEO';
 import ChunkErrorBoundary from '../components/ChunkErrorBoundary.tsx';
@@ -29,7 +29,6 @@ const TopLegendsSection = React.lazy(() => import('../components/Home/TopLegends
 
 // Lazy Loaded Components
 const WinnersSection = React.lazy(() => import('../components/WinnersSection'));
-const InstagramTrailerSection = React.lazy(() => import('../components/InstagramTrailerSection'));
 const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal'));
 const GuestArtistVideoModal = React.lazy(() => import('../components/GuestArtistVideoModal'));
 const GuestArtistDetailModal = React.lazy(() => import('../components/GuestArtistDetailModal'));
@@ -37,7 +36,7 @@ const Roadmap = React.lazy(() => import('../components/Roadmap'));
 
 import '../styles/Home.css';
 
-export const Home: React.FC = () => {
+export const Home = ({ preview }: { preview?: { mobile: boolean } } = {}) => {
   const location = useLocation();
   const { 
     events, 
@@ -48,13 +47,11 @@ export const Home: React.FC = () => {
   coreTeamMembers,
   coreCommittees,
     homepageSettings,
-    formSettings,
     aboutSettings,
     loading
   } = useData();
   
   // Modal states
-  const [membershipModal, setMembershipModal] = useState(false);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
@@ -71,10 +68,11 @@ export const Home: React.FC = () => {
   // Animation/Interaction states
   const [facultyPaused, setFacultyPaused] = useState(false);
   const [committeePaused, setCommitteePaused] = useState(false);
-  const [showInteractive, setShowInteractive] = useState(false);
+  const [showInteractive, setShowInteractive] = useState(!!preview);
   const homeRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
+    if (preview) return;
     let idleId: number | null = null;
     if (typeof (window as any).requestIdleCallback === 'function') {
       idleId = (window as any).requestIdleCallback(() => setShowInteractive(true), { timeout: 500 });
@@ -113,6 +111,7 @@ export const Home: React.FC = () => {
 
 
   useEffect(() => {
+    if (preview) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let context: { revert: () => void } | undefined;
@@ -170,7 +169,7 @@ export const Home: React.FC = () => {
   const enabledFacultyHeads = React.useMemo(() => facultyHeads.filter(head => head.enabled && head.image && head.image.trim() !== ''), [facultyHeads]);
   const committeeHeads = React.useMemo(() => coreTeamMembers.filter(m => m.enabled && m.is_head && !m.is_council && m.image && m.image.trim() !== ''), [coreTeamMembers]);
   // Council members (non-head) are also part of leadership carousel
-  const councilMembers = React.useMemo(() => coreTeamMembers.filter(m => m.enabled && m.is_council && !m.is_head && m.image && m.image.trim() !== ''), [coreTeamMembers]);
+  const councilMembers = React.useMemo(() => coreTeamMembers.filter(m => m.enabled && m.is_council && m.image && m.image.trim() !== ''), [coreTeamMembers]);
   
   const sortedFacultyHeads = React.useMemo(() => enabledFacultyHeads.slice().sort((a, b) => a.order_position - b.order_position), [enabledFacultyHeads]);
   
@@ -210,6 +209,7 @@ export const Home: React.FC = () => {
 
   // Observe only this page, including sections whose chunks arrive later.
   useEffect(() => {
+    if (preview) return;
     const page = homeRef.current;
     if (!page) return;
     const selector = '.scroll-animate, .scroll-animate-3d';
@@ -305,9 +305,9 @@ export const Home: React.FC = () => {
           @apply bg-indigo-950/40 border-indigo-600/40 hover:bg-indigo-900/60 hover:border-indigo-500 hover:shadow-[0_0_40px_rgba(99,102,241,0.4)];
         }
       `}</style>
-      <SEO />
+      {!preview && <SEO />}
       {/* Hero Section */}
-      <HomeHero />
+      <HomeHero previewMobile={preview?.mobile} />
 
       {/* Featured Guest Artists */}
       <React.Suspense fallback={<div className="h-[500px] bg-black/20 animate-pulse" />}>
@@ -332,28 +332,6 @@ export const Home: React.FC = () => {
       </React.Suspense>
 
 
-      {/* Instagram Trailer Section */}
-      {homepageSettings?.instagram_trailer_enabled && homepageSettings?.instagram_trailer_url && (
-        <React.Suspense fallback={<div className="h-96 flex items-center justify-center text-gray-400">Loading trailer...</div>}>
-          <InstagramTrailerSection
-            url={homepageSettings.instagram_trailer_url}
-            title={homepageSettings.instagram_trailer_title || 'OFFICIAL TRAILER'}
-            subtitle={homepageSettings.instagram_trailer_subtitle || 'Watch our official event trailer'}
-          />
-        </React.Suspense>
-      )}
-
-      {/* Instagram Aftermovie Section */}
-      {homepageSettings?.instagram_aftermovie_enabled && homepageSettings?.instagram_aftermovie_url && (
-        <React.Suspense fallback={<div className="h-96 flex items-center justify-center text-gray-400">Loading aftermovie...</div>}>
-          <InstagramTrailerSection
-            url={homepageSettings.instagram_aftermovie_url}
-            title={homepageSettings.instagram_aftermovie_title || 'EVENT AFTERMOVIE'}
-            subtitle={homepageSettings.instagram_aftermovie_subtitle || 'Relive the best moments from our event'}
-          />
-        </React.Suspense>
-      )}
-
       {/* Winners Section */}
       <React.Suspense fallback={null}>
         <WinnersSection />
@@ -361,13 +339,13 @@ export const Home: React.FC = () => {
 
       {/* Chief Guest Section */}
       <React.Suspense fallback={<div className="h-64 bg-black/20 animate-pulse" />}>
-        <ChiefGuestSection
+        {SITE_FEATURES.chiefGuests && <ChiefGuestSection
           chiefGuests={chiefGuests as any}
           setSelectedChiefGuest={setSelectedChiefGuest}
           setChiefGuestModalOpen={setChiefGuestModalOpen}
           detailOpen={detailOpen}
           videoModalOpen={videoModalOpen}
-        />
+        />}
       </React.Suspense>
 
       {videoModalOpen && (
@@ -403,7 +381,7 @@ export const Home: React.FC = () => {
 
 
       {/* Featured Partners */}
-      <DeferredSection minHeight={300} eager={!!location.hash}>
+      <DeferredSection minHeight={300} eager={!!preview || !!location.hash}>
       <React.Suspense fallback={<div className="h-48 bg-black/20 animate-pulse" />}>
         <FeaturedSponsors
           featuredSponsors={featuredSponsors}
@@ -417,10 +395,10 @@ export const Home: React.FC = () => {
       </DeferredSection>
 
       {/* Leadership Section */}
-      <DeferredSection minHeight={850} eager={!!location.hash}>
+      <DeferredSection minHeight={850} eager={!!preview || !!location.hash}>
       <React.Suspense fallback={<div className="h-screen bg-black/20 animate-pulse" />}>
         <LeadershipSection
-          homepageSettings={homepageSettings}
+          homepageSettings={{ ...homepageSettings, show_faculty_heads: sortedFacultyHeads.length > 0, show_committee_heads: sortedCommitteeHeads.length > 0 }}
           coreCommittees={coreCommittees}
           enabledFacultyHeads={enabledFacultyHeads as any}
           sortedFacultyHeads={sortedFacultyHeads as any}
@@ -441,13 +419,13 @@ export const Home: React.FC = () => {
 
       {/* Roadmap Section */}
       {isHomepageRoadmapVisible(homepageSettings?.roadmap_enabled) && (
-        <DeferredSection minHeight="clamp(1500px, 150vw, 2200px)" eager={!!location.hash}><React.Suspense fallback={<div className="h-96 flex items-center justify-center text-gray-400">Loading roadmap...</div>}>
+        <DeferredSection minHeight="clamp(1500px, 150vw, 2200px)" eager={!!preview || !!location.hash}><React.Suspense fallback={<div className="h-96 flex items-center justify-center text-gray-400">Loading roadmap...</div>}>
           <Roadmap />
         </React.Suspense></DeferredSection>
       )}
 
       {/* About Section */}
-      <DeferredSection minHeight={aboutSettings?.enabled ? 900 : 0} eager={!!location.hash}>
+      <DeferredSection minHeight={aboutSettings?.enabled ? 900 : 0} eager={!!preview || !!location.hash}>
       <React.Suspense fallback={<div className="h-96 bg-black/20 animate-pulse" />}>
         <AboutSection aboutSettings={aboutSettings as any} />
       </React.Suspense>
@@ -455,14 +433,6 @@ export const Home: React.FC = () => {
 
 
 
-
-      {/* Membership Modal */}
-      {formSettings?.membership_form_enabled && membershipModal && (
-        <React.Suspense fallback={null}><MembershipModal
-          isOpen={membershipModal}
-          onClose={() => startTransition(() => setMembershipModal(false))}
-        /></React.Suspense>
-      )}
 
       {/* Faculty Profile Modal */}
       {facultyModalOpen && <React.Suspense fallback={null}><FacultyProfileModal
@@ -656,7 +626,7 @@ export const Home: React.FC = () => {
         }
       `}</style>
       {/* Chief Guest Modal */}
-      {chiefGuestModalOpen && <React.Suspense fallback={null}><ChiefGuestModal
+      {SITE_FEATURES.chiefGuests && chiefGuestModalOpen && <React.Suspense fallback={null}><ChiefGuestModal
         isOpen={chiefGuestModalOpen}
         selectedChiefGuest={selectedChiefGuest}
         onClose={() => { startTransition(() => { setChiefGuestModalOpen(false); setSelectedChiefGuest(null); }); }}

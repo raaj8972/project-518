@@ -1,233 +1,75 @@
 import nodemailer from 'nodemailer';
 
-// Validate environment variables on demand based on provider
-const validateResendConfig = () => {
-    if (!process.env.RESEND_API_KEY) {
-        console.error('❌ Missing RESEND_API_KEY');
-        return { valid: false, error: 'Missing RESEND_API_KEY environment variable' };
-    }
-    return { valid: true };
+export type EmailProvider = 'smtp' | 'resend';
+export type EmailOptions = {
+  to: string | string[];
+  subject: string;
+  html: string;
+  provider?: EmailProvider;
+  from?: string;
+  attachments?: { filename: string; content: string }[];
 };
+type EmailResult = { success: boolean; error?: string; messageId?: string; id?: string; provider?: EmailProvider; details?: { code?: string; status?: number } };
+const mailbox = (value: string) => value.match(/<([^<>]+)>\s*$/)?.[1] || value;
+const validAddress = (value: string) => !/[\r\n]/.test(value) && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(mailbox(value));
 
-const validateSMTPConfig = () => {
-  const missing: string[] = [];
-  if (!process.env.SMTP_USER) missing.push('SMTP_USER');
-  if (!process.env.SMTP_PASS) missing.push('SMTP_PASS');
-  
-  if (missing.length > 0) {
-    console.error(`❌ Missing required SMTP variables: ${missing.join(', ')}`);
-    return { valid: false, missing };
+export function emailProviderConfiguration(provider: EmailProvider) {
+  if (provider === 'resend') {
+    const sender = (process.env.RESEND_FROM_EMAIL || process.env.EMAIL_SENDER || '').trim();
+    if (!process.env.RESEND_API_KEY?.trim()) return { ready: false, sender, error: 'Resend API key is not configured.' };
+    if (!validAddress(sender) || /@(gmail|yahoo|hotmail|outlook)\.com$/i.test(mailbox(sender))) return { ready: false, sender, error: 'Set RESEND_FROM_EMAIL to an address on your verified sending domain.' };
+    return { ready: true, sender };
   }
-  return { valid: true, missing: [] };
-};
+  const sender = (process.env.EMAIL_SENDER || process.env.SMTP_USER || '').trim();
+  if (!process.env.SMTP_USER?.trim() || !process.env.SMTP_PASS?.trim()) return { ready: false, sender, error: 'SMTP credentials are not configured.' };
+  if (!validAddress(sender)) return { ready: false, sender, error: 'SMTP sender address is invalid.' };
+  return { ready: true, sender };
+}
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.hostinger.com',
-  port: 465,
-  secure: true,
-  connectionTimeout: 30000, // 30 seconds
-  socketTimeout: 60000, // 60 seconds
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  pool: true, // Use connection pooling
-  maxConnections: 5,
-  maxMessages: 100,
-});
+export function smtpTransportOptions() {
+  const port = Number(process.env.SMTP_PORT || 465);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('SMTP_PORT is invalid.');
+  const secure = process.env.SMTP_SECURE === undefined ? port === 465 : process.env.SMTP_SECURE === 'true';
+  return {
+    host: process.env.SMTP_HOST?.trim() || 'smtp.hostinger.com', port, secure,
+    ...(!secure ? { requireTLS: true } : {}),
+    connectionTimeout: 12000, greetingTimeout: 12000, socketTimeout: 25000,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  };
+}
 
-type EmailOptions = {
-    to: string | string[];
-    subject: string;
-    html: string;
-    provider?: 'smtp' | 'resend';
-    from?: string; // Optional override
-    attachments?: Array<{
-        filename: string;
-        content: string; // base64 string
-    }>;
-};
-
-// Helper to format error messages
-const formatSMTPError = (error: any): string => {
-  const errorMsg = error.message || String(error);
-  
-  // Common SMTP error patterns
-  if (errorMsg.includes('Invalid login') || errorMsg.includes('535')) {
-    return 'SMTP authentication failed: Invalid username or password';
-  }
-  if (errorMsg.includes('ECONNREFUSED')) {
-    return 'SMTP connection refused: Cannot reach mail server (check host/port)';
-  }
-  if (errorMsg.includes('ETIMEDOUT') || errorMsg.includes('timeout')) {
-    return 'SMTP connection timeout: Mail server not responding';
-  }
-  if (errorMsg.includes('ENOTFOUND')) {
-    return 'SMTP DNS error: Mail server hostname not found';
-  }
-  if (errorMsg.includes('ECONNRESET')) {
-    return 'SMTP connection reset: Network or firewall issue';
-  }
-  if (errorMsg.includes('550')) {
-    return 'SMTP rejected: Recipient address rejected or mailbox unavailable';
-  }
-  if (errorMsg.includes('554')) {
-    return 'SMTP rejected: Message rejected by server (possibly spam filter)';
-  }
-  
-  return errorMsg;
-};
-
-export const sendEmail = async ({ to, subject, html, provider = 'smtp', from, attachments }: EmailOptions) => {
-  const sender = from || process.env.EMAIL_SENDER || process.env.SMTP_USER || 'no-reply@ricorrenza.fun';
-  
-  console.log(`📧 Sending email via [${provider.toUpperCase()}] to: ${to}`);
-  console.log(`📝 Subject: ${subject}`);
-  if (attachments) {
-    console.log(`📎 Attachments: ${attachments.length} file(s)`);
-  }
-
+export const sendEmail = async ({ to, subject, html, provider = 'smtp', from, attachments }: EmailOptions): Promise<EmailResult> => {
+  if (!['smtp', 'resend'].includes(provider)) return { success: false, error: 'Invalid email provider.' };
+  const recipients = Array.isArray(to) ? to : [to];
+  if (!recipients.length || recipients.length > 100 || recipients.some(value => typeof value !== 'string' || !validAddress(value))) return { success: false, error: 'A valid recipient is required.' };
+  if (!subject?.trim() || /[\r\n]/.test(subject)) return { success: false, error: 'A valid email subject is required.' };
+  const config = emailProviderConfiguration(provider);
+  if (!config.ready) return { success: false, error: config.error };
+  const sender = from || config.sender;
+  if (!validAddress(sender)) return { success: false, error: 'Email sender address is invalid.' };
   try {
     if (provider === 'smtp') {
-        const smtpCheck = validateSMTPConfig();
-        if (!smtpCheck.valid) {
-            return { 
-              success: false, 
-              error: `Missing SMTP credentials: ${smtpCheck.missing?.join(', ')}`,
-              details: smtpCheck 
-            };
-        }
-        // Verify transporter configuration (only on first send)
-        if (!transporter.transporter) {
-          try {
-            await transporter.verify();
-            console.log('✅ SMTP transporter verified');
-          } catch (verifyError: any) {
-            const errorMsg = formatSMTPError(verifyError);
-            console.error('❌ SMTP verification failed:', errorMsg);
-            return { 
-              success: false, 
-              error: errorMsg,
-              details: { 
-                originalError: verifyError.message,
-                code: verifyError.code 
-              }
-            };
-          }
-        }
-
-        // Convert base64 attachments to Buffer for nodemailer
-        let nodemailerAttachments;
-        try {
-          nodemailerAttachments = attachments?.map(att => ({
-            filename: att.filename,
-            content: Buffer.from(att.content, 'base64')
-          }));
-        } catch (attachmentError: any) {
-          console.error('❌ Attachment processing failed:', attachmentError);
-          return {
-            success: false,
-            error: 'Failed to process email attachments',
-            details: { originalError: attachmentError.message }
-          };
-        }
-
-        const info = await transporter.sendMail({
-            from: sender,
-            to,
-            subject,
-            html,
-            attachments: nodemailerAttachments
-        });
-        
-        console.log('✅ SMTP Message sent successfully. Message ID:', info.messageId);
-        return { success: true, messageId: info.messageId, provider: 'smtp' };
-    } 
-    else if (provider === 'resend') {
-        const resendCheck = validateResendConfig();
-        if (!resendCheck.valid) {
-          return { success: false, error: resendCheck.error };
-        }
-        const resendKey = process.env.RESEND_API_KEY;
-
-        // Resend strictness: 'from' must be from a verified domain.
-        // If EMAIL_SENDER is a Gmail/Yahoo address, Resend will reject it.
-        let verifiedSender = sender;
-        const unverifiedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com'];
-        const isUnverified = unverifiedDomains.some(domain => sender.toLowerCase().includes(`@${domain}`));
-
-        if (isUnverified) {
-          console.warn(`⚠️ Warning: Resend rejects ${sender.split('@')[1]} addresses. Falling back to onboarding@resend.dev.`);
-          verifiedSender = 'onboarding@resend.dev';
-        }
-
-        // Resend accepts attachments with base64 content
-        const resendAttachments = attachments?.map(att => ({
-            filename: att.filename,
-            content: att.content
-        }));
-
-        const resBody = {
-            from: verifiedSender,
-            to: Array.isArray(to) ? to : [to],
-            subject,
-            html,
-            attachments: resendAttachments
-        };
-
-        const res = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${resendKey}`,
-            },
-            body: JSON.stringify(resBody),
-        });
-
-        if (!res.ok) {
-            const errorData = await res.json();
-            const errorMsg = `Resend API error (${res.status}): ${JSON.stringify(errorData)}`;
-            console.error('❌ Resend failed:', errorMsg);
-            
-            // Diagnostic logging to file for easier retrieval
-            try {
-              const fs = await import('fs');
-              const logEntry = `[${new Date().toISOString()}] Resend Failure:\nPayload: ${JSON.stringify(resBody, null, 2)}\nError: ${errorMsg}\n\n`;
-              fs.appendFileSync('/tmp/resend_error.log', logEntry);
-            } catch (logErr) {
-              // ignore log errors
-            }
-
-            return { 
-              success: false, 
-              error: errorMsg,
-              details: errorData 
-            };
-        }
-
-        const data = await res.json();
-        console.log('✅ Resend email sent successfully. ID:', data.id);
-        return { success: true, id: data.id, provider: 'resend' };
+      const transport = nodemailer.createTransport(smtpTransportOptions());
+      try {
+        const info = await transport.sendMail({ from: sender, to: recipients, subject, html, attachments: attachments?.map(file => ({ filename: file.filename, content: Buffer.from(file.content, 'base64') })) });
+        if (info.rejected?.length || !info.accepted?.length) return { success: false, provider, error: 'The mail server rejected the recipient.' };
+        return { success: true, messageId: info.messageId, provider };
+      } finally { transport.close(); }
     }
-    
-    const errorMsg = `Invalid email provider: ${provider}`;
-    console.error('❌', errorMsg);
-    return { success: false, error: errorMsg };
-    
-  } catch (error: any) {
-    const errorMsg = formatSMTPError(error);
-    console.error(`❌ Error sending email (${provider}):`, errorMsg);
-    console.error('Full error stack:', error.stack || error);
-    
-    return { 
-      success: false, 
-      error: errorMsg,
-      details: {
-        originalError: error.message,
-        code: error.code,
-        command: error.command,
-        stack: error.stack
-      }
-    };
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+      body: JSON.stringify({ from: sender, to: recipients, subject, html, ...(attachments?.length ? { attachments } : {}) }),
+      signal: AbortSignal.timeout(20000),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.id) {
+      console.error('[email] Resend delivery failed', { status: response.status, code: result.name });
+      return { success: false, provider, error: response.status === 403 ? 'Resend rejected the sending domain or API key. Check domain verification and sender settings.' : 'Resend could not accept the message. Check provider configuration and try again.', details: { status: response.status } };
+    }
+    return { success: true, id: result.id, provider };
+  } catch (failure) {
+    const code = (failure as { code?: string }).code || (failure instanceof Error ? failure.name : 'DELIVERY_ERROR');
+    console.error('[email] Delivery failed', { provider, code });
+    return { success: false, provider, error: code === 'EAUTH' ? 'SMTP authentication failed. Check the username and password or app password.' : 'Email delivery failed. Check provider connectivity and configuration.', details: { code } };
   }
 };

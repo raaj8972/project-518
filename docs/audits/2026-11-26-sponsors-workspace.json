@@ -1,0 +1,44 @@
+{
+  "database": {
+    "rls": true,
+    "pdfBucket": true,
+    "logoBucket": true,
+    "logoWriteGuards": true,
+    "placementFunction": true,
+    "brochureWriteGuards": true,
+    "deletePlacementCleanup": true
+  },
+  "counts": {
+    "contacts": 2,
+    "packages": 5,
+    "sponsors": 1
+  },
+  "publicApi": {
+    "sponsors": true,
+    "sponsorship_packages": true,
+    "sponsorship_settings": true,
+    "contact_sections": true
+  },
+  "logoReads": [
+    {
+      "id": 14,
+      "ok": true,
+      "status": 200
+    }
+  ],
+  "roles": {
+    "sponsorAdminCrud": true,
+    "ownerCrud": true,
+    "unrelatedAdminDenied": true,
+    "anonymousWritesDenied": true,
+    "studentWritesDenied": true,
+    "sponsorHomepageFieldsOnly": true,
+    "logoAndPdfStorage": true,
+    "rolledBack": true
+  },
+  "mediaApi": {
+    "sponsor-logos": true,
+    "sponsor-brochures": true
+  },
+  "ok": true
+}

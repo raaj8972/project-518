@@ -10,7 +10,7 @@ import { SEO } from '../components/SEO';
 import { useFestivalDialog } from '../hooks/useFestivalDialog';
 import type { BandMember } from '../types/data';
 import { getEnabledHomeboundMembers, getHomeboundSocialLinks, safeHomeboundUrl } from '../utils/homebound';
-import { getHomeboundMemberCategory, readHomeboundContent, type HomeboundIcon } from '../utils/homeboundContent';
+import { getHomeboundMemberCategory, readHomeboundContent, type HomeboundIcon, type HomeboundPageContent } from '../utils/homeboundContent';
 import '../styles/Homebound.css';
 
 type Filter = string;
@@ -63,7 +63,7 @@ function HomeboundTitle({ title, artwork, enabled }: { title: string; artwork: s
   </h1>;
 }
 
-export const HomeBound = () => {
+export const HomeBound = ({ preview }: { preview?: { content: HomeboundPageContent; instagram_url: string; instagram_enabled: boolean; mobile: boolean } } = {}) => {
   const { bandMembers, formSettings, homeboundSettings, loading, isLoaded, connectionStatus, refreshAll } = useData();
   const [auditionOpen, setAuditionOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<BandMember | null>(null);
@@ -71,13 +71,16 @@ export const HomeBound = () => {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(() => typeof window !== 'undefined' && window.innerWidth < 700 ? 2 : 4);
   const touchStart = useRef<number | null>(null);
+  const previewMode = preview !== undefined;
+  const previewMobile = preview?.mobile;
   useEffect(() => {
+    if (previewMode) { setPageSize(previewMobile ? 2 : 4); setPage(0); return; }
     const media = window.matchMedia('(max-width: 699px)');
     const update = () => { setPageSize(media.matches ? 2 : 4); setPage(0); };
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
-  }, []);
-  const content = useMemo(() => readHomeboundContent(homeboundSettings?.page_content), [homeboundSettings?.page_content]);
+  }, [previewMobile, previewMode]);
+  const content = useMemo(() => preview?.content || readHomeboundContent(homeboundSettings?.page_content), [preview?.content, homeboundSettings?.page_content]);
   const members = useMemo(() => getEnabledHomeboundMembers(bandMembers || []), [bandMembers]);
   const categories = content.categories.filter(category => category.enabled);
   const filters: { id: string; label: string; icon: HomeboundIcon | 'all' }[] = [
@@ -94,9 +97,10 @@ export const HomeBound = () => {
   const pageCount = Math.ceil(filtered.length / pageSize);
   const currentPage = Math.min(page, Math.max(0, pageCount - 1));
   const visibleMembers = filtered.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
-  const socialUrl = homeboundSettings?.instagram_enabled ? safeHomeboundUrl(homeboundSettings.instagram_url) : null;
+  const socialSettings = preview || homeboundSettings;
+  const socialUrl = socialSettings?.instagram_enabled ? safeHomeboundUrl(socialSettings.instagram_url) : null;
   const musicUrl = members.map(member => { const links = getHomeboundSocialLinks(member); return links.youtube || links.spotify; }).find(Boolean);
-  const pending = !members.length && (loading || !isLoaded);
+  const pending = !preview && !members.length && (loading || !isLoaded);
   const disconnected = connectionStatus === 'offline' || connectionStatus === 'degraded';
   const chooseFilter = (value: Filter) => { setFilter(value); setPage(0); };
   const movePage = (direction: number) => setPage(Math.max(0, Math.min(pageCount - 1, currentPage + direction)));
@@ -105,7 +109,7 @@ export const HomeBound = () => {
   const currentMember = selectedMember ? members.find(member => member.id === selectedMember.id) : null;
 
   return <div className={`homebound-page${content.sections.hero ? '' : ' homebound-page--without-hero'}`}>
-    <SEO title={`${content.hero_title} — The College Band`} description={aboutText.replace(/\s+/g, ' ').slice(0, 180)} canonical="https://ricorrenza.fun/home-bound" image={content.hero_image || undefined} />
+    {!preview && <SEO title={`${content.hero_title} — The College Band`} description={aboutText.replace(/\s+/g, ' ').slice(0, 180)} canonical="https://ricorrenza.fun/home-bound" image={content.hero_image || undefined} />}
     {content.sections.hero && <section className="hb-hero" aria-labelledby="homebound-title">
       {content.hero_image && <img key={content.hero_image} className="hb-hero__stage" src={content.hero_image} alt={content.hero_image_alt} width="1774" height="887" {...imagePriority} onError={event => { event.currentTarget.hidden = true; }} />}
       <div className="hb-hero__heading">
@@ -139,7 +143,7 @@ export const HomeBound = () => {
         <div id="homebound-members" className="hb-members-grid" aria-busy={pending}
           onTouchStart={event => { touchStart.current = event.touches[0].clientX; }}
           onTouchEnd={event => { if (touchStart.current !== null) { const distance = touchStart.current - event.changedTouches[0].clientX; if (Math.abs(distance) > 50) movePage(distance > 0 ? 1 : -1); } touchStart.current = null; }}>
-          {pending ? Array.from({ length: pageSize }, (_, index) => <div className="hb-member-skeleton" key={index}><span /><span /></div>) : visibleMembers.map((member, index) => <HomeboundMemberCard key={member.id} member={member} index={currentPage * pageSize + index} icon={content.categories.find(category => category.id === getHomeboundMemberCategory(member, content.categories))?.icon} onSelect={setSelectedMember} />)}
+          {pending ? Array.from({ length: pageSize }, (_, index) => <div className="hb-member-skeleton" key={index}><span /><span /></div>) : visibleMembers.map((member, index) => <HomeboundMemberCard key={member.id} member={member} index={currentPage * pageSize + index} icon={content.categories.find(category => category.id === getHomeboundMemberCategory(member, content.categories))?.icon} onSelect={preview ? () => {} : setSelectedMember} />)}
         </div>
         {!pending && !filtered.length && <div className="hb-empty">
           <InstrumentIcon category={filterInfo.icon} />
@@ -168,12 +172,12 @@ export const HomeBound = () => {
       <p>{content.encore_text}</p><div>
         {musicUrl && <a href={musicUrl} target="_blank" rel="noopener noreferrer"><PlayIcon aria-hidden="true" />{content.listen_label}</a>}
         {socialUrl && <a href={socialUrl} target="_blank" rel="noopener noreferrer"><InstagramLogoIcon aria-hidden="true" />{content.follow_label}</a>}
-        {formSettings?.audition_form_enabled && <button type="button" onClick={() => setAuditionOpen(true)}>{content.audition_label}<ArrowTopRightIcon aria-hidden="true" /></button>}
+        {formSettings?.audition_form_enabled && <button type="button" disabled={!!preview} onClick={() => setAuditionOpen(true)}>{content.audition_label}<ArrowTopRightIcon aria-hidden="true" /></button>}
       </div>
     </section>}
     {content.sections.footer && <div className="hb-page-credit"><span>{content.footer_text}</span><span>{content.footer_subtitle}</span>{content.gallery_url && content.gallery_label && <Link to={content.gallery_url}>{content.gallery_label}<ArrowTopRightIcon aria-hidden="true" /></Link>}</div>}
-    {currentMember && <MemberProfile member={currentMember} bandHeading={content.band_heading} onClose={() => setSelectedMember(null)} />}
-    {formSettings?.audition_form_enabled && <AuditionModal isOpen={auditionOpen} onClose={() => setAuditionOpen(false)} />}
+    {!preview && currentMember && <MemberProfile member={currentMember} bandHeading={content.band_heading} onClose={() => setSelectedMember(null)} />}
+    {!preview && formSettings?.audition_form_enabled && <AuditionModal isOpen={auditionOpen} onClose={() => setAuditionOpen(false)} />}
   </div>;
 };
 

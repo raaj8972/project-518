@@ -1,6 +1,7 @@
+import { driveApi, listDriveFiles } from './lib/google-drive';
+import { driveFolderId } from '../../shared/galleryMedia';
 import { secureEvent } from './lib/api-security';
 import { Handler } from '@netlify/functions';
-import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from './lib/auth-verify';
 
 const implementation: Handler = async (event) => {
@@ -10,9 +11,6 @@ const implementation: Handler = async (event) => {
   
   console.log(`[DriveSync] Checking environment...`);
   console.log(`[DriveSync] GOOGLE_API_KEY present: ${!!GOOGLE_API_KEY}`);
-  if (GOOGLE_API_KEY) {
-    console.log(`[DriveSync] Key ends with: ...${GOOGLE_API_KEY.substring(GOOGLE_API_KEY.length - 4)}`);
-  }
   
   const START_TIME = Date.now();
   const TIMEOUT_MS = 25000; // 25 seconds for Netlify (default is 10s, can be increased)
@@ -49,7 +47,7 @@ const implementation: Handler = async (event) => {
   try {
     const { folderId, year, category, subfolderId } = JSON.parse(event.body || '{}');
 
-    if (!folderId) {
+    if (typeof folderId !== 'string' || !driveFolderId(folderId) || (subfolderId && (typeof subfolderId !== 'string' || !driveFolderId(subfolderId)))) {
       return { statusCode: 400, body: 'Missing folderId' };
     }
 
@@ -66,25 +64,13 @@ const implementation: Handler = async (event) => {
     if (isBatchMode) {
       // In batch mode, treat targetFolderId as the direct folder to sync
       console.log(`[DriveSync] Batch mode: syncing single folder directly`);
-      subfolders = [{ id: targetFolderId, name: 'Target Folder' }];
+      const folderMetadata = await driveApi(`files/${targetFolderId}`, { fields: 'id,name,mimeType' });
+      if (folderMetadata.mimeType !== 'application/vnd.google-apps.folder') throw new Error('Choose a Drive folder.');
+      subfolders = [{ id: targetFolderId, name: folderMetadata.name }];
     } else {
       // Full mode: enumerate all subfolders
       const q = `'${targetFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-      const folderRes = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&key=${GOOGLE_API_KEY}`
-      );
-      
-      if (!folderRes.ok) {
-        const errText = await folderRes.text();
-        console.error(`Google Drive API Error (${folderRes.status}):`, errText);
-        return { 
-          statusCode: folderRes.status, 
-          body: JSON.stringify({ error: `Google Drive API Error: ${folderRes.statusText}`, details: errText }) 
-        };
-      }
-      
-      const data = await folderRes.json();
-      subfolders = data.files || [];
+      subfolders = await listDriveFiles(q);
       console.log(`[DriveSync] Found ${subfolders.length} subfolders.`);
     }
 
@@ -197,7 +183,7 @@ const implementation: Handler = async (event) => {
         for (let i = 0; i < allImages.length; i += CHUNK_SIZE) {
             // We removed checkTimeout here to ensure we try to save as much as possible once scanning is done
             const chunk = allImages.slice(i, i + CHUNK_SIZE);
-            const { error } = await supabase.from('gallery_images').upsert(chunk, { onConflict: 'src' } as any);
+            const { error } = await supabase.from('gallery_images').upsert(chunk, { onConflict: 'src', ignoreDuplicates: true });
             if (error) {
                 console.error(`[DriveSync] Upsert error (chunk ${i/CHUNK_SIZE}):`, error);
                 throw new Error(`DB Error: ${error.message}`);
@@ -233,7 +219,7 @@ const implementation: Handler = async (event) => {
         } else {
             console.error('[DriveSync] Final phase error:', e);
             // Don't swallow if we have 0 images, otherwise we might return "Sync complete" for a fail
-            if (allImages.length === 0) throw e;
+            throw e;
         }
     }
 

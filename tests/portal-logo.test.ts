@@ -15,8 +15,9 @@ function mockImage(width = 1200, height = 600) {
 }
 
 it('uses published uploads, versions replacements, and preserves query strings and fragments', () => {
-  expect(getPortalLogoUrl(null)).toBe('/favicon.svg');
-  expect(getPortalLogoUrl({ brand_logo_url: '  ' })).toBe('/favicon.svg');
+  expect(getPortalLogoUrl(null)).toBe('/images/ricorrenza-medical-mark.svg');
+  expect(getPortalLogoUrl({ brand_logo_url: '  ' })).toBe('/images/ricorrenza-medical-mark.svg');
+  expect(getPortalLogoUrl({ brand_logo_url: '/favicon.svg' })).toBe('/images/ricorrenza-medical-mark.svg');
   expect(getPortalLogoUrl({ brand_logo_url: ' //cdn.example/logo.png?size=400#mark ', updated_at: 'new upload' })).toBe('https://cdn.example/logo.png?size=400&v=new%20upload#mark');
   expect(getPortalLogoUrl({ brand_logo_url: 'http://cdn.example/logo.webp' })).toBe('https://cdn.example/logo.webp?v=1');
   const embedded = 'data:image/png;base64,abc';

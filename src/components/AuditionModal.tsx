@@ -153,11 +153,12 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
 
     try {
       // Generate audition ID
-      const audId = `AUD-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const audId = crypto.randomUUID();
       setAuditionId(audId);
 
       // Prepare audition data for Supabase
       const auditionData = {
+        id: audId,
         participant_type: formData.participant_type,
         full_name: formData.full_name,
         email: formData.email,
@@ -167,8 +168,6 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
         portfolio_link: formData.portfolio_link || null,
         status: 'pending' as const
       };
-
-      console.log('Submitting audition data:', auditionData);
 
       // Submit to Supabase
       const start = performance.now();
