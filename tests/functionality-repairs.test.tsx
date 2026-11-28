@@ -94,6 +94,17 @@ describe('server authorization', () => {
     expect(JSON.parse(result.body)).toEqual({token_hash:'one-time',type:'magiclink'});
     expect(result.body).not.toContain('test-password');
   });
+  it('confirms new coordinator accounts and regenerates a magiclink token when generateLink returns signup', async () => {
+    mocks.client.rpc.mockResolvedValueOnce({data:{allowed:true},error:null}).mockResolvedValueOnce({data:true,error:null});
+    mocks.client.auth.admin.generateLink
+      .mockResolvedValueOnce({data:{user:{id:'coord-new',app_metadata:{}},properties:{hashed_token:'coord-signup',verification_type:'signup'}},error:null})
+      .mockResolvedValueOnce({data:{user:{id:'coord-new',app_metadata:{role:'coordinator',coordinator_event_id:'one'}},properties:{hashed_token:'coord-magic',verification_type:'magiclink'}},error:null});
+    mocks.client.auth.admin.updateUserById.mockResolvedValue({error:null});
+    const result = await run(coordinatorLogin,{eventId:'one',password:'test-password'});
+    expect(result.statusCode).toBe(200);
+    expect(mocks.client.auth.admin.updateUserById).toHaveBeenNthCalledWith(2,'coord-new',{email_confirm:true});
+    expect(JSON.parse(result.body)).toEqual({token_hash:'coord-magic',type:'magiclink'});
+  });
   it('rejects anonymous security controls and nonowner user-list access', async () => {
     mocks.verify.mockResolvedValueOnce({user:null,isAdmin:false,isOwner:false});
     expect((await run(securityControls,{action:'list_users'})).statusCode).toBe(401);
@@ -184,6 +195,19 @@ describe('additional authorization regressions', () => {
     expect(result.statusCode).toBe(200);
     expect(mocks.client.auth.admin.updateUserById).toHaveBeenCalledWith('cr',{app_metadata:{role:'cr',cr_batch:'A'}});
     expect(result.body).not.toContain('test-cr-password');
+  });
+  it('confirms new staff accounts and regenerates a magiclink token when generateLink initially returns signup', async () => {
+    mocks.client.rpc.mockResolvedValueOnce({data:{allowed:true},error:null}).mockResolvedValueOnce({data:true,error:null});
+    mocks.client.auth.admin.generateLink
+      .mockResolvedValueOnce({data:{user:{id:'cr-new',app_metadata:{}},properties:{hashed_token:'signup-hash',verification_type:'signup'}},error:null})
+      .mockResolvedValueOnce({data:{user:{id:'cr-new',app_metadata:{role:'cr',cr_batch:'2021'}},properties:{hashed_token:'magic-hash',verification_type:'magiclink'}},error:null});
+    mocks.client.auth.admin.updateUserById.mockResolvedValue({error:null});
+    const result = await run(crLogin,{batch:'2021',password:'test-cr-password'});
+    expect(result.statusCode).toBe(200);
+    expect(mocks.client.auth.admin.updateUserById).toHaveBeenNthCalledWith(1,'cr-new',{app_metadata:{role:'cr',cr_batch:'2021'}});
+    expect(mocks.client.auth.admin.updateUserById).toHaveBeenNthCalledWith(2,'cr-new',{email_confirm:true});
+    expect(mocks.client.auth.admin.generateLink).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(result.body)).toEqual({token_hash:'magic-hash',type:'magiclink'});
   });
   it('does not expose scheduled cleanup through a public API invocation', async () => {
     vi.stubEnv('CRON_SECRET','test-cron-secret');

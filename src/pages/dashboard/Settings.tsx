@@ -18,6 +18,7 @@ interface DashboardContextType {
   user: any;
   profile: any;
   updateProfile: (data: any) => Promise<any>;
+  refreshProfile?: () => Promise<void>;
   batchOptions: string[];
   showCollege: boolean;
   handlePhotoUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
@@ -32,6 +33,7 @@ const Settings: React.FC = () => {
   const { 
     profile, 
     updateProfile, 
+    refreshProfile,
     batchOptions, 
     showCollege,
     handlePhotoUpload,
@@ -93,7 +95,7 @@ const Settings: React.FC = () => {
       </div>
 
       <div className="rico-glass-card p-8 rounded-3xl border border-white/10 bg-white/5 space-y-10">
-        <CollegeIdentityCard userId={profile.id} />
+        <CollegeIdentityCard userId={profile.id} onSaved={refreshProfile ? () => void refreshProfile() : undefined} />
 
         {/* Photo Section */}
         <div className="flex flex-col items-center border-t border-white/[0.04] pt-8">

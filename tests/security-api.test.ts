@@ -6,6 +6,8 @@ import { handler as challenge } from '../netlify/functions/passkey-challenge';
 import { handler as listAdmins } from '../netlify/functions/list-admin-users';
 import { handler as forceLogout } from '../netlify/functions/force-logout';
 import { handler as coordinatorAI } from '../netlify/functions/coordinator-ai-groups';
+import { handler as crBatchIqmg } from '../netlify/functions/cr-batch-iqmg';
+import { handler as crManageIqmg } from '../netlify/functions/cr-manage-iqmg';
 import { fetchImage, allowedMediaUrl } from '../netlify/functions/lib/media-fetch';
 import { publicEnvironment } from '../shared/publicEnv';
 import { safeInstagramUrl } from '../src/utils/safeInstagramUrl';
@@ -135,4 +137,147 @@ it('protects read-only provider checks with participant page access and rejects 
  const implementation = vi.fn(async () => ({ statusCode: 200, body: '{}' })); const route = secureEvent('email-provider-status', implementation);
  expect((await run(route, {}, {}, 'GET')).statusCode).toBe(401); expect((await run(route, {}, { authorization: token() }, 'GET')).statusCode).toBe(403); expect(implementation).not.toHaveBeenCalled();
  expect((await run(route, {}, { authorization: token() }, 'POST')).statusCode).toBe(405);
+});
+
+it('scopes cr-batch-iqmg strictly to the caller CR batch and rejects cross-batch or non-CR tokens', async () => {
+ expect((await run(crBatchIqmg, {}, {}, 'GET')).statusCode).toBe(401);
+ expect((await run(crBatchIqmg, {}, { authorization: token() }, 'POST')).statusCode).toBe(405);
+ // Authenticated student or admin without CR role & cr_batch cannot read batch IQMG numbers
+ expect((await run(crBatchIqmg, {}, { authorization: token() }, 'GET')).statusCode).toBe(403);
+
+ // CR of batch 2021-2022 cannot query batch 2022-2023 and can only read verified same-batch students
+ mocks.getUser.mockResolvedValue({
+  data: { user: { id, email: 'cr-2021@staff.ricorrenza.fun', app_metadata: { role: 'cr', cr_batch: '2021-2022' } } },
+  error: null,
+ });
+ const crossBatch = await crBatchIqmg({
+  httpMethod: 'GET',
+  headers: { authorization: token() },
+  queryStringParameters: { batch: '2022-2023' },
+ } as any, {} as any, () => {});
+ expect(crossBatch?.statusCode).toBe(403);
+
+ mocks.from.mockImplementation((table: string) => {
+  const result = table === 'user_session_revocations'
+   ? { data: null, error: null }
+   : table === 'cr_batches'
+     ? { data: { batch: '2021-2022' }, error: null }
+     : table === 'profiles'
+       ? { data: [{ id: '11111111-1111-4111-8111-111111111111' }], error: null }
+       : table === 'student_iqmg_identities'
+         ? { data: [{ user_id: '11111111-1111-4111-8111-111111111111', iqmg_number: 'IQMG-2101', status: 'verified' }], error: null }
+         : { data: [], error: null };
+  const query: any = {
+   select: () => query,
+   eq: () => query,
+   in: () => query,
+   order: () => query,
+   range: () => Promise.resolve(result),
+   maybeSingle: () => Promise.resolve(result),
+   then: (resolve: any) => Promise.resolve(result).then(resolve),
+  };
+  return query;
+ });
+
+ const allowed = await crBatchIqmg({
+  httpMethod: 'GET',
+  headers: { authorization: token() },
+  queryStringParameters: { userIds: '11111111-1111-4111-8111-111111111111,22222222-2222-4222-8222-222222222222' },
+ } as any, {} as any, () => {});
+ expect(allowed?.statusCode).toBe(200);
+ expect(JSON.parse(allowed!.body!)).toEqual({
+  batch: '2021-2022',
+  identities: {
+   '11111111-1111-4111-8111-111111111111': { iqmg_number: 'IQMG-2101', status: 'verified', note: null, updated_at: null },
+  },
+ });
+});
+
+it('allows a CR to edit or flag correction on own-batch student IQMG while blocking cross-batch, non-CR, and duplicate claims', async () => {
+ expect((await run(crManageIqmg, { studentId: '11111111-1111-4111-8111-111111111111', action: 'update', iqmgNumber: 'IQMG-2105' })).statusCode).toBe(401);
+ expect((await run(crManageIqmg, {}, { authorization: token() }, 'GET')).statusCode).toBe(405);
+ expect((await run(crManageIqmg, { studentId: '11111111-1111-4111-8111-111111111111', action: 'update', iqmgNumber: 'IQMG-2105' }, { authorization: token() })).statusCode).toBe(403);
+
+ mocks.getUser.mockResolvedValue({
+  data: { user: { id, email: 'cr-2021@staff.ricorrenza.fun', app_metadata: { role: 'cr', cr_batch: '2021-2022' } } },
+  error: null,
+ });
+
+ // Reject cross-batch student update even with valid CR session
+ mocks.from.mockImplementation((table: string) => {
+  const result = table === 'user_session_revocations'
+   ? { data: null, error: null }
+   : table === 'cr_batches'
+     ? { data: { batch: '2021-2022' }, error: null }
+     : table === 'profiles'
+       ? { data: { id: '22222222-2222-4222-8222-222222222222', batch: '2022-2023' }, error: null }
+       : { data: null, error: null };
+  const query: any = { select: () => query, eq: () => query, neq: () => query, maybeSingle: () => Promise.resolve(result) };
+  return query;
+ });
+ const crossStudent = await run(crManageIqmg, {
+  studentId: '22222222-2222-4222-8222-222222222222',
+  action: 'update',
+  iqmgNumber: 'IQMG-2299',
+ }, { authorization: token() });
+ expect(crossStudent.statusCode).toBe(403);
+
+ // Same-batch student update writes student_iqmg_identities and notifies student_inbox
+ const insertedInbox: any[] = [];
+ mocks.from.mockImplementation((table: string) => {
+  const result = table === 'user_session_revocations'
+   ? { data: null, error: null }
+   : table === 'cr_batches'
+     ? { data: { batch: '2021-2022' }, error: null }
+     : table === 'profiles'
+       ? { data: { id: '11111111-1111-4111-8111-111111111111', batch: '2021-2022' }, error: null }
+       : table === 'student_iqmg_identities'
+         ? { data: null, error: null }
+         : { data: null, error: null };
+  const query: any = {
+   select: () => query,
+   eq: () => query,
+   neq: () => query,
+   maybeSingle: () => Promise.resolve(result),
+   upsert: (row: any) => ({
+    select: () => ({
+     single: () => Promise.resolve({ data: row, error: null }),
+    }),
+   }),
+   insert: (row: any) => {
+    if (table === 'student_inbox') insertedInbox.push(row);
+    return Promise.resolve({ data: row, error: null });
+   },
+  };
+  return query;
+ });
+
+ const updated = await run(crManageIqmg, {
+  studentId: '11111111-1111-4111-8111-111111111111',
+  action: 'update',
+  iqmgNumber: 'iqmg-2105',
+  note: 'Fixed digit typo',
+ }, { authorization: token() });
+ expect(updated.statusCode).toBe(200);
+ expect(JSON.parse(updated.body)).toMatchObject({
+  batch: '2021-2022',
+  studentId: '11111111-1111-4111-8111-111111111111',
+  iqmg_number: 'IQMG-2105',
+  status: 'pending',
+ });
+ expect(insertedInbox[0]).toMatchObject({
+  user_id: '11111111-1111-4111-8111-111111111111',
+  href: '/dashboard/settings',
+ });
+
+ const correction = await run(crManageIqmg, {
+  studentId: '11111111-1111-4111-8111-111111111111',
+  action: 'correct',
+  note: 'Upload ID number not roll number',
+ }, { authorization: token() });
+ expect(correction.statusCode).toBe(200);
+ expect(JSON.parse(correction.body)).toMatchObject({
+  iqmg_number: null,
+  status: 'correction_required',
+ });
 });

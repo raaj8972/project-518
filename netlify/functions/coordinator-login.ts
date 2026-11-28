@@ -2,6 +2,7 @@ import { trustedClientIp } from './lib/client-ip';
 import type { Handler } from '@netlify/functions';
 import { createHash } from 'node:crypto';
 import { getSupabaseClient } from './lib/supabase';
+import { issueStaffMagicLink } from './lib/staff-session';
 
 export const handler: Handler = async event => {
   const reply = (statusCode: number, body: unknown) => ({ statusCode, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }, body: JSON.stringify(body) });
@@ -21,13 +22,8 @@ export const handler: Handler = async event => {
       return reply(401, { error: 'Invalid access code' });
     }
     const email = `coordinator-${createHash('sha256').update(String(eventId)).digest('hex').slice(0, 32)}@staff.ricorrenza.fun`;
-    const { data, error: linkError } = await client.auth.admin.generateLink({ type: 'magiclink', email });
-    if (linkError || !data.user) throw new Error('Could not establish coordinator identity');
-    const { error: metadataError } = await client.auth.admin.updateUserById(data.user.id, {
-      app_metadata: { ...data.user.app_metadata, role: 'coordinator', coordinator_event_id: String(eventId) },
-    });
-    if (metadataError) throw metadataError;
-    return reply(200, { token_hash: data.properties.hashed_token, type: 'magiclink' });
+    const session = await issueStaffMagicLink(client, email, { role: 'coordinator', coordinator_event_id: String(eventId) });
+    return reply(200, session);
   } catch {
     return reply(500, { error: 'Could not sign in. Check the server configuration.' });
   }

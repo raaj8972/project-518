@@ -165,7 +165,7 @@ export const Teams = () => {
           </select>
           </label>
           <form onSubmit={event => { event.preventDefault(); void run('lookup-student', async () => setStudent(await api.findIQMGStudent(iqmg)), ''); }}>
-            <label>Student IQMG number<input disabled={!!busy} value={iqmg} onChange={event => { setIQMG(event.target.value.toUpperCase()); setStudent(undefined); }} placeholder="Exact college IQMG number" required autoComplete="off" />
+            <label>Student IQMG number<input disabled={!!busy} value={iqmg} onChange={event => { setIQMG(event.target.value.toUpperCase()); setStudent(undefined); }} placeholder="e.g. IQMG6738" required autoComplete="off" />
             </label>
             <button className="sd-button sd-button-secondary" disabled={!verified || !selectedTeam || !!busy}>Find student</button>
           </form>
@@ -174,7 +174,7 @@ export const Teams = () => {
               {student.full_name}
             </strong>
             <small>
-              {student.batch || 'Student'} · IQMG {student.iqmg_number}
+              {student.batch || 'Student'} · {/^iqmg/i.test(student.iqmg_number) ? student.iqmg_number : `IQMG ${student.iqmg_number}`}
             </small>
             <button className="sd-button" disabled={!!busy} onClick={() => void run('invite', async () => { await api.inviteIQMGStudent(selectedTeam, student.iqmg_number); setStudent(undefined); setIQMG(''); }, 'Invitation sent. The student must accept before joining.')}>Send invitation</button>
           </div>}

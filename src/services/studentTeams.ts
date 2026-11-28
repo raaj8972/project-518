@@ -5,6 +5,7 @@ export interface CollegeIdentity {
   status: 'pending' | 'verified' | 'correction_required';
   note: string | null;
   verified_at: string | null;
+  updated_at?: string | null;
 }
 export interface TeamPerson {
   user_id: string;

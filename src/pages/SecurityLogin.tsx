@@ -42,7 +42,7 @@ export default function SecurityLogin() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to sign in. Check your name and PIN/password.');
-      const { error: authError } = await supabase.auth.verifyOtp({ token_hash: data.token_hash, type: 'magiclink' });
+      const { error: authError } = await supabase.auth.verifyOtp({ token_hash: data.token_hash, type: data.type || 'magiclink' });
       if (authError) throw authError;
       localStorage.setItem('security_user', JSON.stringify(data.user));
       toast.success(`Welcome, ${data.user.full_name}!`);

@@ -42,7 +42,7 @@ export const CRLogin: React.FC = () => {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Sign-in failed. Check your batch PIN or password.');
-      const { error: authError } = await supabase.auth.verifyOtp({ token_hash: result.token_hash, type: 'magiclink' });
+      const { error: authError } = await supabase.auth.verifyOtp({ token_hash: result.token_hash, type: result.type || 'magiclink' });
       if (authError) throw authError;
       const session = {
         batch: selectedBatch,

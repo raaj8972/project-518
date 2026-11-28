@@ -69,6 +69,21 @@ it('uses the configured full academic batch and PIN without email fields', async
   expect(mocks.navigate).toHaveBeenCalledWith('/cr/dashboard');
 });
 
+it('forwards an explicit verification type returned by the CR login API', async () => {
+  mocks.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ token_hash: 'signup-once', type: 'signup' }) });
+  await mount();
+  await act(async () => {
+    const select = container.querySelector('select')!;
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(select, '2021-2022');
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const input = container.querySelector<HTMLInputElement>('#cr-login-password')!;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '4826');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(mocks.verify).toHaveBeenCalledWith({ token_hash: 'signup-once', type: 'signup' });
+});
+
 it('uses the same secondary batch settings as student registration', async () => {
   mocks.settings = { registration_participant_types: [], batch_options: ['2022-2023', '2023-2024'] };
   await mount();

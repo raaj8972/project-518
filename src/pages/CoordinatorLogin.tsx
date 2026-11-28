@@ -37,7 +37,7 @@ export const CoordinatorLogin = () => {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Sign-in failed. Check your access code.');
-      const { data: verified, error: authError } = await supabase.auth.verifyOtp({ token_hash: result.token_hash, type: 'magiclink' });
+      const { data: verified, error: authError } = await supabase.auth.verifyOtp({ token_hash: result.token_hash, type: result.type || 'magiclink' });
       if (authError || !verified.session) throw authError || new Error('Could not establish your session. Please try again.');
       const session = {
         eventId: selectedEvent.id,

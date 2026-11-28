@@ -16,6 +16,7 @@ export interface StudentProfile {
   iqmg_number?: string | null;
   iqmg_status?: 'pending'|'verified'|'correction_required'|null;
   iqmg_note?: string|null;
+  iqmg_updated_at?: string|null;
   is_approved: boolean;
   created_at: string;
   updated_at: string;
@@ -99,7 +100,7 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
           console.error('[StudentAuth] College identity refresh failed:', error);
           return undefined;
         });
-        if (activeUser.current === userId && sessionVersion.current === version) setProfile(previous => ({...data,iqmg_number:identity===undefined&&previous?.id===userId?previous.iqmg_number:identity?.iqmg_number||null,iqmg_status:identity===undefined&&previous?.id===userId?previous.iqmg_status:identity?.status||null,iqmg_note:identity===undefined&&previous?.id===userId?previous.iqmg_note:identity?.note||null} as StudentProfile));
+        if (activeUser.current === userId && sessionVersion.current === version) setProfile(previous => ({...data,iqmg_number:identity===undefined&&previous?.id===userId?previous.iqmg_number:identity?.iqmg_number||null,iqmg_status:identity===undefined&&previous?.id===userId?previous.iqmg_status:identity?.status||null,iqmg_note:identity===undefined&&previous?.id===userId?previous.iqmg_note:identity?.note||null,iqmg_updated_at:identity===undefined&&previous?.id===userId?previous.iqmg_updated_at:identity?.updated_at||null} as StudentProfile));
       }
     } catch (err) {
       console.error('[StudentAuth] Unexpected error fetching profile:', err);

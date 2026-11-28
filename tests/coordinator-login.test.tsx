@@ -7,6 +7,7 @@ import { CoordinatorLogin } from '../src/pages/CoordinatorLogin';
 const mocks = vi.hoisted(() => ({ events: [] as any[], loading: false, verifyOtp: vi.fn(), navigate: vi.fn(), push: vi.fn() }));
 vi.mock('../src/lib/supabase', () => ({ supabase: { auth: { verifyOtp: mocks.verifyOtp } } }));
 vi.mock('../src/context/DataContext', () => ({ useData: () => ({ events: mocks.events, loading: mocks.loading }) }));
+vi.mock('../src/context/CoreDataContext', () => ({ useOptionalCoreData: () => ({ homepageSettings: { brand_logo_url: 'https://cdn.example/crest.png', updated_at: '1' } }) }));
 vi.mock('../src/components/ToastProvider', () => ({ useToast: () => ({ push: mocks.push }) }));
 vi.mock('../src/components/SEO', () => ({ SEO: () => null }));
 vi.mock('react-router-dom', async importOriginal => ({ ...await importOriginal<typeof import('react-router-dom')>(), useNavigate: () => mocks.navigate }));
@@ -63,4 +64,9 @@ it('reports a rejected code inline without creating a session', async () => {
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('Invalid access code');
   expect(sessionStorage.getItem('coordinator_session')).toBeNull();
   expect(mocks.verifyOtp).not.toHaveBeenCalled(); expect(mocks.navigate).not.toHaveBeenCalled();
+});
+it('forwards an explicit verification type returned by the coordinator login API', async () => {
+  fetchMock.mockResolvedValue({ ok: true, json: async () => ({ token_hash: 'signup-hash', type: 'signup' }) });
+  await mount(); await choose('1'); await code('fixture-code'); await submit();
+  expect(mocks.verifyOtp).toHaveBeenCalledWith({ token_hash: 'signup-hash', type: 'signup' });
 });

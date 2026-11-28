@@ -2,6 +2,7 @@ import { trustedClientIp } from './lib/client-ip';
 import type { Handler } from '@netlify/functions';
 import { createHash } from 'node:crypto';
 import { getSupabaseClient } from './lib/supabase';
+import { issueStaffMagicLink } from './lib/staff-session';
 
 export const handler: Handler = async event => {
   const reply = (statusCode: number, body: unknown) => ({ statusCode, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }, body: JSON.stringify(body) });
@@ -18,10 +19,7 @@ export const handler: Handler = async event => {
     if (error) return reply(503, { error: 'CR access is unavailable. Apply the repair migration.' });
     if (!valid) { await client.rpc('record_failed_attempt', { request_ip: ip }); return reply(401, { error: 'Invalid batch password' }); }
     const email = `cr-${createHash('sha256').update(batch).digest('hex').slice(0, 32)}@staff.ricorrenza.fun`;
-    const { data: link, error: linkError } = await client.auth.admin.generateLink({ type: 'magiclink', email });
-    if (linkError || !link.user) throw new Error('Identity unavailable');
-    const { error: metadataError } = await client.auth.admin.updateUserById(link.user.id, { app_metadata: { ...link.user.app_metadata, role: 'cr', cr_batch: batch } });
-    if (metadataError) throw metadataError;
-    return reply(200, { token_hash: link.properties.hashed_token });
+    const session = await issueStaffMagicLink(client, email, { role: 'cr', cr_batch: batch });
+    return reply(200, session);
   } catch { return reply(500, { error: 'CR login unavailable' }); }
 };

@@ -2,6 +2,7 @@ import { trustedClientIp } from './lib/client-ip';
 import type { Handler } from '@netlify/functions';
 import { createHash } from 'node:crypto';
 import { getSupabaseClient } from './lib/supabase';
+import { issueStaffMagicLink } from './lib/staff-session';
 
 export const handler: Handler = async event => {
   const reply = (statusCode: number, body: unknown) => ({ statusCode, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }, body: JSON.stringify(body) });
@@ -19,10 +20,7 @@ export const handler: Handler = async event => {
     const identity=data.user.username;
     if(typeof identity!=='string'||!identity)throw new Error('Identity unavailable');
     const email = `security-${createHash('sha256').update(identity).digest('hex').slice(0, 32)}@staff.ricorrenza.fun`;
-    const { data: link, error: linkError } = await client.auth.admin.generateLink({ type: 'magiclink', email });
-    if (linkError || !link.user) throw new Error('Identity unavailable');
-    const { error: metadataError } = await client.auth.admin.updateUserById(link.user.id, { app_metadata: { ...link.user.app_metadata, role: 'security', security_username: identity } });
-    if (metadataError) throw metadataError;
-    return reply(200, { user: data.user, token_hash: link.properties.hashed_token });
+    const session = await issueStaffMagicLink(client, email, { role: 'security', security_username: identity });
+    return reply(200, { user: data.user, ...session });
   } catch { return reply(500, { error: 'Security login is unavailable. Check the server configuration.' }); }
 };

@@ -7,6 +7,7 @@ import SecurityLogin from '../src/pages/SecurityLogin';
 
 const mocks = vi.hoisted(() => ({ rpc: vi.fn(), verifyOtp: vi.fn(), navigate: vi.fn(), toast: vi.fn() }));
 vi.mock('../src/lib/supabase', () => ({ supabase: { rpc: mocks.rpc, auth: { verifyOtp: mocks.verifyOtp } } }));
+vi.mock('../src/context/CoreDataContext', () => ({ useOptionalCoreData: () => ({ homepageSettings: { brand_logo_url: 'https://cdn.example/crest.png', updated_at: '1' } }) }));
 vi.mock('../src/components/SEO', () => ({ SEO: () => null }));
 vi.mock('react-hot-toast', () => ({ default: { success: mocks.toast } }));
 vi.mock('react-router-dom', async importOriginal => ({ ...await importOriginal<typeof import('react-router-dom')>(), useNavigate: () => mocks.navigate }));
@@ -66,4 +67,9 @@ it('never stores the user if session verification fails', async () => {
   await mount(); await input('security-username', 'gate1'); await input('security-password', 'fixture-password'); await submit();
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('Session verification failed');
   expect(localStorage.getItem('security_user')).toBeNull(); expect(mocks.navigate).not.toHaveBeenCalled();
+});
+it('forwards an explicit verification type returned by the security login API', async () => {
+  fetchMock.mockResolvedValue({ ok: true, json: async () => ({ token_hash: 'signup-token', type: 'signup', user: { full_name: 'Gate One' } }) });
+  await mount(); await input('security-username', 'gate1'); await input('security-password', 'fixture-password'); await submit();
+  expect(mocks.verifyOtp).toHaveBeenCalledWith({ token_hash: 'signup-token', type: 'signup' });
 });

@@ -474,3 +474,156 @@ body .student-dashboard.student-dashboard .sd-reminder-settings select { backgro
 .sd-xp-line .sd-tier-pill.is-elite { color: #e0dbad; background: #2a3d27; border: 1px solid #8e9f60; padding: 5px 9px; border-radius: 6px; letter-spacing: .03em; }
 .sd-tier-pill svg { width: 14px; height: 14px; }
 .student-dashboard .student-elite-badge { border-color: #d8d29b; }
+
+/* Student Profile / Dashboard IQMG update & correction popup */
+.sd-iqmg-dialog {
+  width: min(460px, calc(100% - 28px));
+  max-height: calc(100dvh - 28px);
+  margin: auto;
+  padding: 0;
+  border-radius: 18px;
+  border: 1px solid #6b8654;
+  background: linear-gradient(165deg, #16261d, #0d1812);
+  color: #e6eedd;
+  box-shadow: 0 26px 60px #020805cc;
+  overflow: auto;
+  font-family: 'Geist Variable', system-ui, sans-serif;
+}
+.sd-iqmg-dialog[open] { display: block; }
+.sd-iqmg-dialog:modal { overscroll-behavior: contain; }
+.sd-iqmg-dialog::backdrop {
+  background: #030d08cc;
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+.sd-iqmg-dialog-body { display: grid; gap: 14px; padding: 22px; }
+.sd-iqmg-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sd-iqmg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #7f965d66;
+  background: #233627;
+  color: #cde6b4;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.sd-iqmg-badge.is-warning {
+  border-color: #e3bd8266;
+  background: #3d2c19;
+  color: #f6d59a;
+}
+.sd-iqmg-badge.is-verified {
+  border-color: #67d39b66;
+  background: #173326;
+  color: #a4ebc4;
+}
+.sd-iqmg-dialog h1 {
+  margin: 0;
+  font-size: clamp(20px, 2.8vw, 24px);
+  font-weight: 600;
+  line-height: 1.25;
+  color: #f4f8ed;
+  text-wrap: balance;
+}
+.sd-iqmg-note {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #4c6443;
+  background: #132118;
+  color: #d7e5cf;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.sd-iqmg-note.is-warning {
+  border-color: #c89d5866;
+  background: #2a2013;
+  color: #f4dbb0;
+}
+.sd-iqmg-current {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #3c5337;
+  background: #0e1a13;
+  font-size: 12px;
+  color: #b5c7a8;
+}
+.sd-iqmg-current strong {
+  color: #f2f6ea;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.sd-iqmg-form { display: grid; gap: 12px; }
+.sd-iqmg-field { display: grid; gap: 6px; }
+.sd-iqmg-field label { font-size: 13px; font-weight: 600; color: #e2ebd8; }
+.sd-iqmg-hint { margin: 0; font-size: 12px; color: #b5c7a8; line-height: 1.45; }
+.sd-iqmg-field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #56704c;
+  background: #0e1a13;
+  color: #f2f6ea;
+  font: inherit;
+  font-size: max(1rem, 1em);
+}
+.sd-iqmg-field input[aria-invalid='true'] { border-color: #e47c7c; }
+.sd-iqmg-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #d46a6a66;
+  background: #3d181a;
+  color: #ffd6d6;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.sd-iqmg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+.sd-iqmg-actions .sd-button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #b5dd95;
+  color: #162413;
+  border: 1px solid #7fa05e;
+  cursor: pointer;
+}
+.sd-iqmg-actions .sd-button.sd-button-secondary {
+  background: #18281d;
+  color: #d6e3cb;
+  border-color: #465d41;
+}
+.sd-iqmg-actions .sd-button:disabled { opacity: 0.55; cursor: not-allowed; }
+.sd-iqmg-help {
+  font-size: 12px;
+  color: #b7dca2;
+  text-decoration: underline;
+  justify-self: start;
+}
+.sd-iqmg-dialog :is(button, input, a):focus-visible {
+  outline: 2px solid #d9efbf;
+  outline-offset: 2px;
+}

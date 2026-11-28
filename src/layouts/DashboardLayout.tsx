@@ -16,6 +16,7 @@ import { BRAND_NAME } from '../constants/brand';
 import '../styles/StudentFestival.css';
 import WalletPassModal from '../components/dashboard/WalletPassModal';
 import StudentDashboardShell from '../components/dashboard/StudentDashboardShell';
+import { IQMGStatusPopup } from '../components/dashboard/IQMGStatusPopup';
 import '@fontsource-variable/geist';
 import '../styles/StudentDashboard.css';
 import { CartDrawer } from '../components/CartDrawer';
@@ -256,9 +257,11 @@ const DashboardLayout: React.FC = () => {
 
   if (!user) return null;
 
+  let content: React.ReactNode;
+
   // Profile Completion Gate
   if (!isProfileComplete && !setupHelp) {
-    return (
+    content = (
       <div className="student-festival min-h-[100dvh] neu-bg flex items-center justify-center px-4 relative overflow-hidden">
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-violet-800/10 rounded-full blur-[120px] pointer-events-none" />
@@ -274,7 +277,7 @@ const DashboardLayout: React.FC = () => {
             <form onSubmit={handleCompleteProfile} className="space-y-5">
               {[
                 { label: 'Full Name', value: compFullName, set: setCompFullName, type: 'text', placeholder: 'Your full name' },
-                { label: 'College IQMG number', value: compIQMG, set: setCompIQMG, type: 'text', placeholder: 'Number printed on your college ID' },
+                { label: 'College IQMG number', value: compIQMG, set: setCompIQMG, type: 'text', placeholder: 'e.g. IQMG6738' },
                 { label: 'Phone Number', value: compPhone, set: setCompPhone, type: 'tel', placeholder: '+91 XXXXXXXXXX' },
               ].map((field) => (
                 <div key={field.label}>
@@ -310,11 +313,9 @@ const DashboardLayout: React.FC = () => {
         </motion.div>
       </div>
     );
-  }
-
-  // Verification Pending Gate
-  if (!isApproved && !setupHelp) {
-    return (
+  } else if (!isApproved && !setupHelp) {
+    // Verification Pending Gate
+    content = (
       <div className="student-festival min-h-[100dvh] neu-bg flex items-center justify-center px-4 relative overflow-hidden">
         <div className="absolute top-1/3 -left-32 w-96 h-96 bg-violet-600/8 rounded-full blur-[120px] pointer-events-none" />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md w-full z-10">
@@ -337,27 +338,33 @@ const DashboardLayout: React.FC = () => {
         </motion.div>
       </div>
     );
+  } else {
+    content = (
+      <StudentDashboardShell studentId={isApproved&&isProfileComplete?user.id:undefined} profile={profile} xpData={dataFor===user.id?xpData:null} pendingInvitesCount={pendingInvitesCount} unreadCount={studentTools?.unread || 0} signOut={signOut}>
+        {selectedPass && (
+          <WalletPassModal
+            pass={{ ...selectedPass, event_name: registrations.find(r => r.id === selectedPass.registration_id)?.event?.title || sportsRegistrations.find(r => r.id === selectedPass.registration_id)?.event?.name || 'Festival entry' }}
+            onClose={() => setSelectedPass(null)}
+          />
+        )}
+        {dataError && <div className="sd-error" role="alert"><span>{dataError}</span><button onClick={() => void fetchUserRegistrations()}>Try again</button></div>}
+        <Outlet context={{
+          user, profile, registrations: dataFor===user.id?registrations:[], sportsRegistrations: dataFor===user.id?sportsRegistrations:[], entryPasses: dataFor===user.id?entryPasses:[],
+          xpData: dataFor===user.id?xpData:null, dataLoading: dataFor!==user.id||dataLoading, updateProfile, refreshProfile,
+          batchOptions, showCollege, handlePhotoUpload, handleCropComplete,
+          imageToCrop, setImageToCrop, uploading, fileInputRef, setSelectedPass,
+          pendingInvitesCount, setPendingInvitesCount, fetchUserRegistrations
+        }} />
+        <CartDrawer onRegisterSuccess={fetchUserRegistrations} />
+      </StudentDashboardShell>
+    );
   }
 
-
   return (
-    <StudentDashboardShell studentId={isApproved&&isProfileComplete?user.id:undefined} profile={profile} xpData={dataFor===user.id?xpData:null} pendingInvitesCount={pendingInvitesCount} unreadCount={studentTools?.unread || 0} signOut={signOut}>
-      {selectedPass && (
-        <WalletPassModal
-          pass={{ ...selectedPass, event_name: registrations.find(r => r.id === selectedPass.registration_id)?.event?.title || sportsRegistrations.find(r => r.id === selectedPass.registration_id)?.event?.name || 'Festival entry' }}
-          onClose={() => setSelectedPass(null)}
-        />
-      )}
-      {dataError && <div className="sd-error" role="alert"><span>{dataError}</span><button onClick={() => void fetchUserRegistrations()}>Try again</button></div>}
-      <Outlet context={{
-        user, profile, registrations: dataFor===user.id?registrations:[], sportsRegistrations: dataFor===user.id?sportsRegistrations:[], entryPasses: dataFor===user.id?entryPasses:[],
-        xpData: dataFor===user.id?xpData:null, dataLoading: dataFor!==user.id||dataLoading, updateProfile,
-        batchOptions, showCollege, handlePhotoUpload, handleCropComplete,
-        imageToCrop, setImageToCrop, uploading, fileInputRef, setSelectedPass,
-        pendingInvitesCount, setPendingInvitesCount, fetchUserRegistrations
-      }} />
-      <CartDrawer onRegisterSuccess={fetchUserRegistrations} />
-    </StudentDashboardShell>
+    <>
+      {content}
+      {!setupHelp && <IQMGStatusPopup userId={user.id} profile={profile} onSaved={refreshProfile} />}
+    </>
   );
 };
 

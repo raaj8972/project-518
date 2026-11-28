@@ -22,14 +22,14 @@ const policies: Record<string, Policy> = {
   'ai-extract-sponsors': ['sponsors'], 'ai-extract-tiers': ['sponsors'],
   'ai-extract-core-team': ['rico-family'], 'ai-extract-homebound': ['homebound'],
   'ai-extract-passwords': 'owner', 'ai-chat': 'admin', 'ai-check-models': 'admin', 'ai-generate-content': 'admin',
-  'get-event-candidates': ['events', 'registrations'], 'delete-r2-file': 'admin', 'get-r2-upload-url': 'admin',
+  'get-event-candidates': ['events', 'registrations'], 'delete-r2-file': 'admin', 'get-r2-upload-url': 'admin', 'cr-batch-iqmg': 'user', 'cr-manage-iqmg': 'user',
 };
 const publicReads = new Set(['health', 'public-security-settings', 'image-proxy', 'drive-proxy']);
-const readRoutes = new Set([...publicReads, 'list-admin-users', 'broadcast-schedule', 'email-provider-status']);
+const readRoutes = new Set([...publicReads, 'list-admin-users', 'broadcast-schedule', 'email-provider-status', 'cr-batch-iqmg']);
 const json = (statusCode: number, error: string) => ({ statusCode, body: JSON.stringify({ error }), headers: { 'Content-Type': 'application/json' } });
 const privateHeaders = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
 const metered = new Set(['passkey-challenge', 'passkey-register', 'passkey-login', 'get-r2-upload-url',
-  'image-proxy', 'drive-proxy', 'notify-event-update', 'send-confirmation', 'send-rejection', 'send-custom-email', 'email-provider-status', 'coordinator-ai-groups', 'broadcast-schedule']);
+  'image-proxy', 'drive-proxy', 'notify-event-update', 'send-confirmation', 'send-rejection', 'send-custom-email', 'email-provider-status', 'coordinator-ai-groups', 'broadcast-schedule', 'cr-batch-iqmg', 'cr-manage-iqmg']);
 
 async function rateLimit(name: string, event: any, client: any, userId = '') {
   if (!metered.has(name) && !name.startsWith('ai-')) return null;
